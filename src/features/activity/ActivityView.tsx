@@ -1,12 +1,13 @@
 import { useDeferredValue, useId, useMemo, useRef } from "react";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
-import { BarChartIcon, CloseIcon } from "../../shared/ui/icons";
+import { BarChartIcon } from "../../shared/ui/icons";
+import { HintBanner } from "../../shared/ui/HintBanner";
+import { useSessionHint } from "../../shared/hooks/useSessionHint";
 import { useSegmentIndicator } from "../../shared/ui/segment-indicator";
 import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
-import { usePullToRefresh } from "../dashboard/usePullToRefresh";
-import { useCanPullRefreshEnvironment, usePullRefreshHint } from "../dashboard/usePullRefreshHint";
+import { useCanPullRefreshEnvironment, usePullToRefresh } from "../dashboard/usePullToRefresh";
 import { EmptyAccountPanel } from "../accounts/EmptyAccountPanel";
 import { useReorderHint } from "../accounts/useReorderHint";
 import type { Account, ActivityTracker, Provider, UntrackedAccount } from "../../types";
@@ -132,7 +133,7 @@ export function ActivityView({
 
   const canPullRefreshEnv = useCanPullRefreshEnvironment();
   const canPullRefresh = Boolean(onRefresh) && accounts.length > 0 && Boolean(data) && canPullRefreshEnv;
-  const { showPullRefreshHint, dismissPullRefreshHint, completePullRefreshHint } = usePullRefreshHint(canPullRefresh, "activity");
+  const pullRefreshHint = useSessionHint("pull-refresh", "activity", canPullRefresh);
 
   const pullData = usePullToRefresh({
     containerRef,
@@ -143,7 +144,7 @@ export function ActivityView({
           await reload();
         }
       : undefined,
-    onTriggered: completePullRefreshHint,
+    onTriggered: pullRefreshHint.complete,
     disabled: !onRefresh || accounts.length === 0,
   });
 
@@ -203,7 +204,7 @@ export function ActivityView({
   }, [trackers, accountById]);
 
   const canReorder = accounts.length > 1 && (trackerCards.length + untracked.length) > 1;
-  const { showReorderHint, dismissReorderHint } = useReorderHint(canReorder, "activity");
+  const reorderHint = useReorderHint(canReorder, "activity");
 
   const retry = (
     <button type="button" className="button ghost compact-button" onClick={() => void reload()}>
@@ -245,32 +246,8 @@ export function ActivityView({
     }
     return (
       <>
-        {showReorderHint ? (
-          <div className="reorder-hint-banner" role="note">
-            <span>Press & drag a card below or in the sidebar to reorder</span>
-            <button
-              type="button"
-              className="reorder-hint-dismiss"
-              onClick={dismissReorderHint}
-              aria-label="Dismiss reorder hint"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        ) : null}
-        {showPullRefreshHint ? (
-          <div className="pull-refresh-hint-banner" role="note">
-            <span>Pull down on the screen to refresh data</span>
-            <button
-              type="button"
-              className="pull-refresh-hint-dismiss"
-              onClick={dismissPullRefreshHint}
-              aria-label="Dismiss pull-to-refresh hint"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        ) : null}
+        {reorderHint.show ? <HintBanner kind="reorder" onDismiss={reorderHint.dismiss} /> : null}
+        {pullRefreshHint.show ? <HintBanner kind="pull-refresh" onDismiss={pullRefreshHint.dismiss} /> : null}
         {error ? (
           <div className="activity-error" role="alert">
             <span>

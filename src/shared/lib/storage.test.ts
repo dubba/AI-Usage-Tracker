@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installFakeWindow } from "../../test-utils/fakeWindow";
-import { clearAppStorage, isStringArray, readJson, storageGet, storageKeys, storageRemove, storageSet, writeJson } from "./storage";
+import { clearAppStorage, hintStorageKeys, isStringArray, readJson, storageGet, storageKeys, storageRemove, storageSet, writeJson } from "./storage";
 
 beforeEach(() => {
   installFakeWindow();
@@ -68,6 +68,25 @@ describe("storage helpers", () => {
     expect(readJson("bad", ["fallback"])).toEqual(["fallback"]);
     writeJson("wrong", [1, 2]);
     expect(readJson("wrong", ["fallback"], isStringArray)).toEqual(["fallback"]);
+  });
+});
+
+describe("hintStorageKeys", () => {
+  it("names the keys earlier versions wrote, so saved hint progress carries over", () => {
+    expect(hintStorageKeys("reorder", "accounts")).toEqual({
+      seen: "ai-usage-tracker:reorder-hint-seen",
+      openCount: "ai-usage-tracker:reorder-hint-open-count",
+      sessionCounted: "ai-usage-tracker:reorder-hint-session-counted",
+      sessionDismissed: "ai-usage-tracker:reorder-hint-session-dismissed",
+    });
+    expect(hintStorageKeys("reorder", "activity").seen).toBe("ai-usage-tracker:activity-reorder-hint-seen");
+    expect(hintStorageKeys("pull-refresh", "accounts").openCount).toBe("ai-usage-tracker:pull-refresh-hint-open-count");
+    expect(hintStorageKeys("pull-refresh", "activity")).toEqual({
+      seen: "ai-usage-tracker:activity-pull-refresh-hint-seen",
+      openCount: "ai-usage-tracker:activity-pull-refresh-hint-open-count",
+      sessionCounted: "ai-usage-tracker:activity-pull-refresh-hint-session-counted",
+      sessionDismissed: "ai-usage-tracker:activity-pull-refresh-hint-session-dismissed",
+    });
   });
 });
 

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
+import { isMobileUserAgent } from "../../shared/lib/platform";
 import { isReordering } from "../../shared/lib/reorder-activity";
+import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 
 export type PullToRefreshState = "idle" | "pulling" | "refreshing" | "settling";
 
@@ -16,6 +19,16 @@ interface UsePullToRefreshOptions {
   onRefresh?: () => void | Promise<void>;
   onTriggered?: () => void;
   disabled?: boolean;
+}
+
+/** True when the current viewport or device supports touch / pull-to-refresh. */
+export function useCanPullRefreshEnvironment(): boolean {
+  const phone = useMediaQuery(MOBILE_OVERLAY_QUERY);
+  const coarsePointer = useMediaQuery("(pointer: coarse)");
+  const touchOrMobile =
+    typeof window !== "undefined" &&
+    (window.innerWidth <= 860 || "ontouchstart" in window || navigator.maxTouchPoints > 0 || isMobileUserAgent());
+  return phone || coarsePointer || touchOrMobile;
 }
 
 /** Threshold in pixels of finger movement required to prime the refresh (emulating Chrome's long pull). */

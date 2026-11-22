@@ -31,8 +31,9 @@ import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
 import { useClock } from "../../shared/hooks/useClock";
 import { nextResetModelLabel } from "../../shared/lib/display";
-import { usePullToRefresh } from "../dashboard/usePullToRefresh";
-import { useCanPullRefreshEnvironment, usePullRefreshHint } from "../dashboard/usePullRefreshHint";
+import { useCanPullRefreshEnvironment, usePullToRefresh } from "../dashboard/usePullToRefresh";
+import { useSessionHint } from "../../shared/hooks/useSessionHint";
+import { HintBanner } from "../../shared/ui/HintBanner";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 
 const ATTENTION_HINT_ID = "attention-filter-hint";
@@ -162,12 +163,12 @@ export function AccountsView(props: {
 
   // Moving within a filtered subset would reorder against a partial list, so it is only offered on the full page.
   const canReorder = !showAttentionOnly && displayedAccounts.length > 1;
-  const { showReorderHint, dismissReorderHint, completeReorderHint } = useReorderHint(canReorder);
+  const reorderHint = useReorderHint(canReorder);
 
   const moveAccount = (account: Account, delta: -1 | 1) => {
     const move = moveById(displayedAccounts.map((candidate) => candidate.id), account.id, delta);
     if (!move) return;
-    if (showReorderHint) completeReorderHint();
+    if (reorderHint.show) reorderHint.complete();
     void persistVisibleAccountOrder(move.ids, props.selectedGroup.id);
     setAnnouncement(moveAnnouncement(account.label, move.to, move.ids.length));
   };
@@ -196,13 +197,13 @@ export function AccountsView(props: {
 
   const canPullRefreshEnv = useCanPullRefreshEnvironment();
   const canPullRefresh = Boolean(props.onRefreshAll) && displayedAccounts.length > 0 && canPullRefreshEnv;
-  const { showPullRefreshHint, dismissPullRefreshHint, completePullRefreshHint } = usePullRefreshHint(canPullRefresh, "accounts");
+  const pullRefreshHint = useSessionHint("pull-refresh", "accounts", canPullRefresh);
 
   const pullData = usePullToRefresh({
     containerRef,
     scrollRef,
     onRefresh: props.onRefreshAll,
-    onTriggered: completePullRefreshHint,
+    onTriggered: pullRefreshHint.complete,
     disabled: !props.onRefreshAll || props.accounts.length === 0,
   });
 
@@ -297,33 +298,8 @@ export function AccountsView(props: {
 
       <div ref={scrollRef} className="dashboard-scroll">
         {/* The hints come first, above the status strip, as on the Usage page. */}
-        {showReorderHint ? (
-          <div className="reorder-hint-banner" role="note">
-            <span>Press & drag a card below or in the sidebar to reorder</span>
-            <button
-              type="button"
-              className="reorder-hint-dismiss"
-              onClick={dismissReorderHint}
-              aria-label="Dismiss reorder hint"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        ) : null}
-
-        {showPullRefreshHint ? (
-          <div className="pull-refresh-hint-banner" role="note">
-            <span>Pull down on the screen to refresh data</span>
-            <button
-              type="button"
-              className="pull-refresh-hint-dismiss"
-              onClick={dismissPullRefreshHint}
-              aria-label="Dismiss pull-to-refresh hint"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        ) : null}
+        {reorderHint.show ? <HintBanner kind="reorder" onDismiss={reorderHint.dismiss} /> : null}
+        {pullRefreshHint.show ? <HintBanner kind="pull-refresh" onDismiss={pullRefreshHint.dismiss} /> : null}
 
         <section className="summary-status-region" aria-label="Account status overview">
           {needsAttention > 0 ? (

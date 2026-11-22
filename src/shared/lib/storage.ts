@@ -16,38 +16,6 @@ export const STORAGE_KEYS = {
   loginAttempt: "ai-usage-tracker:login-attempt",
   /** "left" | "used": whether usage percentages show the quota remaining or already consumed. */
   usageDisplayMode: "ai-usage-tracker:usage-display-mode",
-  /** "1" once the user has completed a reorder gesture or keyboard reorder. */
-  reorderHintSeen: "ai-usage-tracker:reorder-hint-seen",
-  /** Number of newly opened app sessions (up to 2) where the reorder hint was eligible to be shown. */
-  reorderHintOpenCount: "ai-usage-tracker:reorder-hint-open-count",
-  /** sessionStorage: "1" once this session has been counted toward the open count. */
-  reorderHintSessionCounted: "ai-usage-tracker:reorder-hint-session-counted",
-  /** sessionStorage: "1" if the reorder hint was dismissed in the current session. */
-  reorderHintSessionDismissed: "ai-usage-tracker:reorder-hint-session-dismissed",
-  /** "1" once the user has completed a reorder gesture on the usage page. */
-  activityReorderHintSeen: "ai-usage-tracker:activity-reorder-hint-seen",
-  /** Number of newly opened app sessions (up to 2) where the usage reorder hint was eligible to be shown. */
-  activityReorderHintOpenCount: "ai-usage-tracker:activity-reorder-hint-open-count",
-  /** sessionStorage: "1" once this session has been counted toward the usage open count. */
-  activityReorderHintSessionCounted: "ai-usage-tracker:activity-reorder-hint-session-counted",
-  /** sessionStorage: "1" if the usage reorder hint was dismissed in the current session. */
-  activityReorderHintSessionDismissed: "ai-usage-tracker:activity-reorder-hint-session-dismissed",
-  /** "1" once the user has completed a pull-to-refresh gesture on the dashboard. */
-  pullRefreshHintSeen: "ai-usage-tracker:pull-refresh-hint-seen",
-  /** Number of newly opened app sessions (up to 2) where the dashboard pull-to-refresh hint was eligible. */
-  pullRefreshHintOpenCount: "ai-usage-tracker:pull-refresh-hint-open-count",
-  /** sessionStorage: "1" once this session has been counted toward the dashboard pull-to-refresh open count. */
-  pullRefreshHintSessionCounted: "ai-usage-tracker:pull-refresh-hint-session-counted",
-  /** sessionStorage: "1" if the dashboard pull-to-refresh hint was dismissed in the current session. */
-  pullRefreshHintSessionDismissed: "ai-usage-tracker:pull-refresh-hint-session-dismissed",
-  /** "1" once the user has completed a pull-to-refresh gesture on the usage page. */
-  activityPullRefreshHintSeen: "ai-usage-tracker:activity-pull-refresh-hint-seen",
-  /** Number of newly opened app sessions (up to 2) where the usage pull-to-refresh hint was eligible. */
-  activityPullRefreshHintOpenCount: "ai-usage-tracker:activity-pull-refresh-hint-open-count",
-  /** sessionStorage: "1" once this session has been counted toward the usage pull-to-refresh open count. */
-  activityPullRefreshHintSessionCounted: "ai-usage-tracker:activity-pull-refresh-hint-session-counted",
-  /** sessionStorage: "1" if the usage pull-to-refresh hint was dismissed in the current session. */
-  activityPullRefreshHintSessionDismissed: "ai-usage-tracker:activity-pull-refresh-hint-session-dismissed",
   /** "7d" | "30d" | "90d": how many days the Usage page shows. */
   activityPeriod: "ai-usage-tracker:activity-period",
   /** "on" | "off": whether the bottom navigation bar shows the page names under its icons. */
@@ -62,6 +30,31 @@ export const STORAGE_PREFIXES = {
   cardCollapsed: "ai-usage-tracker:card-collapsed:",
   pageAccountOrder: "ai-usage-tracker:page-account-order:",
 } as const;
+
+/** The onboarding hints: "drag to reorder" and "pull down to refresh". */
+export type HintKind = "reorder" | "pull-refresh";
+/** The page a hint belongs to; each page counts and dismisses its own copy. */
+export type HintPage = "accounts" | "activity";
+
+/**
+ * The keys of one hint on one page:
+ * - `seen` (local): "1" once the user has done what the hint teaches on that page;
+ * - `openCount` (local): how many app sessions the hint was offered in;
+ * - `sessionCounted` (session): "1" once this session was added to `openCount`;
+ * - `sessionDismissed` (session): "1" if the hint was dismissed in this session.
+ *
+ * The strings are the ones earlier versions wrote, e.g. `ai-usage-tracker:reorder-hint-seen` and
+ * `ai-usage-tracker:activity-pull-refresh-hint-open-count`.
+ */
+export function hintStorageKeys(kind: HintKind, page: HintPage) {
+  const prefix = `ai-usage-tracker:${page === "activity" ? "activity-" : ""}${kind}-hint-`;
+  return {
+    seen: `${prefix}seen`,
+    openCount: `${prefix}open-count`,
+    sessionCounted: `${prefix}session-counted`,
+    sessionDismissed: `${prefix}session-dismissed`,
+  } as const;
+}
 
 /** Keys written by older versions; removed on start-up. */
 export const LEGACY_STORAGE = {

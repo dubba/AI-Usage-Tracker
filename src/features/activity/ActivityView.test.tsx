@@ -15,8 +15,8 @@ import {
 import type { Account, WeeklyActivity } from "../../types";
 import { getActivityPeriod, refreshActivityPeriod, setActivityPeriod } from "./activity-period";
 import { ActivityView } from "./ActivityView";
-import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
-import { MAX_REORDER_HINT_OPENS } from "../accounts/useReorderHint";
+import { hintStorageKeys, storageGet, storageSet } from "../../shared/lib/storage";
+import { MAX_HINT_SESSIONS } from "../../shared/hooks/useSessionHint";
 
 const api = vi.hoisted(() => ({ getWeeklyActivity: vi.fn() }));
 vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
@@ -632,14 +632,14 @@ describe("ActivityView", () => {
       const banner = root.querySelector(".reorder-hint-banner");
       expect(banner).not.toBeNull();
       expect(banner?.textContent).toContain("Press & drag a card below or in the sidebar to reorder");
-      expect(storageGet(STORAGE_KEYS.activityReorderHintOpenCount)).toBe("1");
+      expect(storageGet(hintStorageKeys("reorder", "activity").openCount)).toBe("1");
 
       const dismissBtn = banner?.querySelector(".reorder-hint-dismiss") as HTMLButtonElement;
       expect(dismissBtn).not.toBeNull();
       click(dismissBtn);
 
       expect(root.querySelector(".reorder-hint-banner")).toBeNull();
-      expect(storageGet(STORAGE_KEYS.activityReorderHintSessionDismissed, "session")).toBe("1");
+      expect(storageGet(hintStorageKeys("reorder", "activity").sessionDismissed, "session")).toBe("1");
     });
 
     it("does not show the reorder hint banner when there is only one account", async () => {
@@ -648,11 +648,11 @@ describe("ActivityView", () => {
       await settle();
 
       expect(root.querySelector(".reorder-hint-banner")).toBeNull();
-      expect(storageGet(STORAGE_KEYS.activityReorderHintOpenCount)).toBeNull();
+      expect(storageGet(hintStorageKeys("reorder", "activity").openCount)).toBeNull();
     });
 
-    it("hides the banner after MAX_REORDER_HINT_OPENS sessions", async () => {
-      storageSet(STORAGE_KEYS.activityReorderHintOpenCount, String(MAX_REORDER_HINT_OPENS));
+    it("hides the banner after MAX_HINT_SESSIONS sessions", async () => {
+      storageSet(hintStorageKeys("reorder", "activity").openCount, String(MAX_HINT_SESSIONS));
       api.getWeeklyActivity.mockResolvedValue(answer(2));
       const { root } = renderView([work, personal]);
       await settle();
@@ -799,18 +799,18 @@ describe("ActivityView", () => {
       const banner = first.root.querySelector(".pull-refresh-hint-banner");
       expect(banner).not.toBeNull();
       expect(banner?.textContent).toContain("Pull down on the screen to refresh data");
-      expect(storageGet(STORAGE_KEYS.activityPullRefreshHintOpenCount)).toBe("1");
+      expect(storageGet(hintStorageKeys("pull-refresh", "activity").openCount)).toBe("1");
 
       click(banner!.querySelector<HTMLButtonElement>(".pull-refresh-hint-dismiss")!);
       expect(first.root.querySelector(".pull-refresh-hint-banner")).toBeNull();
-      expect(storageGet(STORAGE_KEYS.activityPullRefreshHintSessionDismissed, "session")).toBe("1");
+      expect(storageGet(hintStorageKeys("pull-refresh", "activity").sessionDismissed, "session")).toBe("1");
       mounted!.unmount();
 
       sessionStorage.clear();
       const second = renderView([work], { onRefresh: vi.fn() });
       await settle();
       expect(second.root.querySelector(".pull-refresh-hint-banner")).not.toBeNull();
-      expect(storageGet(STORAGE_KEYS.activityPullRefreshHintOpenCount)).toBe("2");
+      expect(storageGet(hintStorageKeys("pull-refresh", "activity").openCount)).toBe("2");
       mounted!.unmount();
 
       sessionStorage.clear();
@@ -839,7 +839,7 @@ describe("ActivityView", () => {
 
       expect(onRefresh).toHaveBeenCalledTimes(1);
       expect(root.querySelector(".pull-refresh-hint-banner")).toBeNull();
-      expect(storageGet(STORAGE_KEYS.activityPullRefreshHintSeen)).toBe("1");
+      expect(storageGet(hintStorageKeys("pull-refresh", "activity").seen)).toBe("1");
       mounted!.unmount();
 
       sessionStorage.clear();
