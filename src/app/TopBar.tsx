@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import { CompactDashboardToggle } from "../features/dashboard/CompactDashboardToggle";
 import { PlusIcon, StackPlusIcon } from "../shared/ui/icons";
 import { useSegmentIndicator } from "../shared/ui/segment-indicator";
 import { MAIN_PAGES } from "./BottomNav";
@@ -13,8 +12,8 @@ const PAGE_TOOLTIPS: Record<Section, string> = {
 };
 
 /**
- * The bar across the top of a wide window: the Dashboard, Usage and Settings pages, then the Compact,
- * Group and Account buttons. The sync status and Refresh all are at the foot of the sidebar, as on a
+ * The bar across the top of a wide window: the Dashboard, Usage and Settings pages, then the Group and
+ * Account buttons (Compact is in the Dashboard header). The sync status and Refresh all are at the foot of the sidebar, as on a
  * phone. A phone has no top bar: the sidebar overlay and the bottom bar hold all of this.
  */
 export function TopBar({
@@ -54,7 +53,6 @@ export function TopBar({
       </nav>
 
       <div className="top-bar-actions">
-        <CompactDashboardToggle className="top-bar-icon-button has-label compact-dashboard-toggle top-bar-compact" />
         <button
           type="button"
           className="top-bar-icon-button top-bar-add-group has-label"

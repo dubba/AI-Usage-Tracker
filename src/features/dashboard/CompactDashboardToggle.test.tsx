@@ -45,12 +45,12 @@ describe("CompactDashboardToggle", () => {
     expect(isCardCollapsedOnPage("provider:openai", "a2")).toBe(false);
   });
 
-  it("labels the button Compact View", () => {
+  it("labels the button Compact", () => {
     setNarrowWindow(false);
     app = mount(<CompactDashboardToggle />);
     const button = document.querySelector<HTMLButtonElement>(".compact-dashboard-toggle")!;
     expect(button.getAttribute("aria-label")).toBe("Compact view");
-    expect(button.textContent).toBe("Compact View");
+    expect(button.textContent).toBe("Compact");
     expect(button.querySelector("svg")).not.toBeNull();
   });
 });

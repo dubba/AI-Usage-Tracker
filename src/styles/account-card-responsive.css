@@ -1829,15 +1829,16 @@
   }
 }
 
-/* The % Left / % Used switch on a wide window: at the Accounts page header's top right, out of the flow so
+/* Compact and the % Left / % Used switch on a wide window: at the Accounts page header's top right, out of the flow so
    the title and description keep their place (like the Usage page's 7D / 30D switch). */
 @media (min-width: 861px) {
   .dashboard-header > div:has(> .accounts-display-switch) {
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
-    /* The label (about 36px), its 8px gap, the % switch (about 132px) and the gap before it. */
-    padding-right: 212px;
+    /* Compact (about 100px) and the 16px after it, the label (about 36px), its 8px gap, the % switch
+       (about 132px) and the gap before it. */
+    padding-right: 336px;
   }
 
   /* At the header's right edge, the same edge as the Usage page's 7D / 30D switch and the top bar's
@@ -1852,6 +1853,11 @@
   }
 
   /* The same label as "Period" beside the Usage page's 7D / 30D switch (activity.css). */
+  /* Compact stands apart from the Show label, which names only the % switch. */
+  .accounts-display-switch > .compact-dashboard-toggle {
+    margin-right: 16px;
+  }
+
   .accounts-display-label {
     color: var(--obsidian-muted);
     font-size: 12px;

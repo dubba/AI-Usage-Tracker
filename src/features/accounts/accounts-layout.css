@@ -1,5 +1,5 @@
 /* Accounts Dashboard improvements (L7):
- * - Compact View toggle beside Group in the desktop top bar.
+ * - Compact toggle beside the Show (% Used / % Left) switch in the desktop Dashboard header.
  * - Slim single-row compact account card layout (.provider-account-card.is-compact).
  * - Two-column card grid once two cards fit side by side (compact cards: @media (min-width: 1400px)).
  *
@@ -8,7 +8,7 @@
  */
 @layer components {
   /* ---- Compact toggle button ---- */
-  .compact-dashboard-toggle:not(.top-bar-compact) {
+  .compact-dashboard-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -27,31 +27,31 @@
     transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
   }
 
-  .compact-dashboard-toggle:not(.top-bar-compact) svg {
+  .compact-dashboard-toggle svg {
     width: 15px;
     height: 15px;
     flex-shrink: 0;
   }
 
-  .compact-dashboard-toggle:not(.top-bar-compact).active {
+  .compact-dashboard-toggle.active {
     border-color: var(--purple-fill);
     background: var(--purple-fill);
     color: var(--purple-on-fill);
   }
 
   @media (hover: hover) {
-    .compact-dashboard-toggle:not(.top-bar-compact):not(.active):hover {
+    .compact-dashboard-toggle:not(.active):hover {
       border-color: var(--purple-accent);
       color: var(--obsidian-text);
     }
 
-    .compact-dashboard-toggle:not(.top-bar-compact).active:hover {
+    .compact-dashboard-toggle.active:hover {
       border-color: var(--purple-fill-hover);
       background: var(--purple-fill-hover);
     }
   }
 
-  .compact-dashboard-toggle:not(.top-bar-compact):focus-visible {
+  .compact-dashboard-toggle:focus-visible {
     outline: 2px solid var(--purple-accent);
     outline-offset: 2px;
   }

@@ -196,25 +196,6 @@
     stroke-width: 3;
   }
 
-  .top-bar-actions .top-bar-compact {
-    height: 44px;
-    padding: 0 14px 0 12px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 650;
-  }
-
-  .top-bar-actions .top-bar-compact svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .top-bar-actions .top-bar-compact.active {
-    border-color: var(--purple-fill);
-    background: var(--purple-fill);
-    color: var(--purple-on-fill);
-  }
-
   @media (hover: hover) {
     .top-bar-nav-item:not(.is-active):hover,
     .top-bar-segmented button:not(.active):hover {
@@ -240,13 +221,11 @@
 
     /* The selected page or option brightens like Add account. */
     .top-bar-nav-item.is-active:hover,
-    .top-bar-segmented button.active:hover,
-    .top-bar-actions .top-bar-compact.active:hover {
+    .top-bar-segmented button.active:hover {
       background: var(--purple-fill-hover);
     }
 
-    .top-bar-nav-item.is-active:hover,
-    .top-bar-actions .top-bar-compact.active:hover {
+    .top-bar-nav-item.is-active:hover {
       border-color: var(--purple-fill-hover);
       color: var(--purple-on-fill);
     }

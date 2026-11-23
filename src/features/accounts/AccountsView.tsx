@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
 import { useReorderHint } from "./useReorderHint";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
+import { CompactDashboardToggle } from "../dashboard/CompactDashboardToggle";
 import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
 import { useCompactDashboard } from "../../shared/hooks/usePreferences";
 import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
@@ -285,9 +286,10 @@ export function AccountsView(props: {
             ) : null}
           </div>
           <p className="dashboard-description">{dashboardDescription(props.selectedGroup, props.accounts.length)}</p>
-          {/* On a wide window the L / U switch sits at the header's top right, like the Usage page's 7D / 30D. */}
+          {/* On a wide window Compact and the L / U switch sit at the header's top right, like the Usage page's 7D / 30D. */}
           {phone ? null : (
             <div className="accounts-display-switch">
+              <CompactDashboardToggle />
               {/* Names what the switch chooses, as "Period" does on the Usage page; the group already has its own name. */}
               <span className="accounts-display-label" aria-hidden="true">Show</span>
               <UsageDisplayToggle labels="words" className="top-bar-segmented" />

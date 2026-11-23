@@ -717,7 +717,7 @@ describe("AccountsView L / U switch", () => {
     expect(document.querySelectorAll(".top-bar-segmented")).toHaveLength(1);
   });
 
-  it("leaves Compact toggle to the top bar and responds to shared compact mode changes (L7)", () => {
+  it("puts Compact before the Show switch on a wide window and responds to shared compact mode changes (L7)", () => {
     setNarrowWindow(false);
     setCompactDashboardMode("off");
     app = renderView({
@@ -727,7 +727,9 @@ describe("AccountsView L / U switch", () => {
       onToggleSidebar: () => undefined,
     });
 
-    expect(document.querySelector(".accounts-display-switch .compact-dashboard-toggle")).toBeNull();
+    const switchRow = document.querySelector(".accounts-display-switch")!;
+    expect(switchRow.firstElementChild?.classList.contains("compact-dashboard-toggle")).toBe(true);
+    expect(switchRow.querySelector(".compact-dashboard-toggle")?.textContent).toBe("Compact");
     expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(false);
     expect(document.querySelector(".compact-card-row")).toBeNull();
 

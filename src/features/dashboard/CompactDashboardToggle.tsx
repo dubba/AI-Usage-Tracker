@@ -4,7 +4,7 @@ import { clearCollapsedCards } from "../layout/dashboard-page-state";
 
 /**
  * Toggles Dashboard account cards between full detail and slim single-row summaries.
- * Lives beside Group in the desktop top bar.
+ * Lives in the desktop Dashboard header, before the Show (% Used / % Left) switch.
  */
 export function CompactDashboardToggle({
   className = "compact-dashboard-toggle",
@@ -22,13 +22,13 @@ export function CompactDashboardToggle({
       aria-label="Compact view"
       data-tooltip={tooltip}
       onClick={() => {
-        // Clicking the global Compact View button puts every card back in step with the layout it picks.
+        // Clicking the global Compact button puts every card back in step with the layout it picks.
         clearCollapsedCards();
         setCompact(!compact);
       }}
     >
       <CompactRowsIcon />
-      <span>Compact View</span>
+      <span>Compact</span>
     </button>
   );
 }
