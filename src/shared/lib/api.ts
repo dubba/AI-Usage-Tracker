@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logIgnored } from "./log";
 import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
-import type { Account, AccountBucket, AirgapExport, AirgapPreview, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
+import type { Account, AccountBucket, AirgapExport, AirgapPreview, AppSettings, FilePreview, FileRequestInfo, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
 
 export function rememberLoginAttempt(attemptId: string) {
   storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
@@ -131,6 +131,20 @@ export const pairingApi = {
   /** Imports the frames a preview checked, with the ticket that preview returned (used once). */
   importAirgapFrames: (chunks: string[], ticket: string, acceptSettings: boolean) =>
     invoke<SyncSummary>("pairing_import_airgap", { chunks, ticket, acceptSettings }),
+  // Transfer by file. Rust shows the native open and save dialogs and reads and writes the files;
+  // each call resolves to false or null when the user cancels its dialog.
+  /** Receiver: makes the request for the device showing `code` and saves it. */
+  saveFileRequest: (code: string) => invoke<boolean>("pairing_file_save_request", { code }),
+  /** Sender: opens a request file for the code this device shows. */
+  openFileRequest: () => invoke<FileRequestInfo | null>("pairing_file_open_request"),
+  /** Sender, after its user agreed: answers the opened request and saves the reply. */
+  saveFileReply: (includeSettings: boolean, uiState?: Record<string, unknown>) =>
+    invoke<boolean>("pairing_file_save_reply", { includeSettings, uiState: uiState ?? null }),
+  /** Receiver: opens the reply file and counts its accounts; imports nothing. */
+  openFileReply: () => invoke<FilePreview | null>("pairing_file_open_reply"),
+  /** Receiver, after its user agreed: imports the opened reply, with its preview's ticket. */
+  importFileReply: (ticket: string, acceptSettings: boolean) =>
+    invoke<SyncSummary>("pairing_file_import_reply", { ticket, acceptSettings }),
 };
 
 /** Best-effort cancel: the user is already leaving the flow, so a failure is logged rather than shown. */

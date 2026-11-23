@@ -12,6 +12,7 @@ export function CodeEntryView({
   onSubmit,
   onBack,
   onOtherWays,
+  onUseFile,
   setKeyboardOpen,
 }: {
   value: string;
@@ -22,6 +23,8 @@ export function CodeEntryView({
   onBack: () => void;
   /** Lists the other ways to connect (older versions, QR code). */
   onOtherWays: () => void;
+  /** Saves a request file for the typed code; absent where files are not offered yet. */
+  onUseFile?: () => void;
   /** Lets the field flag the on-screen keyboard before the viewport has resized. */
   setKeyboardOpen: (open: boolean) => void;
 }) {
@@ -63,6 +66,16 @@ export function CodeEntryView({
         Both devices must be connected to the same Wi-Fi network.
       </p>
 
+      {onUseFile ? (
+        <button
+          type="button"
+          className="pairing-other-ways"
+          disabled={busy || value.length !== PAIRING_CODE_LENGTH}
+          onClick={onUseFile}
+        >
+          Not on the same network? Use a file instead
+        </button>
+      ) : null}
       <OtherWaysLink disabled={busy} onClick={onOtherWays} />
 
       <div className="pairing-scanner-controls pairing-code-actions">

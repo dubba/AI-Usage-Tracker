@@ -169,6 +169,11 @@ pub fn run() {
             commands::pairing::pairing_prepare_airgap_export,
             commands::pairing::pairing_verify_airgap,
             commands::pairing::pairing_import_airgap,
+            commands::pairing::pairing_file_save_request,
+            commands::pairing::pairing_file_open_request,
+            commands::pairing::pairing_file_save_reply,
+            commands::pairing::pairing_file_open_reply,
+            commands::pairing::pairing_file_import_reply,
         ])
         .build(tauri::generate_context!())
         .expect("error while building AI Usage Tracker")

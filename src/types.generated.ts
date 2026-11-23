@@ -419,6 +419,28 @@ export type AirgapPreview = {
 };
 
 /**
+ * A request the sender opened, shown before its user agrees to answer it.
+ */
+export type FileRequestInfo = {
+  /**
+   * The accounts this device would send. An account with no saved sign-in is left out of the
+   * export, so the reply may hold fewer.
+   */
+  accountCount: number,
+};
+
+/**
+ * What an opened reply holds, shown before the user agrees to add it.
+ */
+export type FilePreview = {
+  accountCount: number,
+  /**
+   * One-time ticket for importing exactly this reply.
+   */
+  ticket: string,
+};
+
+/**
  * What kind of failure a command reports. The frontend picks its wording by this, and never
  * adds codes of its own.
  */

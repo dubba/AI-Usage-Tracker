@@ -98,6 +98,11 @@
     "allow-pairing-clear-pending-ui-state",
     "allow-pairing-prepare-airgap-export",
     "allow-pairing-verify-airgap",
-    "allow-pairing-import-airgap"
+    "allow-pairing-import-airgap",
+    "allow-pairing-file-save-request",
+    "allow-pairing-file-open-request",
+    "allow-pairing-file-save-reply",
+    "allow-pairing-file-open-reply",
+    "allow-pairing-file-import-reply"
   ]
 }

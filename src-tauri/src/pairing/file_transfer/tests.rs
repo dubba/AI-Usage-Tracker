@@ -42,6 +42,12 @@ async fn sender() -> (TempDir, Arc<AppState>) {
     (dir, state)
 }
 
+/// The sender opens `request` and its user agrees to answer it.
+async fn answer(sender: &AppState, request: &[u8]) -> Result<Vec<u8>, String> {
+    open_request(sender, request.to_vec()).await?;
+    answer_request(sender).await
+}
+
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     haystack
         .windows(needle.len())
@@ -60,21 +66,21 @@ async fn a_request_and_its_reply_move_the_accounts() {
         "the code is never in a file"
     );
 
-    let reply = answer_request(&sender, &request).await.unwrap();
+    let reply = answer(&sender, &request).await.unwrap();
     assert!(
         !contains(&reply, ACCESS_TOKEN.as_bytes()),
         "the reply is encrypted"
     );
     assert!(!contains(&reply, CODE.as_bytes()));
 
-    let preview = preview_reply(&receiver, &reply).unwrap();
+    let preview = preview_reply(&receiver, reply.clone()).unwrap();
     assert_eq!(preview.account_count, 1);
     assert!(
         receiver.store.list().is_empty(),
         "a preview imports nothing"
     );
 
-    let summary = import_reply(&receiver, &reply, &preview.ticket, false)
+    let summary = import_reply(&receiver, &preview.ticket, false)
         .await
         .unwrap();
     assert_eq!(summary.added, 1);
@@ -91,14 +97,14 @@ async fn a_reply_for_a_different_code_does_not_open_and_ends_the_request() {
     let (_r, receiver) = new_state();
 
     let request = create_request(&receiver, "913482").unwrap();
-    let reply = answer_request(&sender, &request).await.unwrap();
+    let reply = answer(&sender, &request).await.unwrap();
     assert_eq!(
-        preview_reply(&receiver, &reply).unwrap_err(),
+        preview_reply(&receiver, reply.clone()).unwrap_err(),
         REPLY_DOES_NOT_OPEN
     );
     // One guess: the request is gone, so the same reply cannot be tried again.
     assert_eq!(
-        preview_reply(&receiver, &reply).unwrap_err(),
+        preview_reply(&receiver, reply.clone()).unwrap_err(),
         NO_REQUEST_OUT
     );
     assert!(receiver.store.list().is_empty());
@@ -109,14 +115,14 @@ async fn a_code_answers_one_request() {
     let (_s, sender) = sender().await;
     let (_r, receiver) = new_state();
     let request = create_request(&receiver, CODE).unwrap();
-    answer_request(&sender, &request).await.unwrap();
+    answer(&sender, &request).await.unwrap();
     assert_eq!(
-        answer_request(&sender, &request).await.unwrap_err(),
+        answer(&sender, &request).await.unwrap_err(),
         CODE_ALREADY_USED
     );
     let another = create_request(&receiver, CODE).unwrap();
     assert_eq!(
-        answer_request(&sender, &another).await.unwrap_err(),
+        answer(&sender, &another).await.unwrap_err(),
         CODE_ALREADY_USED
     );
 }
@@ -127,16 +133,38 @@ async fn only_a_device_showing_a_code_answers() {
     add_account(&sender, "acc-file").await;
     let (_r, receiver) = new_state();
     let request = create_request(&receiver, CODE).unwrap();
-    assert_eq!(
-        answer_request(&sender, &request).await.unwrap_err(),
-        NO_CODE_SHOWN
-    );
+    assert_eq!(answer(&sender, &request).await.unwrap_err(), NO_CODE_SHOWN);
 
     // A joining session has no code to answer with.
     sender.pairing.testing_open_session("joiner").await;
+    assert_eq!(answer(&sender, &request).await.unwrap_err(), NO_CODE_SHOWN);
+}
+
+/// The sender answers only the request its user opened and agreed to, once.
+#[tokio::test]
+async fn the_sender_answers_the_request_it_opened() {
+    let (_s, sender) = sender().await;
+    let (_r, receiver) = new_state();
     assert_eq!(
-        answer_request(&sender, &request).await.unwrap_err(),
-        NO_CODE_SHOWN
+        answer_request(&sender).await.unwrap_err(),
+        NO_REQUEST_OPENED
+    );
+
+    let request = create_request(&receiver, CODE).unwrap();
+    assert!(open_request(&sender, b"not a request".to_vec())
+        .await
+        .is_err());
+    let info = open_request(&sender, request.clone()).await.unwrap();
+    assert_eq!(info.account_count, 1);
+    answer_request(&sender).await.unwrap();
+    // The code is used: neither the same request nor a new one is answered.
+    assert_eq!(
+        open_request(&sender, request).await.unwrap_err(),
+        CODE_ALREADY_USED
+    );
+    assert_eq!(
+        answer_request(&sender).await.unwrap_err(),
+        CODE_ALREADY_USED
     );
 }
 
@@ -146,16 +174,21 @@ async fn a_reply_to_an_older_request_is_refused_and_the_newer_one_still_waits() 
     let (_r, receiver) = new_state();
 
     let older = create_request(&receiver, CODE).unwrap();
-    let reply_to_older = answer_request(&sender, &older).await.unwrap();
+    let reply_to_older = answer(&sender, &older).await.unwrap();
     let newer = create_request(&receiver, CODE).unwrap();
     assert_eq!(
-        preview_reply(&receiver, &reply_to_older).unwrap_err(),
+        preview_reply(&receiver, reply_to_older.clone()).unwrap_err(),
         REPLY_FOR_ANOTHER_REQUEST
     );
 
     sender.pairing.testing_show_code(CODE).await;
-    let reply = answer_request(&sender, &newer).await.unwrap();
-    assert_eq!(preview_reply(&receiver, &reply).unwrap().account_count, 1);
+    let reply = answer(&sender, &newer).await.unwrap();
+    assert_eq!(
+        preview_reply(&receiver, reply.clone())
+            .unwrap()
+            .account_count,
+        1
+    );
 }
 
 /// Opening a reply uses up its request, so each altered copy gets a fresh request and answer.
@@ -173,10 +206,10 @@ async fn any_changed_byte_in_a_reply_stops_it_opening() {
         let (_r, receiver) = new_state();
         let request = create_request(&receiver, CODE).unwrap();
         sender.pairing.testing_show_code(CODE).await;
-        let mut reply = answer_request(&sender, &request).await.unwrap();
+        let mut reply = answer(&sender, &request).await.unwrap();
         reply[at] ^= 0x01;
         assert_eq!(
-            preview_reply(&receiver, &reply).unwrap_err(),
+            preview_reply(&receiver, reply.clone()).unwrap_err(),
             REPLY_DOES_NOT_OPEN,
             "byte {at}"
         );
@@ -195,7 +228,7 @@ async fn a_reply_with_more_accounts_than_it_states_is_refused() {
     // A sender that says one account but sends two.
     let reply = build_reply(CODE, &request, &payload, 1).unwrap();
     assert_eq!(
-        preview_reply(&receiver, &reply).unwrap_err(),
+        preview_reply(&receiver, reply.clone()).unwrap_err(),
         MORE_ACCOUNTS_THAN_SHOWN
     );
 }
@@ -205,18 +238,18 @@ async fn an_import_needs_the_ticket_of_the_same_reply_once() {
     let (_s, sender) = sender().await;
     let (_r, receiver) = new_state();
     let request = create_request(&receiver, CODE).unwrap();
-    let reply = answer_request(&sender, &request).await.unwrap();
-    let preview = preview_reply(&receiver, &reply).unwrap();
+    let reply = answer(&sender, &request).await.unwrap();
+    let preview = preview_reply(&receiver, reply.clone()).unwrap();
 
     assert_eq!(
-        import_reply(&receiver, &reply, "not-the-ticket", false)
+        import_reply(&receiver, "not-the-ticket", false)
             .await
             .unwrap_err(),
         STALE_PREVIEW
     );
     // The failed try used the ticket up.
     assert_eq!(
-        import_reply(&receiver, &reply, &preview.ticket, false)
+        import_reply(&receiver, &preview.ticket, false)
             .await
             .unwrap_err(),
         STALE_PREVIEW
@@ -229,9 +262,9 @@ async fn opening_the_same_reply_again_withdraws_the_first_ticket() {
     let (_s, sender) = sender().await;
     let (_r, receiver) = new_state();
     let request = create_request(&receiver, CODE).unwrap();
-    let reply = answer_request(&sender, &request).await.unwrap();
-    let first = preview_reply(&receiver, &reply).unwrap();
-    let second = preview_reply(&receiver, &reply).unwrap();
+    let reply = answer(&sender, &request).await.unwrap();
+    let first = preview_reply(&receiver, reply.clone()).unwrap();
+    let second = preview_reply(&receiver, reply.clone()).unwrap();
     assert_eq!(second.account_count, 1);
     assert_ne!(first.ticket, second.ticket);
 
@@ -240,12 +273,12 @@ async fn opening_the_same_reply_again_withdraws_the_first_ticket() {
     let last = other.len() - 1;
     other[last] ^= 0x01;
     assert_eq!(
-        preview_reply(&receiver, &other).unwrap_err(),
+        preview_reply(&receiver, other.clone()).unwrap_err(),
         REPLY_FOR_ANOTHER_REQUEST
     );
 
     assert_eq!(
-        import_reply(&receiver, &reply, &first.ticket, false)
+        import_reply(&receiver, &first.ticket, false)
             .await
             .unwrap_err(),
         STALE_PREVIEW
@@ -259,7 +292,7 @@ async fn an_old_request_expires() {
     let (_s, sender) = sender().await;
     let (_r, receiver) = new_state();
     let request = create_request(&receiver, CODE).unwrap();
-    let reply = answer_request(&sender, &request).await.unwrap();
+    let reply = answer(&sender, &request).await.unwrap();
     if let Some(ReceiverState::Waiting(pending)) = receiver.pairing_file_receiver.lock().as_mut() {
         let Some(past) = Instant::now().checked_sub(REQUEST_LIFETIME + Duration::from_secs(1))
         else {
@@ -268,7 +301,7 @@ async fn an_old_request_expires() {
         pending.made_at = past;
     }
     assert_eq!(
-        preview_reply(&receiver, &reply).unwrap_err(),
+        preview_reply(&receiver, reply.clone()).unwrap_err(),
         REQUEST_EXPIRED
     );
 }

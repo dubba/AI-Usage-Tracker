@@ -1,6 +1,16 @@
 import type { PairingStatus } from "../../../types";
 
-export type ViewMode = "select-role" | "select-mode" | "host" | "scanner" | "code" | "airgap-sender";
+export type ViewMode =
+  | "select-role"
+  | "select-mode"
+  | "host"
+  | "scanner"
+  | "code"
+  | "airgap-sender"
+  /** The sender answering a request file. */
+  | "file-send"
+  /** The receiver waiting for, then adding, the reply file. */
+  | "file-receive";
 export type IntendedRole = "send" | "receive";
 export type ActiveFlow = "wifi" | "airgap" | null;
 
@@ -58,6 +68,12 @@ export function pairingHeader(input: {
       activeFlow === "airgap"
         ? "Point the camera at the animated QR code on the other device."
         : "Point the camera at the QR code on the other device.";
+  } else if (waiting && viewMode === "file-send") {
+    title = "Send by File";
+    subtitle = "Answer the other device's request with a reply file.";
+  } else if (waiting && viewMode === "file-receive") {
+    title = "Receive by File";
+    subtitle = "The other device answers your request with a reply file.";
   } else if (waiting && viewMode === "code") {
     title = "Enter Link Code";
     subtitle = "Type the 6-digit link code shown on the sending device.";

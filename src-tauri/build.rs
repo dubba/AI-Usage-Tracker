@@ -81,6 +81,11 @@ const APP_COMMANDS: &[&str] = &[
     "pairing_prepare_airgap_export",
     "pairing_verify_airgap",
     "pairing_import_airgap",
+    "pairing_file_save_request",
+    "pairing_file_open_request",
+    "pairing_file_save_reply",
+    "pairing_file_open_reply",
+    "pairing_file_import_reply",
 ];
 
 fn main() {

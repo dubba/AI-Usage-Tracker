@@ -206,6 +206,8 @@ pub struct ActiveSession {
     /// The link code a host shows, until it answers a request by file
     /// (`file_transfer::answer_request`): one answer per code. `None` on a joiner.
     pub file_reply_code: Option<String>,
+    /// The request file the host opened, waiting for its user to agree to answer it.
+    pub file_request: Option<Vec<u8>>,
 }
 
 pub struct PairingSessionManager {
@@ -308,21 +310,44 @@ impl PairingSessionManager {
         Ok(())
     }
 
-    /// The code this device shows, for answering one request by file. Only while it is waiting for
-    /// the other device (not once a Wi-Fi transfer has started), and only once per code.
-    #[cfg_attr(not(test), allow(dead_code))] // Called from the commands added in step 3.
-    pub(crate) async fn take_code_for_file_reply(&self) -> Result<String, String> {
-        let mut active = self.active.write().await;
+    /// The host session that can still answer a request by file: one showing its code, waiting
+    /// for the other device (not once a Wi-Fi transfer has started), whose code is unused.
+    async fn file_reply_session<'a>(
+        &self,
+        active: &'a mut Option<ActiveSession>,
+    ) -> Result<&'a mut ActiveSession, String> {
         let Some(session) = active.as_mut() else {
             return Err(file_transfer::NO_CODE_SHOWN.into());
         };
         if !matches!(*self.status.read().await, PairingStatus::HostWaiting { .. }) {
             return Err(file_transfer::NO_CODE_SHOWN.into());
         }
-        session
+        if session.file_reply_code.is_none() {
+            return Err(file_transfer::CODE_ALREADY_USED.into());
+        }
+        Ok(session)
+    }
+
+    /// Keeps a checked request file with the session showing the code, until its user agrees.
+    pub(crate) async fn hold_file_request(&self, request: Vec<u8>) -> Result<(), String> {
+        let mut active = self.active.write().await;
+        self.file_reply_session(&mut active).await?.file_request = Some(request);
+        Ok(())
+    }
+
+    /// The code and the held request, for answering it. Uses the code up: one answer per code.
+    pub(crate) async fn take_file_reply_inputs(&self) -> Result<(String, Vec<u8>), String> {
+        let mut active = self.active.write().await;
+        let session = self.file_reply_session(&mut active).await?;
+        let request = session
+            .file_request
+            .take()
+            .ok_or_else(|| file_transfer::NO_REQUEST_OPENED.to_string())?;
+        let code = session
             .file_reply_code
             .take()
-            .ok_or_else(|| file_transfer::CODE_ALREADY_USED.to_string())
+            .ok_or_else(|| file_transfer::CODE_ALREADY_USED.to_string())?;
+        Ok((code, request))
     }
 
     /// Publish the role answer channel once that phase is reached.
@@ -426,6 +451,7 @@ impl PairingSessionManager {
                 transfer_confirm_tx: None,
                 advertisement: None,
                 file_reply_code: Some(join_code.clone()),
+                file_request: None,
             });
         }
 
@@ -601,6 +627,7 @@ impl PairingSessionManager {
                 transfer_confirm_tx: None,
                 advertisement: None,
                 file_reply_code: None,
+                file_request: None,
             });
         }
 
@@ -697,6 +724,7 @@ impl PairingSessionManager {
             transfer_confirm_tx: None,
             advertisement: None,
             file_reply_code: None,
+            file_request: None,
         });
     }
 
@@ -716,6 +744,7 @@ impl PairingSessionManager {
             transfer_confirm_tx: None,
             advertisement: None,
             file_reply_code: Some(code.to_string()),
+            file_request: None,
         });
     }
 }

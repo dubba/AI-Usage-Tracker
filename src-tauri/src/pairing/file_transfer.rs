@@ -16,8 +16,9 @@
 //! sender's user agrees to a request they did not expect. Everything in the reply's header is
 //! bound into the encryption, so a changed byte anywhere makes it fail to open.
 //!
-//! Wired to commands and screens in step 3 of `.audits/2026-11-23-pairing-file-transfer-design.md`.
-#![cfg_attr(not(test), allow(dead_code))]
+//! The files reach this module through native open and save dialogs (`commands::pairing`); the
+//! page never chooses a path. Between steps the bytes stay here: the sender's opened request with
+//! its pairing session, the receiver's opened reply with its request.
 
 use super::{
     crypto::{decrypt_payload, encrypt_payload, PakeExchange},
@@ -55,8 +56,9 @@ const MAX_PAYLOAD_LEN: usize = MAX_FRAME_SIZE;
 pub const MAX_REPLY_LEN: usize = REPLY_FIXED_LEN + CIPHERTEXT_OVERHEAD + MAX_PAYLOAD_LEN;
 /// Separates this route's transcript from the Wi-Fi one.
 const TRANSCRIPT_LABEL: &[u8] = b"ai-usage-tracker-file-transfer-v1";
-/// How long a receiver waits for the reply to its request: two hops through a share sheet.
-pub const REQUEST_LIFETIME: Duration = Duration::from_secs(10 * 60);
+/// How long a receiver waits for the reply to its request: as long as the sender's code lasts
+/// (`transport::SESSION_TIMEOUT_SECS`), which is plenty for two hops by AirDrop or Quick Share.
+pub const REQUEST_LIFETIME: Duration = Duration::from_secs(super::transport::SESSION_TIMEOUT_SECS);
 
 pub const NOT_A_PAIRING_FILE: &str =
     "This isn't a Sync Devices file. Choose the file the other device sent.";
@@ -71,6 +73,7 @@ pub const NO_CODE_SHOWN: &str =
 pub const CODE_ALREADY_USED: &str =
     "This link code has already answered a request. Show a new code to send again.";
 pub const INVALID_CODE: &str = "Enter the 6-digit code shown on the other device.";
+pub const NO_REQUEST_OPENED: &str = "Open the request file from the other device first.";
 pub const NO_REQUEST_OUT: &str =
     "Choose Receive on this device and enter the code first, then open the reply.";
 pub const REQUEST_EXPIRED: &str =
@@ -99,6 +102,8 @@ pub struct PendingRequest {
 
 pub struct OpenedReply {
     key: Zeroizing<[u8; 32]>,
+    /// The reply as opened; the import reads these same bytes.
+    reply: Vec<u8>,
     /// The request's half of the exchange, part of the transcript the reply is opened against.
     joiner_message: Vec<u8>,
     reply_hash: [u8; 32],
@@ -108,10 +113,21 @@ pub struct OpenedReply {
 /// What an opened reply holds, shown before the user agrees to add it.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct FilePreview {
     pub account_count: usize,
     /// One-time ticket for importing exactly this reply.
     pub ticket: String,
+}
+
+/// A request the sender opened, shown before its user agrees to answer it.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct FileRequestInfo {
+    /// The accounts this device would send. An account with no saved sign-in is left out of the
+    /// export, so the reply may hold fewer.
+    pub account_count: usize,
 }
 
 struct ParsedRequest<'a> {
@@ -321,30 +337,40 @@ pub fn create_request(state: &AppState, code: &str) -> Result<Vec<u8>, String> {
     Ok(file)
 }
 
-/// Sender: answers `request` for the code this device shows. Call only after its user agreed to
-/// send. The code is used up even if building the reply fails, so each code is one answer.
-pub async fn answer_request(state: &AppState, request: &[u8]) -> Result<Vec<u8>, String> {
-    check_request(request)?;
-    let code = Zeroizing::new(state.pairing.take_code_for_file_reply().await?);
+/// Sender: checks `request` and keeps it with the pairing session showing a code, for
+/// [`answer_request`] once the user agrees. A newer request replaces it.
+pub async fn open_request(state: &AppState, request: Vec<u8>) -> Result<FileRequestInfo, String> {
+    check_request(&request)?;
+    state.pairing.hold_file_request(request).await?;
+    Ok(FileRequestInfo {
+        account_count: state.store.list().len(),
+    })
+}
+
+/// Sender: answers the opened request for the code this device shows. Call only after its user
+/// agreed to send. The code is used up even if building the reply fails: one answer per code.
+pub async fn answer_request(state: &AppState) -> Result<Vec<u8>, String> {
+    let (code, request) = state.pairing.take_file_reply_inputs().await?;
+    let code = Zeroizing::new(code);
     let mut payload = create_export_payload(state)?;
     // Like the Wi-Fi sender: this transfer's choices do not carry into the next one.
     state.pairing_options.write().clear_after_export();
     let reply = validate_payload(&payload)
-        .and_then(|parsed| build_reply(&code, request, &payload, parsed.accounts.len()));
+        .and_then(|parsed| build_reply(&code, &request, &payload, parsed.accounts.len()));
     payload.zeroize();
     reply
 }
 
 /// Receiver: opens `reply` and says how many accounts it holds. Nothing is imported. A reply
 /// that does not open (a wrong code, or a damaged or altered file) ends the request.
-pub fn preview_reply(state: &AppState, reply: &[u8]) -> Result<FilePreview, String> {
-    let parsed = parse_reply(reply)?;
+pub fn preview_reply(state: &AppState, reply: Vec<u8>) -> Result<FilePreview, String> {
+    let parsed = parse_reply(&reply)?;
     let mut slot = state.pairing_file_receiver.lock();
     let pending = match slot.take() {
         Some(ReceiverState::Waiting(pending)) => pending,
         // An opened reply checked again: withdraw its ticket and count it afresh below.
         Some(ReceiverState::Opened(opened)) => {
-            return reopen(&mut slot, opened, reply, &parsed);
+            return reopen(&mut slot, opened, &reply, &parsed);
         }
         None => return Err(NO_REQUEST_OUT.into()),
     };
@@ -372,10 +398,12 @@ pub fn preview_reply(state: &AppState, reply: &[u8]) -> Result<FilePreview, Stri
     );
     let account_count = count_accounts(&key, &parsed, &joiner_message)?;
     let ticket = new_ticket();
+    let reply_hash = Sha256::digest(&reply).into();
     *slot = Some(ReceiverState::Opened(OpenedReply {
         key,
+        reply,
         joiner_message,
-        reply_hash: Sha256::digest(reply).into(),
+        reply_hash,
         ticket: ticket.clone(),
     }));
     Ok(FilePreview {
@@ -420,11 +448,10 @@ fn reopen(
     Ok(preview)
 }
 
-/// Receiver: imports the reply its user agreed to add. `ticket` is the one [`preview_reply`] gave
-/// for these same bytes; it is used up here, whatever happens.
+/// Receiver: imports the reply its user agreed to add, the bytes [`preview_reply`] opened.
+/// `ticket` is the one that preview gave; it is used up here, whatever happens.
 pub async fn import_reply(
     state: &Arc<AppState>,
-    reply: &[u8],
     ticket: &str,
     accept_settings: bool,
 ) -> Result<SyncSummary, String> {
@@ -432,11 +459,10 @@ pub async fn import_reply(
         Some(ReceiverState::Opened(opened)) => opened,
         _ => return Err(STALE_PREVIEW.into()),
     };
-    let hash: [u8; 32] = Sha256::digest(reply).into();
-    if opened.ticket != ticket || opened.reply_hash != hash {
+    if opened.ticket != ticket {
         return Err(STALE_PREVIEW.into());
     }
-    let parsed = parse_reply(reply)?;
+    let parsed = parse_reply(&opened.reply)?;
     let mut payload = open_payload(&opened.key, &parsed, &opened.joiner_message)?;
     let summary = import_sync_payload(state, &payload, accept_settings).await;
     payload.zeroize();

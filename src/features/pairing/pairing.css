@@ -686,6 +686,11 @@
   margin: 0;
 }
 
+/* A row with one button (the file transfer's Done) centers it instead of leaving it on the left. */
+.pairing-nav-row.is-single {
+  justify-content: center;
+}
+
 .pairing-panel-status .error-panel {
   margin: 4px 0;
 }

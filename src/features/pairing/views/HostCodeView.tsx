@@ -7,6 +7,7 @@ export function HostCodeView({
   remainingSecs,
   onRegenerate,
   onOtherWays,
+  onOpenRequest,
 }: {
   status: PairingStatus;
   remainingSecs: number | null;
@@ -14,6 +15,8 @@ export function HostCodeView({
   onRegenerate: () => void;
   /** Ends this session and lists the other ways to connect (older versions, QR code). */
   onOtherWays: () => void;
+  /** Opens a request file from a device on another network; absent where files are not offered yet. */
+  onOpenRequest?: () => void;
 }) {
   const host = hostWaitingFields(status);
   const joinCode = host?.joinCode ?? "";
@@ -61,6 +64,11 @@ export function HostCodeView({
         <span>Waiting for the other device to connect…</span>
       </div>
 
+      {onOpenRequest ? (
+        <button type="button" className="pairing-other-ways" onClick={onOpenRequest}>
+          Not on the same network? Open a request file
+        </button>
+      ) : null}
       <OtherWaysLink onClick={onOtherWays} />
     </div>
   );

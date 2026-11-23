@@ -19,6 +19,11 @@ const api = vi.hoisted(() => ({
   ensureCameraPermission: vi.fn(),
   wifiEnabled: vi.fn(),
   openWifiSettings: vi.fn(),
+  saveFileRequest: vi.fn(),
+  openFileRequest: vi.fn(),
+  saveFileReply: vi.fn(),
+  openFileReply: vi.fn(),
+  importFileReply: vi.fn(),
 }));
 const cancelPairing = vi.hoisted(() => vi.fn());
 vi.mock("../../shared/lib/api", () => ({ pairingApi: api, cancelPairing }));
@@ -141,6 +146,11 @@ beforeEach(() => {
   api.ensureCameraPermission.mockResolvedValue(undefined);
   api.wifiEnabled.mockResolvedValue(true);
   api.openWifiSettings.mockResolvedValue(undefined);
+  api.saveFileRequest.mockResolvedValue(true);
+  api.openFileRequest.mockResolvedValue({ accountCount: 3 });
+  api.saveFileReply.mockResolvedValue(true);
+  api.openFileReply.mockResolvedValue({ accountCount: 2, ticket: "ticket-1" });
+  api.importFileReply.mockResolvedValue({ added: 2, updated: 0, skipped: 0, warnings: [] });
   Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh)", configurable: true });
   window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
 });
@@ -479,6 +489,107 @@ describe("entering a link code", () => {
     await press("Try Again");
     expect(title()).toBe("Enter Link Code");
     expect(input().value).toBe("123456");
+  });
+});
+
+describe("transfer by file", () => {
+  const codeInput = () => document.getElementById("pairing-join-code-input") as HTMLInputElement;
+
+  async function receiveWithCode() {
+    render();
+    await press("Receive Accounts on This Device");
+    typeInto(codeInput(), "123456");
+  }
+
+  it("saves a request for the typed code, then opens and adds the reply", async () => {
+    render();
+    await press("Receive Accounts on This Device");
+    expect(button("Use a file instead").disabled).toBe(true);
+    typeInto(codeInput(), "123456");
+    await press("Use a file instead");
+    expect(api.saveFileRequest).toHaveBeenCalledWith("123456");
+    expect(title()).toBe("Receive by File");
+    expect(text()).toContain("Request saved");
+
+    await press("Open Reply…");
+    expect(text()).toContain("Add 2 accounts?");
+    expect(api.importFileReply).not.toHaveBeenCalled();
+    await press("Add Accounts");
+    expect(api.importFileReply).toHaveBeenCalledWith("ticket-1", true);
+    expect(onCompleted).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays on the code when the save dialog is cancelled", async () => {
+    api.saveFileRequest.mockResolvedValue(false);
+    await receiveWithCode();
+    await press("Use a file instead");
+    expect(title()).toBe("Enter Link Code");
+    expect(codeInput().value).toBe("123456");
+  });
+
+  it("keeps waiting when the open dialog is cancelled, and goes back to the code", async () => {
+    api.openFileReply.mockResolvedValue(null);
+    await receiveWithCode();
+    await press("Use a file instead");
+    await press("Open Reply…");
+    expect(text()).toContain("Request saved");
+    await press("Back");
+    expect(title()).toBe("Enter Link Code");
+  });
+
+  it("shows why a reply did not open", async () => {
+    api.openFileReply.mockRejectedValue({
+      code: "pairing",
+      message: "This reply doesn't match the code you entered, or the file is damaged. Start again on both devices.",
+    });
+    await receiveWithCode();
+    await press("Use a file instead");
+    await press("Open Reply…");
+    expect(document.querySelector(".modal-error")?.textContent).toContain("doesn't match the code you entered");
+  });
+
+  it("answers a request while showing the code, after the user agrees", async () => {
+    render();
+    await press("Send Accounts from This Device");
+    await press("Open a request file");
+    expect(title()).toBe("Send by File");
+    expect(text()).toContain("Send 3 accounts?");
+    expect(api.saveFileReply).not.toHaveBeenCalled();
+    await press("Save Reply…");
+    expect(api.saveFileReply).toHaveBeenCalledWith(true, { marker: true });
+    expect(text()).toContain("Reply saved");
+    await press("Done");
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("sends no layout when settings are left out", async () => {
+    render();
+    click(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!);
+    await settle();
+    await press("Send Accounts from This Device");
+    await press("Open a request file");
+    await press("Save Reply…");
+    expect(api.saveFileReply).toHaveBeenCalledWith(false, undefined);
+  });
+
+  it("goes back to the code without ending the session", async () => {
+    render();
+    await press("Send Accounts from This Device");
+    await press("Open a request file");
+    cancelPairing.mockClear();
+    await press("Back");
+    expect(title()).toBe("Link Code");
+    expect(cancelPairing).not.toHaveBeenCalled();
+  });
+
+  it("is not offered on a phone yet", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
+    render();
+    await press("Send Accounts from This Device");
+    expect(text()).not.toContain("Open a request file");
+    await press("Back");
+    await press("Receive Accounts on This Device");
+    expect(text()).not.toContain("Use a file instead");
   });
 });
 

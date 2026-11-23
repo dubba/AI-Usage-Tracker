@@ -3,6 +3,7 @@ import { cancelPairing, pairingApi } from "../../shared/lib/api";
 import { ChevronIcon } from "../../shared/ui/icons";
 import { useAirgapCapture } from "./hooks/useAirgapCapture";
 import { useAirgapFlow } from "./hooks/useAirgapFlow";
+import { useFileTransfer } from "./hooks/useFileTransfer";
 import { usePairingStatus } from "./hooks/usePairingStatus";
 import { useQrScanner } from "./hooks/useQrScanner";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
@@ -30,6 +31,7 @@ import { DialogError } from "../../shared/ui/DialogError";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { AirgapSenderView } from "./views/AirgapSenderView";
 import { CodeEntryView } from "./views/CodeEntryView";
+import { FileReceiveView, FileSendView } from "./views/FileTransferViews";
 import { HostCodeView } from "./views/HostCodeView";
 import { ModeSelectView } from "./views/ModeSelectView";
 import { RoleSelectView } from "./views/RoleSelectView";
@@ -145,6 +147,10 @@ export function PairingModal({
     onCompleted,
   });
 
+  // Files are offered on desktop for now; phones get the share sheet in a later step.
+  const fileTransfer = useFileTransfer({ context: actionContext, includeSettings, showView });
+  const filesOffered = !isMobileDevice();
+
   // Drops the camera and the state of any pairing in progress. `stopCamera` and `capture` are new
   // every render, so the open/close effect below calls this effect event instead of listing them
   // and re-running on every render.
@@ -153,6 +159,7 @@ export function PairingModal({
     setStatus({ status: "idle" });
     capture.resetAll();
     stopCamera();
+    fileTransfer.reset();
   });
 
   const handleClose = () => {
@@ -208,10 +215,18 @@ export function PairingModal({
         capture.clearCapture();
         leaveAttempt("select-mode");
         return true;
+      case "file-send":
+        // Back to the code: the session and the opened request stay.
+        showView("host");
+        return true;
+      case "file-receive":
+        // Back to the code entry; the request stays out until a new one replaces it.
+        showView("code");
+        return true;
       case "select-role":
         return false;
     }
-  }, [isWaitingState, viewMode, leaveAttempt, stopCamera, capture, clearExport]);
+  }, [isWaitingState, viewMode, leaveAttempt, stopCamera, capture, clearExport, showView]);
 
   const handleEscape = useCallback(() => {
     if (errorMessage || airgapPrepareError || cameraError) {
@@ -430,6 +445,27 @@ export function PairingModal({
             remainingSecs={remainingSecs}
             onRegenerate={() => void initHostSession()}
             onOtherWays={() => leaveAttempt("select-mode")}
+            onOpenRequest={filesOffered ? () => void fileTransfer.openRequest() : undefined}
+          />
+        )}
+
+        {isWaitingState && viewMode === "file-send" && fileTransfer.sendState && (
+          <FileSendView
+            state={fileTransfer.sendState}
+            busy={busy}
+            onSaveReply={() => void fileTransfer.saveReply()}
+            onBack={goBack}
+            onDone={handleClose}
+          />
+        )}
+
+        {isWaitingState && viewMode === "file-receive" && (
+          <FileReceiveView
+            preview={fileTransfer.preview}
+            busy={busy}
+            onOpenReply={() => void fileTransfer.openReply()}
+            onImport={() => void fileTransfer.importReply()}
+            onBack={goBack}
           />
         )}
 
@@ -473,6 +509,7 @@ export function PairingModal({
             onSubmit={() => void handleConnectByCode(joinCodeInput)}
             onBack={goBack}
             onOtherWays={() => leaveAttempt("select-mode")}
+            onUseFile={filesOffered ? () => void fileTransfer.saveRequest(joinCodeInput) : undefined}
             setKeyboardOpen={setIsKeyboardOpen}
           />
         )}
