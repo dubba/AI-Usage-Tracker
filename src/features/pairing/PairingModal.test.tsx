@@ -280,6 +280,26 @@ describe("mobile Wi-Fi prompt for link codes", () => {
     expect(title()).toBe("Other Ways to Connect");
   });
 
+  it("carries on without Wi-Fi when the prompt is closed with its X", async () => {
+    api.wifiEnabled.mockResolvedValue(false);
+    render();
+    await press("Receive Accounts on This Device");
+    click(document.querySelector<HTMLButtonElement>(".confirm-dialog-backdrop .ui-modal-close")!);
+    await settle();
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(title()).toBe("Enter Link Code");
+  });
+
+  it("starts the sender's code when its Wi-Fi prompt is closed with its X", async () => {
+    api.wifiEnabled.mockResolvedValue(false);
+    render();
+    await press("Send Accounts from This Device");
+    click(document.querySelector<HTMLButtonElement>(".confirm-dialog-backdrop .ui-modal-close")!);
+    await settle();
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(api.startHost).toHaveBeenCalledTimes(1);
+  });
+
   it("continues into Enter Link Code after Wi-Fi is turned on", async () => {
     api.wifiEnabled.mockResolvedValue(false);
     render();

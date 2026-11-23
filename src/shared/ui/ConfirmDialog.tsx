@@ -32,6 +32,7 @@ export function ConfirmDialog({
   busy = false,
   onConfirm,
   onCancel,
+  onDismiss,
 }: {
   open: boolean;
   /** Small uppercase line above the title, e.g. "Delete group". */
@@ -56,13 +57,16 @@ export function ConfirmDialog({
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** The X, Escape and the backdrop, when they should do something other than the cancel button. */
+  onDismiss?: () => void;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   const titleId = useId();
   const bodyId = useId();
   const noteId = useId();
   const requestCancel = useModalClosePolicy(!busy, onCancel);
-  useModalA11y(dialogRef, open, requestCancel);
+  const requestDismiss = useModalClosePolicy(!busy, onDismiss ?? onCancel);
+  useModalA11y(dialogRef, open, requestDismiss);
   if (!open) return null;
 
   return createPortal(
@@ -73,7 +77,7 @@ export function ConfirmDialog({
       describedBy={note ? `${bodyId} ${noteId}` : bodyId}
       className={className ? `remove-account-modal ${className}` : "remove-account-modal"}
       backdropClassName="confirm-dialog-backdrop"
-      onClose={requestCancel}
+      onClose={requestDismiss}
       closeDisabled={busy}
     >
       <div className="modal-kicker">{kicker}</div>

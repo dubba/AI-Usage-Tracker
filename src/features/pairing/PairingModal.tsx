@@ -632,6 +632,12 @@ export function PairingModal({
         setWifiPrompt(null);
         showView("select-mode");
       }}
+      onDismiss={() => {
+        // Closing the prompt carries on without Wi-Fi: the code screens offer a file instead.
+        const action = wifiPrompt;
+        setWifiPrompt(null);
+        if (action) startLinkCode(action);
+      }}
     />
     </>
   );

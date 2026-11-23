@@ -925,6 +925,27 @@ async fn host_listener_binds_only_the_advertised_address() {
     }
 }
 
+#[tokio::test]
+async fn without_a_network_address_the_host_listens_only_on_loopback() {
+    let loopback = std::net::IpAddr::from([127, 0, 0, 1]);
+    // No local-network address (a public one, none at all, or one this machine no longer has):
+    // the session is file-only, unreachable from other devices and not announced.
+    for address in ["8.8.8.8", "", "not-an-ip", "10.254.254.253"] {
+        let (ip, listener, on_network) = super::bind_host_listener(address.to_string())
+            .await
+            .unwrap();
+        assert!(!on_network, "{address}");
+        assert_eq!(ip, "127.0.0.1");
+        assert_eq!(listener.local_addr().unwrap().ip(), loopback);
+    }
+    // A local-network address is used as before, and announced.
+    let (_, listener, on_network) = super::bind_host_listener("127.0.0.1".to_string())
+        .await
+        .unwrap();
+    assert!(on_network);
+    assert_eq!(listener.local_addr().unwrap().ip(), loopback);
+}
+
 #[test]
 fn host_address_prefers_wifi_over_cellular_and_vpn() {
     use super::transport::lan::select_lan_ipv4;

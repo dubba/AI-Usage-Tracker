@@ -399,8 +399,7 @@ impl PairingSessionManager {
         let mut session_nonce = vec![0u8; 16];
         rand::rngs::OsRng.fill_bytes(&mut session_nonce);
 
-        let ip = get_local_lan_ip();
-        let listener = bind_pairing_listener(&ip)
+        let (ip, listener, on_network) = bind_host_listener(get_local_lan_ip())
             .await
             .map_err(|e| format!("Failed to bind TCP listener: {e}"))?;
         let port = listener
@@ -457,11 +456,15 @@ impl PairingSessionManager {
 
         // mDNS advertise is best-effort and must not block returning the code:
         // ServiceDaemon::new() can hang on Android until multicast is ready.
+        // A file-only session (no network address) is not announced at all.
         let advertise_ip = ip.clone();
         let advertise_nonce = session_nonce.clone();
         let advertise_active = self.active.clone();
         let advertise_sid = session_id.to_string();
         tokio::spawn(async move {
+            if !on_network {
+                return;
+            }
             let advertised = tokio::task::spawn_blocking(move || {
                 discovery::advertise(
                     &discovery::generate_instance_name(),
@@ -756,6 +759,22 @@ impl PairingSessionManager {
 /// cannot be bound (it vanished since we read it), fails host mode with an
 /// explanation instead of exposing the listener beyond the local network for
 /// the life of the session.
+/// The host's listener and the address it is on; `false` when this device has no local-network
+/// address (Wi-Fi off, on a carrier that gives no private address). The session then listens on
+/// loopback, which no other device can reach, and is not announced: the link code still works
+/// for a request file (`file_transfer`), and the expiry, cancel and wrong-code limit run as usual.
+pub(crate) async fn bind_host_listener(ip: String) -> std::io::Result<(String, TcpListener, bool)> {
+    match bind_pairing_listener(&ip).await {
+        Ok(listener) => Ok((ip, listener, true)),
+        Err(e) if e.kind() == std::io::ErrorKind::AddrNotAvailable => {
+            const LOOPBACK: &str = "127.0.0.1";
+            let listener = bind_pairing_listener(LOOPBACK).await?;
+            Ok((LOOPBACK.to_string(), listener, false))
+        }
+        Err(e) => Err(e),
+    }
+}
+
 pub(crate) async fn bind_pairing_listener(ip: &str) -> std::io::Result<TcpListener> {
     let addr = ip
         .parse::<IpAddr>()
