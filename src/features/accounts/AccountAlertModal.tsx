@@ -9,6 +9,7 @@ import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError"
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy, useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
+import { DialogError } from "../../shared/ui/DialogError";
 
 const THRESHOLDS = [10, 20, 30, 40, 50];
 const WINDOW_ORDER = ["five_hour", "weekly", "monthly"] as const;
@@ -165,7 +166,7 @@ export function AccountAlertModal({
         <button type="button" className="button ghost" onClick={requestClose} disabled={saving}>Cancel</button>
         <button type="button" className="button primary" onClick={() => void save()} disabled={loading || saving || !availableWindows.length}>{saving ? "Saving…" : "Save Notifications"}</button>
       </div>
-      {error ? <div className="error-panel modal-error" role="alert">{error}</div> : null}
+      {error ? <DialogError message={error} onDismiss={() => setError(null)} /> : null}
     </ModalDialog>
   );
 }

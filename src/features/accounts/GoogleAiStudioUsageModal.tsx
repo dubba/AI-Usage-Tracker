@@ -11,6 +11,7 @@ import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 
 import { ModalDialog } from "../../shared/ui/ModalDialog";
+import { DialogError } from "../../shared/ui/DialogError";
 
 type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
 
@@ -207,7 +208,7 @@ export function GoogleAiStudioUsageModal({
           </button>
         ) : null}
       </div>
-      {error ? <div className="error-panel modal-error" role="alert">{error}</div> : null}
+      {error ? <DialogError message={error} onDismiss={() => setError(null)} /> : null}
     </ModalDialog>
   );
 }

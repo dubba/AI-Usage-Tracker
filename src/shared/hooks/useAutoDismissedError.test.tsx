@@ -39,7 +39,7 @@ afterEach(() => {
 });
 
 describe("useAutoDismissedError", () => {
-  it("hides the message after 6 seconds", () => {
+  it("hides the message after 10 seconds", () => {
     mounted = mount(<Probe />);
     click(document.querySelector("button")!);
     expect(shown()).toBe("boom");

@@ -16,6 +16,7 @@ import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 import { useUsageDisplayMode } from "../../shared/hooks/usePreferences";
 import { displayPercent } from "../../shared/lib/usage-display";
 import { cardWindows, isWindowExpired } from "../../shared/lib/usage-logic";
+import { DialogError } from "../../shared/ui/DialogError";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = (Object.keys(PROVIDER_META) as Provider[])
   .map((id) => ({ id, label: PROVIDER_META[id].name }))
@@ -303,7 +304,7 @@ export function BucketModal({
           </div>
         </footer>
 
-        {error ? <div className="error-panel modal-error modal-error-message" role="alert">{error}</div> : null}
+        {error ? <DialogError className="modal-error-message" message={error} onDismiss={() => setError(null)} /> : null}
       </form>
     </ModalDialog>
   );

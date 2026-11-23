@@ -1601,6 +1601,41 @@ button.account-card-provider-icon:active {
   color: var(--c-ffaaaa);
 }
 
+/* A dialog's error banner with its X (DialogError.tsx). The text keeps clear of the X on both
+   sides, so it stays centered. */
+.error-panel.dialog-error {
+  position: relative;
+  padding-inline: 36px;
+}
+
+.dialog-error-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.dialog-error-dismiss svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.2;
+}
+
+.dialog-error-dismiss:hover,
+.dialog-error-dismiss:focus-visible {
+  background: rgb(var(--tint-red-rgb) / 0.16);
+}
+
 .settings-style-content {
   box-sizing: border-box;
   height: 100%;

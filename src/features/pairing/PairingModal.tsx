@@ -26,6 +26,7 @@ import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { describeError } from "../../shared/lib/errors";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
+import { DialogError } from "../../shared/ui/DialogError";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { AirgapSenderView } from "./views/AirgapSenderView";
 import { CodeEntryView } from "./views/CodeEntryView";
@@ -481,6 +482,7 @@ export function PairingModal({
             exportData={airgapExport}
             busy={busy}
             error={airgapPrepareError}
+            onDismissError={() => setAirgapPrepareError(null)}
             frameIndex={player.frameIndex}
             playing={player.playing}
             speed={player.speed}
@@ -568,7 +570,7 @@ export function PairingModal({
       )}
 
       {errorMessage && !airgapPrepareError && (
-        <div className="error-panel modal-error" role="alert">{errorMessage}</div>
+        <DialogError message={errorMessage} onDismiss={() => setErrorMessage(null)} />
       )}
     </ModalDialog>
     <ConfirmDialog

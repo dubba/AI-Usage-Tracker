@@ -434,7 +434,19 @@ describe("entering a link code", () => {
     expect(title()).toBe("Enter Link Code");
   });
 
-  it("auto-dismisses the connection error after 6 seconds", async () => {
+  it("hides the connection error from its X", async () => {
+    api.startClientByCode.mockRejectedValue(new Error("code not found"));
+    await openCodeEntry();
+    typeInto(input(), "123456");
+    await press("Connect to Device");
+    expect(document.querySelector(".modal-error")?.textContent).toContain("code not found");
+    click(document.querySelector<HTMLButtonElement>('.modal-error [aria-label="Dismiss error"]')!);
+    await settle();
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(title()).toBe("Enter Link Code");
+  });
+
+  it("auto-dismisses the connection error after 10 seconds", async () => {
     vi.useFakeTimers();
     try {
       api.startClientByCode.mockRejectedValue(new Error("code not found"));
@@ -709,7 +721,7 @@ describe("finishing", () => {
     expect(title()).toBe("Other Ways to Connect");
   });
 
-  it("auto-dismisses the pairing-failed detail after 6 seconds even if the poll repeats it", async () => {
+  it("auto-dismisses the pairing-failed detail after 10 seconds even if the poll repeats it", async () => {
     vi.useFakeTimers();
     try {
       render();
@@ -849,7 +861,7 @@ describe("air-gap transfer: sending", () => {
     expect(text()).toContain("Frame 1/3");
   });
 
-  it("auto-dismisses the export error after 6 seconds and keeps Try Again", async () => {
+  it("auto-dismisses the export error after 10 seconds and keeps Try Again", async () => {
     vi.useFakeTimers();
     try {
       api.prepareAirgapExport.mockRejectedValueOnce(new Error("too many accounts"));

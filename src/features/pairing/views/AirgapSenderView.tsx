@@ -1,3 +1,4 @@
+import { DialogError } from "../../../shared/ui/DialogError";
 import { ChevronIcon, PauseIcon, PlayIcon } from "../../../shared/ui/icons";
 import type { AirgapSpeed } from "../hooks/useAirgapPlayer";
 import { QR_QUIET_ZONE, qrPath } from "../lib/qr-path";
@@ -22,6 +23,7 @@ export function AirgapSenderView({
   exportData,
   busy,
   error,
+  onDismissError,
   frameIndex,
   playing,
   speed,
@@ -35,6 +37,8 @@ export function AirgapSenderView({
   busy: boolean;
   /** Preparing the export failed; the raw detail of the error. */
   error: string | null;
+  /** The X on the error banner. */
+  onDismissError: () => void;
   frameIndex: number;
   playing: boolean;
   speed: AirgapSpeed;
@@ -62,7 +66,7 @@ export function AirgapSenderView({
               Try Again
             </button>
           </div>
-          {error ? <div className="error-panel modal-error" role="alert">{error}</div> : null}
+          {error ? <DialogError message={error} onDismiss={onDismissError} /> : null}
         </div>
       ) : busy || !exportData ? (
         <div className="pairing-panel-status">

@@ -7,8 +7,8 @@ import {
   type SetStateAction,
 } from "react";
 
-/** Dialog error banners hide on their own after this many milliseconds. */
-export const ERROR_AUTO_DISMISS_MS = 6000;
+/** Dialog error banners hide on their own after this many milliseconds (or sooner from their X). */
+export const ERROR_AUTO_DISMISS_MS = 10_000;
 
 /**
  * Error text for a dialog: it disappears after {@link ERROR_AUTO_DISMISS_MS},

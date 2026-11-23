@@ -27,6 +27,7 @@ import { useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
+import { DialogError } from "../../shared/ui/DialogError";
 
 const PICKER_ORDER: Provider[] = ["anthropic", "antigravity", "openai", "grok", "opencode_go", "google_ai_studio"];
 
@@ -340,7 +341,7 @@ export function AddAccountModal({
           </button>
         )}
       </div>
-      {error ? <div className="error-panel modal-error" role="alert">{error}</div> : null}
+      {error ? <DialogError message={error} onDismiss={() => setError(null)} /> : null}
     </ModalDialog>
   );
 }

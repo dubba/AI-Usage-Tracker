@@ -207,7 +207,7 @@ describe("browser sign-in providers", () => {
     expect(primary().textContent).toBe("Retry");
   });
 
-  it("auto-dismisses the sign-in error after 6 seconds and keeps Retry", async () => {
+  it("auto-dismisses the sign-in error after 10 seconds and keeps Retry", async () => {
     vi.useFakeTimers();
     try {
       render();
