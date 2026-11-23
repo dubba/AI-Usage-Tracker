@@ -37,8 +37,8 @@ pub fn init(data_dir: &Path) {
     }
 }
 
-// Only the desktop updater logs at this level today.
-#[cfg_attr(target_os = "android", allow(dead_code))]
+/// Routine events worth a line in Copy Diagnostics: the desktop updater and Sync Devices
+/// (`pairing::sync_log`).
 pub fn info(message: &str) {
     log("INFO", message);
 }

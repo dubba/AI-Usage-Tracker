@@ -1,5 +1,5 @@
 use super::error::CommandResult;
-use crate::{limits, pairing, state::AppState};
+use crate::{limits, pairing, pairing::sync_log, state::AppState};
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 
@@ -33,19 +33,21 @@ pub async fn ensure_camera_permission() -> CommandResult<()> {
 
 #[tauri::command]
 pub async fn pairing_wifi_enabled() -> CommandResult<bool> {
-    tauri::async_runtime::spawn_blocking(crate::platform::wifi::is_enabled)
+    let on_wifi = tauri::async_runtime::spawn_blocking(crate::platform::wifi::is_enabled)
         .await
         .map_err(|e| {
             format!(
                 "Wi-Fi check failed: {}",
                 crate::diagnostics::command_error(e)
             )
-        })?
-        .map_err(Into::into)
+        })??;
+    sync_log::wifi_check(on_wifi);
+    Ok(on_wifi)
 }
 
 #[tauri::command]
 pub async fn pairing_open_wifi_settings() -> CommandResult<()> {
+    sync_log::note("Wi-Fi check: opening Wi-Fi settings");
     tauri::async_runtime::spawn_blocking(crate::platform::wifi::open_settings)
         .await
         .map_err(|e| {
@@ -172,8 +174,15 @@ pub async fn pairing_prepare_airgap_export(
             // Before the codes exist, so they are never on a capturable window.
             crate::platform::capture_protection::protect(&app);
             let export = pairing::airgap::prepare_airgap_export(state.inner().as_ref());
-            if export.is_err() {
-                crate::platform::capture_protection::release(&app);
+            match &export {
+                Ok(export) => sync_log::note(&format!(
+                    "QR codes: showing {} code(s) to send",
+                    export.total_chunks
+                )),
+                Err(error) => {
+                    sync_log::failed_text("QR codes: making the codes to send", error);
+                    crate::platform::capture_protection::release(&app);
+                }
             }
             export
         },
@@ -187,7 +196,16 @@ pub fn pairing_verify_airgap(
     state: State<'_, Arc<AppState>>,
     chunks: Vec<String>,
 ) -> CommandResult<pairing::airgap::AirgapPreview> {
-    pairing::airgap::preview_airgap_frames(state.inner(), chunks).map_err(Into::into)
+    let preview = pairing::airgap::preview_airgap_frames(state.inner(), chunks);
+    match &preview {
+        Ok(preview) => sync_log::note(&format!(
+            "QR codes: scanned all {} code(s), {}",
+            preview.total_chunks,
+            sync_log::accounts(preview.account_count)
+        )),
+        Err(error) => sync_log::failed_text("QR codes: reading the scanned codes", error),
+    }
+    preview.map_err(Into::into)
 }
 
 #[tauri::command]
@@ -197,9 +215,17 @@ pub async fn pairing_import_airgap(
     ticket: String,
     accept_settings: bool,
 ) -> CommandResult<pairing::payload::SyncSummary> {
-    pairing::airgap::import_airgap_payload(state.inner(), chunks, &ticket, accept_settings)
-        .await
-        .map_err(Into::into)
+    let summary =
+        pairing::airgap::import_airgap_payload(state.inner(), chunks, &ticket, accept_settings)
+            .await;
+    match &summary {
+        Ok(summary) => sync_log::note(&format!(
+            "QR codes: imported, {}",
+            sync_log::describe_summary(summary)
+        )),
+        Err(error) => sync_log::failed_text("QR codes: importing", error),
+    }
+    summary.map_err(Into::into)
 }
 
 // ---- Transfer by file (pairing::file_transfer) ----------------------------------------------
@@ -341,6 +367,12 @@ async fn keep_outgoing(
         .map_err(|_| file_error(FILE_SAVE_FAILED))?
         .join("transfer-files");
     let path = dir.join(file_name);
+    let kind = if file_name == REQUEST_FILE_NAME {
+        "request"
+    } else {
+        "reply"
+    };
+    let len = bytes.len();
     let written = tauri::async_runtime::spawn_blocking(move || {
         // Only the newest file is kept: older ones (encrypted, or holding no key) go.
         let _ = std::fs::remove_dir_all(&dir);
@@ -357,6 +389,10 @@ async fn keep_outgoing(
         file_error(FILE_SAVE_FAILED)
     })?;
     *state.pairing_file_outgoing.lock() = Some((written, file_name));
+    sync_log::note(&format!(
+        "file: made the {kind} file ({}), ready to share or save",
+        sync_log::size(len)
+    ));
     Ok(crate::platform::share_sheet::AVAILABLE)
 }
 
@@ -369,7 +405,10 @@ pub async fn pairing_file_make_request(
     code: String,
 ) -> CommandResult<bool> {
     let request =
-        pairing::file_transfer::create_request(state.inner(), &code).map_err(file_error)?;
+        pairing::file_transfer::create_request(state.inner(), &code).map_err(|error| {
+            sync_log::failed_text("file: making the request file", &error);
+            file_error(error)
+        })?;
     keep_outgoing(&app, state.inner(), REQUEST_FILE_NAME, request).await
 }
 
@@ -394,7 +433,10 @@ pub async fn pairing_file_make_reply(
     }
     let reply = pairing::file_transfer::answer_request(state.inner())
         .await
-        .map_err(file_error)?;
+        .map_err(|error| {
+            sync_log::failed_text("file: making the reply file", &error);
+            file_error(error)
+        })?;
     keep_outgoing(&app, state.inner(), REPLY_FILE_NAME, reply).await
 }
 
@@ -407,9 +449,12 @@ pub async fn pairing_file_share(
     let Some((path, _)) = state.pairing_file_outgoing.lock().clone() else {
         return Err(file_error(NOTHING_TO_SEND));
     };
-    crate::platform::share_sheet::share_file(&window, &path)
-        .await
-        .map_err(file_error)
+    let shared = crate::platform::share_sheet::share_file(&window, &path).await;
+    match &shared {
+        Ok(()) => sync_log::note("file: opened the share menu (Quick Share, AirDrop, …)"),
+        Err(error) => sync_log::failed_text("file: opening the share menu", error),
+    }
+    shared.map_err(file_error)
 }
 
 /// Saves a copy of the file made last where the user chooses. False when the dialog was
@@ -423,6 +468,7 @@ pub async fn pairing_file_save(
         return Err(file_error(NOTHING_TO_SEND));
     };
     let Some(target) = choose_save_path(&app, "Save the file", file_name).await else {
+        sync_log::note("file: save cancelled");
         return Ok(false);
     };
     tauri::async_runtime::spawn_blocking(move || write_saved(&source, target))
@@ -435,6 +481,7 @@ pub async fn pairing_file_save(
             ));
             file_error(FILE_SAVE_FAILED)
         })?;
+    sync_log::note("file: saved a copy");
     Ok(true)
 }
 
@@ -450,14 +497,23 @@ pub async fn pairing_file_open_request(
         "Open the request",
         pairing::file_transfer::REQUEST_LEN,
     )
-    .await?
+    .await
+    .inspect_err(|error| sync_log::failed("file: reading the chosen request file", error))?
     else {
+        sync_log::note("file: choosing a request file cancelled");
         return Ok(None);
     };
-    pairing::file_transfer::open_request(state.inner(), request)
-        .await
-        .map(Some)
-        .map_err(file_error)
+    let len = request.len();
+    let opened = pairing::file_transfer::open_request(state.inner(), request).await;
+    match &opened {
+        Ok(info) => sync_log::note(&format!(
+            "file: opened a chosen request file ({}), would send {}",
+            sync_log::size(len),
+            sync_log::accounts(info.account_count)
+        )),
+        Err(error) => sync_log::failed_text("file: opening a chosen request file", error),
+    }
+    opened.map(Some).map_err(file_error)
 }
 
 /// Receiver: opens the reply file and says how many accounts it holds, importing nothing.
@@ -472,13 +528,23 @@ pub async fn pairing_file_open_reply(
         "Open the reply",
         pairing::file_transfer::MAX_REPLY_LEN,
     )
-    .await?
+    .await
+    .inspect_err(|error| sync_log::failed("file: reading the chosen reply file", error))?
     else {
+        sync_log::note("file: choosing a reply file cancelled");
         return Ok(None);
     };
-    pairing::file_transfer::preview_reply(state.inner(), reply)
-        .map(Some)
-        .map_err(file_error)
+    let len = reply.len();
+    let preview = pairing::file_transfer::preview_reply(state.inner(), reply);
+    match &preview {
+        Ok(preview) => sync_log::note(&format!(
+            "file: opened a chosen reply file ({}), holding {}",
+            sync_log::size(len),
+            sync_log::accounts(preview.account_count)
+        )),
+        Err(error) => sync_log::failed_text("file: opening a chosen reply file", error),
+    }
+    preview.map(Some).map_err(file_error)
 }
 
 /// Android: whether a transfer file was tapped in another app (Quick Share's notification) and
@@ -530,11 +596,39 @@ async fn open_tapped_on_android(
             Ok(Some((uri, bytes)))
         })
         .await
-        .map_err(|_| file_error(FILE_READ_FAILED))??;
+        .map_err(|_| file_error(FILE_READ_FAILED))
+        .and_then(|read| read)
+        .inspect_err(|error| {
+            sync_log::failed("file: reading a file tapped in another app", error)
+        })?;
+    // The page can ask twice at once (Android's event and the page coming back into view): the
+    // one that finds nothing logs nothing.
     let Some((uri, bytes)) = read else {
         return Ok(None);
     };
-    let opened = open_tapped(state, bytes).await.map_err(file_error)?;
+    let len = bytes.len();
+    let opened = open_tapped(state, bytes).await.map_err(|error| {
+        sync_log::failed_text(
+            &format!(
+                "file: opening a file tapped in another app ({})",
+                sync_log::size(len)
+            ),
+            &error,
+        );
+        file_error(error)
+    })?;
+    sync_log::note(&match &opened {
+        TappedFile::Request { info } => format!(
+            "file: opened a request file tapped in another app ({}), would send {}",
+            sync_log::size(len),
+            sync_log::accounts(info.account_count)
+        ),
+        TappedFile::Reply { preview } => format!(
+            "file: opened a reply file tapped in another app ({}), holding {}",
+            sync_log::size(len),
+            sync_log::accounts(preview.account_count)
+        ),
+    });
     match opened {
         // The request is held in memory now; the file is used up.
         TappedFile::Request { .. } => {
@@ -555,7 +649,14 @@ pub async fn pairing_file_import_reply(
 ) -> CommandResult<pairing::payload::SyncSummary> {
     let summary = pairing::file_transfer::import_reply(state.inner(), &ticket, accept_settings)
         .await
-        .map_err(file_error)?;
+        .map_err(|error| {
+            sync_log::failed_text("file: importing the reply", &error);
+            file_error(error)
+        })?;
+    sync_log::note(&format!(
+        "file: imported the reply, {}",
+        sync_log::describe_summary(&summary)
+    ));
     // A reply tapped in Quick Share is used up now (a chosen one leaves nothing to delete).
     #[cfg(target_os = "android")]
     tauri::async_runtime::spawn_blocking(crate::platform::android_files::delete_imported_reply);

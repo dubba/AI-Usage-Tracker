@@ -49,8 +49,14 @@ pub async fn route_pairing_connection(peer: std::net::IpAddr) {
         let _ = tokio::task::spawn_blocking(move || {
             let Some(interface) = crate::pairing::transport::lan::local_interface_for_peer(peer)
             else {
+                crate::pairing::sync_log::note(
+                    "link code: connecting to the other device, which is on no local subnet of this device",
+                );
                 return;
             };
+            crate::pairing::sync_log::note(&format!(
+                "link code: connecting to the other device through interface {interface}"
+            ));
             if let Err(error) = route_pairing_to(&interface) {
                 crate::diagnostics::warn(&error);
             }

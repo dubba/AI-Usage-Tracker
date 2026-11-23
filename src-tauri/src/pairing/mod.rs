@@ -8,6 +8,7 @@ pub mod file_transfer;
 pub mod dnssd;
 pub mod payload;
 pub mod protocol;
+pub(crate) mod sync_log;
 pub mod transport;
 
 #[cfg(test)]
@@ -406,6 +407,11 @@ impl PairingSessionManager {
             .local_addr()
             .map_err(|e| format!("Failed to get local port: {e}"))?
             .port();
+        sync_log::note(if on_network {
+            "link code: showing a code, listening on the local network"
+        } else {
+            "link code: showing a code, but this device has no local network address (Wi-Fi off or not connected); only a request file can use it"
+        });
 
         // The link code is the pairing secret: it is shown on this screen and
         // typed on the other device, and never sent or announced.
@@ -543,6 +549,7 @@ impl PairingSessionManager {
                 };
 
                 *status_lock.write().await = current_status.clone();
+                sync_log::status(sync_log::Side::Showing, &current_status);
 
                 if let Some(app_handle) = &app_handle_opt {
                     let _ = app_handle.emit("pairing-status", &current_status);
@@ -593,7 +600,17 @@ impl PairingSessionManager {
         }
         let epoch = self.next_epoch();
 
-        let hosts = discovery::discover().await?;
+        let hosts = match discovery::discover().await {
+            Ok(hosts) => hosts,
+            Err(error) => {
+                sync_log::failed_text("link code: looking for the other device", &error);
+                return Err(error);
+            }
+        };
+        sync_log::note(&format!(
+            "link code: entered a code, found {} device(s) showing a code on the network",
+            hosts.len()
+        ));
         self.start_client(state, hosts, code, epoch).await
     }
 
@@ -688,6 +705,7 @@ impl PairingSessionManager {
                 };
 
                 *status_lock.write().await = current_status.clone();
+                sync_log::status(sync_log::Side::Entering, &current_status);
 
                 if let Some(app_handle) = &app_handle_opt {
                     let _ = app_handle.emit("pairing-status", &current_status);

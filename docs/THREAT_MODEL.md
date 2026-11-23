@@ -275,7 +275,7 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 | --- | --- |
 | `opener` plugin restricted to 8 HTTPS URL prefixes (auth hosts + this repo) | `capabilities/default.json:9-36` |
 | Frontend `openSafeUrl`/`isAllowedExternalUrl` allow exactly the opener's URL prefixes, compared on the parsed URL (no userinfo or port); the sync test fails if the two lists differ | `src/shared/lib/safeUrl.ts:3-42`, `lib.rs:218-248` |
-| Diagnostics export: every log line and the report pass `redact()` (sensitive keys, `code`/`state` query parameters, bearer tokens, JWTs, opaque strings, masked emails, masked home folders); the report lists accounts by provider and id, not label or email | `diagnostics.rs:127-215,232-270,370-490` |
+| Diagnostics export: every log line and the report pass `redact()` (sensitive keys, `code`/`state` query parameters, bearer tokens, JWTs, opaque strings, masked emails, masked home folders); the report lists accounts by provider and id, not label or email. Sync Devices steps are logged as fixed sentences with counts, kinds and file sizes only (`pairing/sync_log.rs`): never the link code, file names, paths or `content://` addresses, account names, or transfer contents | `diagnostics.rs:127-215,232-270,370-490`, `pairing/sync_log.rs` |
 | Command error text returned to the page goes through `redact()` and is capped at 300 characters (paths with home-folder names, IO and plugin errors) | `diagnostics.rs:271-282`, used in `commands/{accounts,bridge,settings,pairing,system}.rs`, `auth/grok_login.rs`, `auth/opencode_login.rs` |
 
 ### 13. Platform permission surfaces

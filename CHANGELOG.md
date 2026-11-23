@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (15 changes)
+## Unreleased (16 changes)
 
 ### Added (1)
 
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens.
 
-### Improved (10)
+### Improved (11)
 
+- Settings > Diagnostics now records each Sync Devices step: how the devices connected (link code, QR codes, or a file sent by Quick Share or AirDrop), whether the phone was on Wi-Fi, which network interface the connection used, which transfer files were made, opened or saved, and how the sync ended, with the number of accounts added, updated and skipped or the reason it failed. Link codes, file names and account names are never recorded.
 - In Sync Devices, the settings option is now called "Also Sync Settings and Layout", and its description no longer mentions the local API.
 - On Android, Sync Devices now asks you to connect to Wi-Fi whenever the phone isn't on a Wi-Fi network, not only when Wi-Fi is turned off, so a Pixel with Wi-Fi on but not connected gets the prompt too. The prompt is now titled "Connect to Wi-Fi", and its button reads "Open Wi-Fi Settings". Closing it carries on without Wi-Fi, to send a file by Quick Share instead.
 - On the Usage page's 90D view, the back and forward arrows on each card now have tooltips ("Show previous 30 days" and "Show next 30 days"), lined up with the forward arrow's right edge.
