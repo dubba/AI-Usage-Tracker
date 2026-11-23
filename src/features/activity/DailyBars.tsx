@@ -295,6 +295,7 @@ export function DailyBars({
             type="button"
             className="activity-pager-button is-earlier"
             aria-label={`Earlier ${perPage} days`}
+            data-tooltip={`Show previous ${perPage} days`}
             disabled={shownPage === 0}
             onClick={() => turnPage(-1)}
           >
@@ -304,6 +305,7 @@ export function DailyBars({
             type="button"
             className="activity-pager-button"
             aria-label={`Later ${perPage} days`}
+            data-tooltip={`Show next ${perPage} days`}
             disabled={shownPage === lastPage}
             onClick={() => turnPage(1)}
           >

@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (11 changes)
 
-### Improved (8)
+### Improved (9)
 
+- On the Usage page's 90D view, the back and forward arrows on each card now have tooltips ("Show previous 30 days" and "Show next 30 days"), lined up with the forward arrow's right edge.
 - On desktop, the Compact button has moved from the top bar to the Dashboard header, beside the % Used / % Left switch, and is now labeled `Compact`.
 - On desktop and Android, Sync Devices can now move accounts between devices that aren't on the same network, using two small files you send by AirDrop, Quick Share or email. The receiving device makes a request for the link code it was given ("Not on the same network? Use a file instead"), the sending device opens it and makes a reply, and the receiving device opens the reply to add the accounts. On a Mac each file goes out through the share menu, so AirDrop is one click, on Windows through the share panel (Nearby Sharing, or Quick Share if installed), and on Android through the share sheet (Quick Share); on Linux, and anywhere if you prefer, you save it to a file. The reply only opens with that link code.
 - On a phone that shares its hotspot, Sync Devices no longer asks you to turn on Wi-Fi before showing or entering a link code. On iPhone this works once another device has joined the hotspot, because iOS does not let apps see it earlier.

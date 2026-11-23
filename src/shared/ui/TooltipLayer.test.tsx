@@ -118,6 +118,7 @@ describe("computeTooltipPosition", () => {
       </div>
       <div class="top-bar-segmented"><button data-tooltip="Left"></button></div>
       <div class="activity-period-switch"><button data-tooltip="7D"></button></div>
+      <div class="activity-pager"><button class="activity-pager-button is-earlier" data-tooltip="Earlier"></button><button class="activity-pager-button" data-tooltip="Later"></button></div>
       <button class="top-bar-add-account" data-tooltip="Add"></button>
       <div class="dashboard-header-actions"><button class="sidebar-section-button" data-tooltip="Group"></button></div>
       <div class="provider-window-toggle"><button data-tooltip="Left"></button></div>
@@ -130,6 +131,13 @@ describe("computeTooltipPosition", () => {
       expect(getTooltipPlacement(navItems[2]).align).toBe("end");
       expect(getTooltipPlacement(wrapper.querySelector(".top-bar-segmented button")!).align).toBe("end");
       expect(getTooltipPlacement(wrapper.querySelector(".activity-period-switch button")!).align).toBe("end");
+      // Both chart arrows line their tooltips up with the forward arrow's right edge (the pager's).
+      const pager = wrapper.querySelector<HTMLElement>(".activity-pager")!;
+      for (const arrow of wrapper.querySelectorAll<HTMLElement>(".activity-pager-button")) {
+        const placement = getTooltipPlacement(arrow);
+        expect(placement.align).toBe("end");
+        expect(placement.anchorRect?.right).toBe(pager.getBoundingClientRect().right);
+      }
       expect(getTooltipPlacement(wrapper.querySelector(".top-bar-add-account")!).align).toBe("end");
       expect(getTooltipPlacement(wrapper.querySelector(".dashboard-header-actions .sidebar-section-button")!).align).toBe("end");
 

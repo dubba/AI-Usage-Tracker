@@ -172,6 +172,11 @@ export function getTooltipPlacement(trigger: HTMLElement): TooltipPlacementConfi
       anchorRect: anchorBoxFor(trigger, ".activity-period-switch"),
     };
   }
+  // The chart's back and forward arrows: both tooltips end at the forward arrow's right edge, so they
+  // stay inside the card.
+  if (trigger.matches(".activity-pager-button")) {
+    return { placement: "bottom", align: "end", offset: 8, anchorRect: anchorBoxFor(trigger, ".activity-pager") };
+  }
   if (trigger.matches(".provider-window-toggle button")) {
     const anchorRect = anchorBoxFor(trigger, ".provider-window-toggle");
     if (trigger.closest(".dashboard-header-actions")) {

@@ -359,6 +359,8 @@ describe("DailyBars, 90 days", () => {
     expect(all(root, ".activity-bar")).toHaveLength(90);
     expect(later(root).disabled).toBe(true);
     expect(earlier(root).disabled).toBe(false);
+    expect(earlier(root).getAttribute("data-tooltip")).toBe("Show previous 30 days");
+    expect(later(root).getAttribute("data-tooltip")).toBe("Show next 30 days");
   });
 
   it("moves a page at a time with the arrows, and stops at either end", () => {
