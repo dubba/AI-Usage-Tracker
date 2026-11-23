@@ -266,8 +266,9 @@ class MainActivity : TauriActivity() {
     }
   }
 
-  // Intents: the update notification's tap. Links from other apps are not acted on: the only
-  // other filter (aiusage-signin) just brings the app forward.
+  // Intents: the update notification's tap, and a Sync Devices transfer file tapped in another
+  // app (kept for Rust to open; TransferFiles.keepTapped). The sign-in link (aiusage-signin)
+  // just brings the app forward.
 
   private fun handleUpdateIntent(intent: Intent?) {
     val version = intent?.getStringExtra("open_update_notes") ?: return
@@ -288,6 +289,7 @@ class MainActivity : TauriActivity() {
     super.onNewIntent(intent)
     setIntent(intent)
     handleUpdateIntent(intent)
+    transferFiles.keepTapped(intent)
   }
 
   override fun onResume() {
@@ -340,6 +342,7 @@ class MainActivity : TauriActivity() {
     insets.install()
 
     handleUpdateIntent(intent)
+    transferFiles.keepTapped(intent)
     pendingUpdateNoticeMemory?.let { ver ->
       try {
         setPendingUpdateNotice(ver)
@@ -368,6 +371,13 @@ class MainActivity : TauriActivity() {
   fun shareTransferFile(path: String) = transferFiles.share(path)
 
   fun readTransferFile(uri: String, maxBytes: Int): ByteArray = transferFiles.read(uri, maxBytes)
+
+  fun hasTappedTransferFile(): Boolean = transferFiles.hasTapped()
+
+  /** The tapped file's address, or "" when there is none (JNI callers expect a String). */
+  fun takeTappedTransferFile(): String = transferFiles.takeTapped() ?: ""
+
+  fun deleteTransferFile(uri: String) = transferFiles.delete(uri)
 
   fun writeTransferFile(uri: String, data: ByteArray) = transferFiles.write(uri, data)
 

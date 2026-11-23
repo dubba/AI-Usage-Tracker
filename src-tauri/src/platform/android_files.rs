@@ -1,6 +1,6 @@
 //! Android's side of the Sync Devices transfer files (`commands::pairing`), in `TransferFiles.kt`:
-//! the share sheet for the file the app made, and reading or writing the `content://` files the
-//! system open and save dialogs return. Failures come back as one fixed sentence each; the Kotlin
+//! the share sheet for the file the app made, reading or writing the `content://` files the
+//! system open and save dialogs return, and the file tapped in another app (Quick Share). Failures come back as one fixed sentence each; the Kotlin
 //! exception is cleared so the thread stays usable.
 
 use jni::{
@@ -82,4 +82,74 @@ pub fn write(uri: &str, bytes: &[u8]) -> Result<(), String> {
         }
         Ok(())
     })
+}
+
+/// Whether a transfer file was tapped in another app and not taken yet. False if the check fails.
+pub fn has_tapped() -> bool {
+    crate::platform::android_context::with_activity("", |env, activity| {
+        let result = env.call_method(activity, "hasTappedTransferFile", "()Z", &[]);
+        if threw(env) {
+            return Ok(false);
+        }
+        Ok(result.and_then(|value| value.z()).unwrap_or(false))
+    })
+    .unwrap_or(false)
+}
+
+/// Takes the address of the file tapped in another app, once; `None` when there is none.
+pub fn take_tapped() -> Result<Option<String>, String> {
+    crate::platform::android_context::with_activity(READ_FAILED, |env, activity| {
+        let result = env.call_method(
+            activity,
+            "takeTappedTransferFile",
+            "()Ljava/lang/String;",
+            &[],
+        );
+        if threw(env) {
+            return Err(READ_FAILED.into());
+        }
+        let object = result
+            .and_then(|value| value.l())
+            .map_err(|_| READ_FAILED.to_string())?;
+        let text: String = env
+            .get_string(&jni::objects::JString::from(object))
+            .map_err(|_| READ_FAILED.to_string())?
+            .into();
+        // Kotlin returns "" when no file is waiting.
+        Ok(Some(text).filter(|uri| !uri.is_empty()))
+    })
+}
+
+/// A tapped reply that opened, deleted once it is imported.
+static OPENED_REPLY: parking_lot::Mutex<Option<String>> = parking_lot::Mutex::new(None);
+
+/// Remembers the tapped reply at `uri` that opened, for [`delete_imported_reply`].
+pub fn remember_opened_reply(uri: String) {
+    *OPENED_REPLY.lock() = Some(uri);
+}
+
+/// Deletes the tapped reply that opened last, now that it is imported. Does nothing when the
+/// reply came from the open dialog instead.
+pub fn delete_imported_reply() {
+    if let Some(uri) = OPENED_REPLY.lock().take() {
+        delete(&uri);
+    }
+}
+
+/// Deletes the used-up tapped file at `uri`. Best effort: the app that saved it usually refuses,
+/// and a used file is harmless.
+pub fn delete(uri: &str) {
+    let _ = crate::platform::android_context::with_activity("", |env, activity| {
+        let Ok(uri) = env.new_string(uri) else {
+            return Ok(());
+        };
+        let _ = env.call_method(
+            activity,
+            "deleteTransferFile",
+            "(Ljava/lang/String;)V",
+            &[JValue::Object(&uri.into())],
+        );
+        threw(env);
+        Ok(())
+    });
 }

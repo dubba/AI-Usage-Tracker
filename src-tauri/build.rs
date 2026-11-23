@@ -87,6 +87,8 @@ const APP_COMMANDS: &[&str] = &[
     "pairing_file_save",
     "pairing_file_open_request",
     "pairing_file_open_reply",
+    "pairing_file_tapped_pending",
+    "pairing_file_open_tapped",
     "pairing_file_import_reply",
 ];
 

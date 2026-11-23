@@ -481,6 +481,70 @@ pub async fn pairing_file_open_reply(
         .map_err(file_error)
 }
 
+/// Android: whether a transfer file was tapped in another app (Quick Share's notification) and
+/// not opened yet. Always false elsewhere.
+#[tauri::command]
+pub async fn pairing_file_tapped_pending() -> CommandResult<bool> {
+    #[cfg(target_os = "android")]
+    let pending = tauri::async_runtime::spawn_blocking(crate::platform::android_files::has_tapped)
+        .await
+        .map_err(|_| file_error(FILE_READ_FAILED))?;
+    #[cfg(not(target_os = "android"))]
+    let pending = false;
+    Ok(pending)
+}
+
+/// Android: opens the file tapped in another app as a request or a reply, whichever it is, as
+/// `pairing_file_open_request` and `pairing_file_open_reply` do for a chosen file. `None` when no
+/// file is waiting. A request, once opened, is deleted at once; a reply after its import. Always
+/// `None` elsewhere.
+#[tauri::command]
+pub async fn pairing_file_open_tapped(
+    state: State<'_, Arc<AppState>>,
+) -> CommandResult<Option<pairing::file_transfer::TappedFile>> {
+    #[cfg(target_os = "android")]
+    let opened = open_tapped_on_android(state.inner()).await?;
+    #[cfg(not(target_os = "android"))]
+    let opened = {
+        let _ = state;
+        None
+    };
+    Ok(opened)
+}
+
+#[cfg(target_os = "android")]
+async fn open_tapped_on_android(
+    state: &AppState,
+) -> CommandResult<Option<pairing::file_transfer::TappedFile>> {
+    use crate::platform::android_files;
+    use pairing::file_transfer::{open_tapped, TappedFile, MAX_TAPPED_LEN};
+    let read =
+        tauri::async_runtime::spawn_blocking(|| -> CommandResult<Option<(String, Vec<u8>)>> {
+            let Some(uri) = android_files::take_tapped().map_err(file_error)? else {
+                return Ok(None);
+            };
+            let bytes = android_files::read(&uri, MAX_TAPPED_LEN).map_err(file_error)?;
+            if bytes.len() > MAX_TAPPED_LEN {
+                return Err(file_error(pairing::file_transfer::NOT_A_PAIRING_FILE));
+            }
+            Ok(Some((uri, bytes)))
+        })
+        .await
+        .map_err(|_| file_error(FILE_READ_FAILED))??;
+    let Some((uri, bytes)) = read else {
+        return Ok(None);
+    };
+    let opened = open_tapped(state, bytes).await.map_err(file_error)?;
+    match opened {
+        // The request is held in memory now; the file is used up.
+        TappedFile::Request { .. } => {
+            tauri::async_runtime::spawn_blocking(move || android_files::delete(&uri));
+        }
+        TappedFile::Reply { .. } => android_files::remember_opened_reply(uri),
+    }
+    Ok(Some(opened))
+}
+
 /// Receiver, after its user agreed: imports the reply the preview opened. `ticket` is the
 /// preview's; `accept_settings` is this device's own choice.
 #[tauri::command]
@@ -489,9 +553,13 @@ pub async fn pairing_file_import_reply(
     ticket: String,
     accept_settings: bool,
 ) -> CommandResult<pairing::payload::SyncSummary> {
-    pairing::file_transfer::import_reply(state.inner(), &ticket, accept_settings)
+    let summary = pairing::file_transfer::import_reply(state.inner(), &ticket, accept_settings)
         .await
-        .map_err(file_error)
+        .map_err(file_error)?;
+    // A reply tapped in Quick Share is used up now (a chosen one leaves nothing to delete).
+    #[cfg(target_os = "android")]
+    tauri::async_runtime::spawn_blocking(crate::platform::android_files::delete_imported_reply);
+    Ok(summary)
 }
 
 pub static GLOBAL_APP_HANDLE: parking_lot::Mutex<Option<AppHandle>> = parking_lot::Mutex::new(None);

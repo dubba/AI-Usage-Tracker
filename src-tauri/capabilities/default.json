@@ -105,6 +105,8 @@
     "allow-pairing-file-save",
     "allow-pairing-file-open-request",
     "allow-pairing-file-open-reply",
+    "allow-pairing-file-tapped-pending",
+    "allow-pairing-file-open-tapped",
     "allow-pairing-file-import-reply"
   ]
 }

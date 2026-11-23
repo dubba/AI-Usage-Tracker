@@ -362,3 +362,60 @@ fn a_request_with_a_malformed_key_exchange_gets_no_reply() {
         NOT_A_PAIRING_FILE
     );
 }
+
+#[tokio::test]
+async fn a_tapped_file_opens_as_what_its_header_says() {
+    let (_s, sender) = sender().await;
+    let (_r, receiver) = new_state();
+    let request = create_request(&receiver, CODE).unwrap();
+
+    match open_tapped(&sender, request.clone()).await.unwrap() {
+        TappedFile::Request { info } => assert_eq!(info.account_count, 1),
+        other => panic!("expected a request, got {other:?}"),
+    }
+    let reply = answer_request(&sender).await.unwrap();
+    match open_tapped(&receiver, reply).await.unwrap() {
+        TappedFile::Reply { preview } => assert_eq!(preview.account_count, 1),
+        other => panic!("expected a reply, got {other:?}"),
+    }
+    assert!(
+        receiver.store.list().is_empty(),
+        "opening a tapped reply imports nothing"
+    );
+}
+
+#[tokio::test]
+async fn a_tapped_file_on_the_wrong_device_or_step_says_what_to_do() {
+    let (_r, receiver) = new_state();
+    let request = create_request(&receiver, CODE).unwrap();
+    // A device that is not showing a code gets the request.
+    let (_o, idle) = new_state();
+    assert_eq!(
+        open_tapped(&idle, request).await.unwrap_err(),
+        NO_CODE_SHOWN
+    );
+
+    let (_s, sender) = sender().await;
+    let request = create_request(&receiver, CODE).unwrap();
+    let reply = answer(&sender, &request).await.unwrap();
+    // A device that made no request gets the reply.
+    assert_eq!(open_tapped(&idle, reply).await.unwrap_err(), NO_REQUEST_OUT);
+}
+
+#[tokio::test]
+async fn a_tapped_file_that_is_not_a_transfer_file_is_refused() {
+    let (_s, sender) = sender().await;
+    for bytes in [Vec::new(), b"%PDF-1.7 a generic binary file".to_vec(), {
+        let mut unknown_kind = header(KIND_REQUEST).to_vec();
+        unknown_kind[MAGIC.len() + 1] = 9;
+        unknown_kind
+    }] {
+        assert_eq!(
+            open_tapped(&sender, bytes).await.unwrap_err(),
+            NOT_A_PAIRING_FILE
+        );
+    }
+    let mut newer = header(KIND_REQUEST).to_vec();
+    newer[MAGIC.len()] = FORMAT_VERSION + 1;
+    assert_eq!(open_tapped(&sender, newer).await.unwrap_err(), NEWER_FORMAT);
+}

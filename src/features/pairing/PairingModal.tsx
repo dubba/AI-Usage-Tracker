@@ -4,6 +4,7 @@ import { ChevronIcon } from "../../shared/ui/icons";
 import { useAirgapCapture } from "./hooks/useAirgapCapture";
 import { useAirgapFlow } from "./hooks/useAirgapFlow";
 import { useFileTransfer } from "./hooks/useFileTransfer";
+import { useTappedTransferFile } from "./hooks/useTappedTransferFile";
 import { usePairingStatus } from "./hooks/usePairingStatus";
 import { useQrScanner } from "./hooks/useQrScanner";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
@@ -150,6 +151,8 @@ export function PairingModal({
   // Files are offered on desktop and Android; iPhone and iPad get them in a later step.
   const fileTransfer = useFileTransfer({ context: actionContext, includeSettings, showView });
   const filesOffered = !isIOS();
+  // A file tapped in Quick Share: open it as the request or reply it is.
+  useTappedTransferFile(open, () => void fileTransfer.openTapped());
 
   // Drops the camera and the state of any pairing in progress. `stopCamera` and `capture` are new
   // every render, so the open/close effect below calls this effect event instead of listing them

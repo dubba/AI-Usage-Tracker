@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logIgnored } from "./log";
 import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
-import type { Account, AccountBucket, AirgapExport, AirgapPreview, AppSettings, FilePreview, FileRequestInfo, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
+import type { Account, AccountBucket, AirgapExport, AirgapPreview, AppSettings, FilePreview, FileRequestInfo, TappedFile, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
 
 export function rememberLoginAttempt(attemptId: string) {
   storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
@@ -146,6 +146,10 @@ export const pairingApi = {
   openFileRequest: () => invoke<FileRequestInfo | null>("pairing_file_open_request"),
   /** Receiver: opens the reply file and counts its accounts; imports nothing. */
   openFileReply: () => invoke<FilePreview | null>("pairing_file_open_reply"),
+  /** Android: whether a transfer file was tapped in another app (Quick Share) and not opened yet. */
+  tappedFilePending: () => invoke<boolean>("pairing_file_tapped_pending"),
+  /** Android: opens that file as a request or a reply, whichever it is; null when none waits. */
+  openTappedFile: () => invoke<TappedFile | null>("pairing_file_open_tapped"),
   /** Receiver, after its user agreed: imports the opened reply, with its preview's ticket. */
   importFileReply: (ticket: string, acceptSettings: boolean) =>
     invoke<SyncSummary>("pairing_file_import_reply", { ticket, acceptSettings }),

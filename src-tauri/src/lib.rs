@@ -175,6 +175,8 @@ pub fn run() {
             commands::pairing::pairing_file_save,
             commands::pairing::pairing_file_open_request,
             commands::pairing::pairing_file_open_reply,
+            commands::pairing::pairing_file_tapped_pending,
+            commands::pairing::pairing_file_open_tapped,
             commands::pairing::pairing_file_import_reply,
         ])
         .build(tauri::generate_context!())

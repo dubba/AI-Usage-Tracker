@@ -65,14 +65,17 @@
                 <data android:scheme="aiusage-signin" />
             </intent-filter>
             <!-- A Sync Devices transfer file (`.aiutpair`, TransferFiles.MIME_TYPE) tapped in Quick
-                 Share or Files. Only the app's own type, never generic binary files; for now this
-                 only brings the app forward, and the file is still opened from inside the app. -->
+                 Share or Files; Sync Devices opens it (TransferFiles.keepTapped). Generic binary
+                 files are offered too, because a Pixel's Quick Share saves the file as one and its
+                 address carries no name. Rust checks the file's header before using it, so any
+                 other file only gets "This isn't a Sync Devices file". -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="application/vnd.aiut.pair" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
             <!-- The same file where the opening app passes its name in the address. Any type, but
                  only an address ending in .aiutpair (pathPattern for older Android, pathSuffix

@@ -130,6 +130,21 @@ pub struct FileRequestInfo {
     pub account_count: usize,
 }
 
+/// A transfer file tapped in another app (Android's Quick Share notification), opened as what
+/// its header says it is: a request on the sending device, a reply on the receiving one.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub enum TappedFile {
+    Request { info: FileRequestInfo },
+    Reply { preview: FilePreview },
+}
+
+/// The largest file [`open_tapped`] reads: a reply (a request is far smaller).
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub const MAX_TAPPED_LEN: usize = MAX_REPLY_LEN;
+
 struct ParsedRequest<'a> {
     receiver_nonce: &'a [u8],
     joiner_message: &'a [u8],
@@ -163,6 +178,22 @@ fn body(bytes: &[u8], kind: u8) -> Result<&[u8], String> {
         (found, wanted) if found == wanted => Ok(&bytes[HEADER_LEN..]),
         (KIND_REPLY, KIND_REQUEST) => Err(NOT_A_REQUEST.into()),
         (KIND_REQUEST, KIND_REPLY) => Err(NOT_A_REPLY.into()),
+        _ => Err(NOT_A_PAIRING_FILE.into()),
+    }
+}
+
+/// Whether `bytes` is a request (true) or a reply (false), from the header alone.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+fn is_request(bytes: &[u8]) -> Result<bool, String> {
+    if bytes.len() < HEADER_LEN || &bytes[..MAGIC.len()] != MAGIC {
+        return Err(NOT_A_PAIRING_FILE.into());
+    }
+    if bytes[MAGIC.len()] != FORMAT_VERSION {
+        return Err(NEWER_FORMAT.into());
+    }
+    match bytes[MAGIC.len() + 1] {
+        KIND_REQUEST => Ok(true),
+        KIND_REPLY => Ok(false),
         _ => Err(NOT_A_PAIRING_FILE.into()),
     }
 }
@@ -359,6 +390,21 @@ pub async fn answer_request(state: &AppState) -> Result<Vec<u8>, String> {
         .and_then(|parsed| build_reply(&code, &request, &payload, parsed.accounts.len()));
     payload.zeroize();
     reply
+}
+
+/// A file tapped in another app: opens it as a request ([`open_request`]) or a reply
+/// ([`preview_reply`]), whichever its header says. Each fails as it would from the open dialog,
+/// for example when this device is not at that step ([`NO_CODE_SHOWN`], [`NO_REQUEST_OUT`]); any
+/// other file is [`NOT_A_PAIRING_FILE`].
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub async fn open_tapped(state: &AppState, bytes: Vec<u8>) -> Result<TappedFile, String> {
+    if is_request(&bytes)? {
+        open_request(state, bytes)
+            .await
+            .map(|info| TappedFile::Request { info })
+    } else {
+        preview_reply(state, bytes).map(|preview| TappedFile::Reply { preview })
+    }
 }
 
 /// Receiver: opens `reply` and says how many accounts it holds. Nothing is imported. A reply

@@ -13,7 +13,8 @@ export type FileSendState = { accountCount: number; replyMade: boolean };
  * for the code it typed and later opens the reply; the sender, while showing its code, opens the
  * request and makes the reply. Each file, once made, goes out through the system share menu where
  * there is one (macOS) or a save dialog, and either can be repeated. Rust shows every menu and
- * dialog and keeps the files between steps, so these calls carry only counts and a ticket.
+ * dialog and keeps the files between steps, so these calls carry only counts and a ticket. On
+ * Android a file can also be tapped in Quick Share; `openTapped` opens it as whichever it is.
  */
 export function useFileTransfer({
   context,
@@ -99,6 +100,18 @@ export function useFileTransfer({
         if (!info) return;
         setSendState({ accountCount: info.accountCount, replyMade: false });
         showView("file-send");
+      }),
+    /** Android: open the file tapped in another app, as a request or a reply. */
+    openTapped: () =>
+      step("Couldn't open the file", () => pairingApi.openTappedFile(), (opened) => {
+        if (!opened) return;
+        if (opened.kind === "request") {
+          setSendState({ accountCount: opened.info.accountCount, replyMade: false });
+          showView("file-send");
+        } else {
+          setPreview(opened.preview);
+          showView("file-receive");
+        }
       }),
     /** Sender, after its user agreed: make the reply (this uses the code up) and send it. */
     sendReply: () =>

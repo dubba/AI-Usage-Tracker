@@ -441,6 +441,18 @@ export type FilePreview = {
 };
 
 /**
+ * A transfer file tapped in another app (Android's Quick Share notification), opened as what
+ * its header says it is: a request on the sending device, a reply on the receiving one.
+ */
+export type TappedFile = {
+  "kind": "request",
+  info: FileRequestInfo,
+} | {
+  "kind": "reply",
+  preview: FilePreview,
+};
+
+/**
  * What kind of failure a command reports. The frontend picks its wording by this, and never
  * adds codes of its own.
  */

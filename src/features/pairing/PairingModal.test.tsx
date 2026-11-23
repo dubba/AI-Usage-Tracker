@@ -26,6 +26,8 @@ const api = vi.hoisted(() => ({
   openFileRequest: vi.fn(),
   openFileReply: vi.fn(),
   importFileReply: vi.fn(),
+  tappedFilePending: vi.fn(),
+  openTappedFile: vi.fn(),
 }));
 const cancelPairing = vi.hoisted(() => vi.fn());
 vi.mock("../../shared/lib/api", () => ({ pairingApi: api, cancelPairing }));
@@ -156,6 +158,8 @@ beforeEach(() => {
   api.openFileRequest.mockResolvedValue({ accountCount: 3 });
   api.openFileReply.mockResolvedValue({ accountCount: 2, ticket: "ticket-1" });
   api.importFileReply.mockResolvedValue({ added: 2, updated: 0, skipped: 0, warnings: [] });
+  api.tappedFilePending.mockResolvedValue(false);
+  api.openTappedFile.mockResolvedValue(null);
   Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh)", configurable: true });
   window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
 });
@@ -670,6 +674,62 @@ describe("transfer by file", () => {
     await press("Back");
     await press("Receive Accounts on This Device");
     expect(text()).toContain("Use a file instead");
+  });
+
+  describe("a file tapped in Quick Share", () => {
+    const android = () =>
+      Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
+    /** The app comes back to the front with a tapped file waiting. */
+    const comeBackWithTappedFile = async () => {
+      api.tappedFilePending.mockResolvedValue(true);
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await settle();
+    };
+
+    it("opens a tapped request on the device showing the code", async () => {
+      android();
+      api.openTappedFile.mockResolvedValue({ kind: "request", info: { accountCount: 3 } });
+      render();
+      await press("Send Accounts from This Device");
+      expect(api.openTappedFile).not.toHaveBeenCalled();
+      await comeBackWithTappedFile();
+      expect(api.openTappedFile).toHaveBeenCalledTimes(1);
+      expect(title()).toBe("Send by File");
+      expect(text()).toContain("Send 3 accounts?");
+      expect(api.makeFileReply).not.toHaveBeenCalled();
+    });
+
+    it("opens a tapped reply on the device that made the request, importing nothing yet", async () => {
+      android();
+      api.openTappedFile.mockResolvedValue({ kind: "reply", preview: { accountCount: 2, ticket: "ticket-t" } });
+      await receiveWithCode();
+      await press("Use a file instead");
+      await comeBackWithTappedFile();
+      expect(text()).toContain("Add 2 accounts?");
+      expect(api.importFileReply).not.toHaveBeenCalled();
+      await press("Add Accounts");
+      expect(api.importFileReply).toHaveBeenCalledWith("ticket-t", true);
+    });
+
+    it("says why a tapped file did not open", async () => {
+      android();
+      api.openTappedFile.mockRejectedValue({
+        code: "pairing",
+        message: "This isn't a Sync Devices file. Choose the file the other device sent.",
+      });
+      render();
+      await comeBackWithTappedFile();
+      expect(document.querySelector(".modal-error")?.textContent).toContain("isn't a Sync Devices file");
+    });
+
+    it("is not looked for off Android", async () => {
+      render();
+      await comeBackWithTappedFile();
+      expect(api.tappedFilePending).not.toHaveBeenCalled();
+      expect(api.openTappedFile).not.toHaveBeenCalled();
+    });
   });
 
   it("is not offered on iPhone yet", async () => {
