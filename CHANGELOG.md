@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (12 changes)
+## Unreleased (13 changes)
 
 ### Added (1)
 
@@ -18,8 +18,9 @@
 - In Settings, the Menu Bar Labels switch description now reads "Show labels below icons in bottom bar."
 - Error messages in dialogs (Sync Devices, Add Account, groups, alerts, Google AI Studio) now stay for 10 seconds instead of 6, and have an X in the top right corner to close them sooner.
 
-### Fixed (2)
+### Fixed (3)
 
+- When you type a link code, it now shows as two groups of three digits (123 456), matching the empty box and the code on the other device.
 - On the Usage page, switching between 7D, 30D and 90D no longer dims the cards for a moment; the old charts stay until the new ones are drawn.
 - On Android, a phone that shares its hotspot while also connected to Wi-Fi can now enter the link code of a device that joined its hotspot. Before, pairing failed with "The link to the other device broke" unless that phone showed the code instead.
 

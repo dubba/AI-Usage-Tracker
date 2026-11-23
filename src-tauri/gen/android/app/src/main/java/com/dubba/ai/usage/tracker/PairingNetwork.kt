@@ -42,20 +42,53 @@ internal class PairingNetwork(private val activity: Activity) {
   }
 
   /**
-   * Whether the Wi-Fi radio is on. Link-code pairing asks this first so the
-   * app can send the user to the system Wi-Fi panel. Fail-open (true) if the
-   * check itself throws, so a broken probe cannot block pairing.
+   * Whether link codes can work: the Wi-Fi radio is on, or this phone shares its hotspot (or
+   * tethers another way). Link-code pairing asks this first so the app can send the user to the
+   * system Wi-Fi panel. Fail-open (true) if the check itself throws, so a broken probe cannot
+   * block pairing.
    */
   @Suppress("DEPRECATION")
   fun isWifiEnabled(): Boolean {
     return try {
       val wifiManager = activity.applicationContext.getSystemService(Context.WIFI_SERVICE)
         as android.net.wifi.WifiManager
-      wifiManager.isWifiEnabled
+      wifiManager.isWifiEnabled || isTethering()
     } catch (e: Throwable) {
       android.util.Log.w(LOG_TAG, "isWifiEnabled failed: ${e.message}")
       true
     }
+  }
+
+  /**
+   * Whether this phone shares its connection, read from the system's sticky tethering broadcasts
+   * (no receiver is registered; the call only returns the last one). Interface names cannot answer
+   * this: with Wi-Fi off, some phones (and the emulator) keep an address on `wlan0`, which looked
+   * like a hotspot and hid the "turn on Wi-Fi" prompt.
+   */
+  private fun isTethering(): Boolean {
+    val context = activity.applicationContext
+    fun sticky(action: String): Intent? = try {
+      val filter = android.content.IntentFilter(action)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        context.registerReceiver(null, filter, Context.RECEIVER_EXPORTED)
+      } else {
+        context.registerReceiver(null, filter)
+      }
+    } catch (e: Throwable) {
+      android.util.Log.w(LOG_TAG, "Reading $action failed: ${e.message}")
+      null
+    }
+    // WifiManager.WIFI_AP_STATE_CHANGED_ACTION / EXTRA_WIFI_AP_STATE / WIFI_AP_STATE_ENABLED.
+    val apState = sticky("android.net.wifi.WIFI_AP_STATE_CHANGED")?.getIntExtra("wifi_state", -1)
+    if (apState == WIFI_AP_STATE_ENABLED) return true
+    // TetheringManager.ACTION_TETHER_STATE_CHANGED / EXTRA_ACTIVE_TETHER: the tethered interfaces.
+    val tethered = sticky("android.net.conn.TETHER_STATE_CHANGED")
+      ?.getStringArrayListExtra("tetherArray")
+    return !tethered.isNullOrEmpty()
+  }
+
+  private companion object {
+    const val WIFI_AP_STATE_ENABLED = 13
   }
 
   fun openWifiSettings() {

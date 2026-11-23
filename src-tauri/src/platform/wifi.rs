@@ -9,7 +9,8 @@
 pub fn is_enabled() -> Result<bool, String> {
     #[cfg(target_os = "android")]
     {
-        return Ok(android_is_enabled()? || hotspot_active());
+        // The Kotlin side also counts a shared hotspot.
+        return android_is_enabled();
     }
     #[cfg(target_os = "ios")]
     {
@@ -88,26 +89,21 @@ pub(crate) fn wifi_from_interfaces(candidates: impl IntoIterator<Item = impl AsR
         .any(|name| is_wifi_interface_name(name.as_ref()))
 }
 
-/// Interface names a phone's own hotspot uses. Android has no public way to
-/// ask whether the hotspot is on, but while it is, an interface such as `ap0`,
-/// `swlan0`, `softap0` or `wlan1` carries the hotspot's address. With the Wi-Fi
-/// radio off no Wi-Fi network has an address, so any `wlan` interface that has
-/// one is the hotspot too. iOS shows Personal Hotspot as `bridge100` only once
-/// a device has joined it, so before that the app cannot tell it is on.
-#[cfg(any(test, target_os = "android", target_os = "ios"))]
+/// The interface iOS gives Personal Hotspot (`bridge100`), which appears only
+/// once a device has joined it, so before that the app cannot tell it is on.
+/// Android reads the hotspot state from the system instead
+/// (`PairingNetwork.isTethering`): there, interface names misled, since some
+/// phones keep an address on `wlan0` with Wi-Fi off.
+#[cfg(any(test, target_os = "ios"))]
 pub(crate) fn is_hotspot_interface_name(name: &str) -> bool {
-    let name = name.to_ascii_lowercase();
-    ["ap", "swlan", "softap", "wlan", "bridge"]
-        .iter()
-        .any(|prefix| {
-            name.strip_prefix(prefix)
-                .is_some_and(|rest| rest.chars().next().is_some_and(|c| c.is_ascii_digit()))
-        })
+    name.to_ascii_lowercase()
+        .strip_prefix("bridge")
+        .is_some_and(|rest| rest.chars().next().is_some_and(|c| c.is_ascii_digit()))
 }
 
 /// `true` when a hotspot-named interface has a usable IPv4 address (not
 /// loopback, link-local or unspecified).
-#[cfg(any(test, target_os = "android", target_os = "ios"))]
+#[cfg(any(test, target_os = "ios"))]
 pub(crate) fn hotspot_from_interfaces<'a>(
     interfaces: impl IntoIterator<Item = (&'a str, std::net::Ipv4Addr)>,
 ) -> bool {
@@ -119,7 +115,7 @@ pub(crate) fn hotspot_from_interfaces<'a>(
     })
 }
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(target_os = "ios")]
 fn hotspot_active() -> bool {
     let Ok(ifaces) = if_addrs::get_if_addrs() else {
         return false;
@@ -213,10 +209,16 @@ mod tests {
 
     #[test]
     fn hotspot_interface_names_match_phones() {
-        for name in ["ap0", "swlan0", "softap0", "wlan1", "WLAN0", "bridge100"] {
+        for name in ["bridge100", "Bridge101"] {
             assert!(is_hotspot_interface_name(name), "{name}");
         }
+        // Android hotspot names are not guessed: with Wi-Fi off some phones keep
+        // an address on wlan0, which is not a hotspot.
         for name in [
+            "wlan0",
+            "wlan1",
+            "swlan0",
+            "ap0",
             "rmnet0",
             "rmnet_data1",
             "pdp_ip0",
@@ -235,19 +237,22 @@ mod tests {
     #[test]
     fn hotspot_needs_an_address_on_a_hotspot_interface() {
         use std::net::Ipv4Addr;
-        let hotspot = ("swlan0", Ipv4Addr::new(192, 168, 43, 1));
-        let cellular = ("rmnet_data0", Ipv4Addr::new(10, 21, 4, 7));
+        let hotspot = ("bridge100", Ipv4Addr::new(172, 20, 10, 1));
+        let cellular = ("pdp_ip0", Ipv4Addr::new(10, 21, 4, 7));
         assert!(hotspot_from_interfaces([cellular, hotspot]));
-        assert!(hotspot_from_interfaces([(
-            "bridge100",
-            Ipv4Addr::new(172, 20, 10, 1)
-        )]));
         assert!(!hotspot_from_interfaces([cellular]));
         assert!(!hotspot_from_interfaces([(
-            "ap0",
+            "wlan0",
+            Ipv4Addr::new(10, 0, 2, 16)
+        )]));
+        assert!(!hotspot_from_interfaces([(
+            "bridge100",
             Ipv4Addr::new(169, 254, 3, 4)
         )]));
-        assert!(!hotspot_from_interfaces([("ap0", Ipv4Addr::UNSPECIFIED)]));
+        assert!(!hotspot_from_interfaces([(
+            "bridge100",
+            Ipv4Addr::UNSPECIFIED
+        )]));
         assert!(!hotspot_from_interfaces([]));
     }
 
