@@ -127,9 +127,9 @@ export function ActivityView({
   });
 
   // Drawing 90 bars on every card is heavy. Deferring the answer lets the switch itself move at once
-  // and the charts follow a moment later, instead of the whole tap waiting on the redraw.
+  // and the charts follow a moment later, instead of the whole tap waiting on the redraw. The old
+  // charts stay as they are until then (no dimming, which flickered on every switch).
   const data = useDeferredValue(latest);
-  const redrawing = data !== latest;
 
   const canPullRefreshEnv = useCanPullRefreshEnvironment();
   const canPullRefresh = Boolean(onRefresh) && accounts.length > 0 && Boolean(data) && canPullRefreshEnv;
@@ -286,7 +286,7 @@ export function ActivityView({
             </li>
           </ul>
         ) : null}
-        <div className={`activity-grid${redrawing ? " is-redrawing" : ""}`} data-group-id={groupId}>
+        <div className="activity-grid" data-group-id={groupId}>
           {hasReadings
             ? trackerCards.map((entry) =>
                 entry.kind === "antigravity" ? (

@@ -136,12 +136,6 @@
     grid-template-columns: repeat(auto-fill, minmax(min(540px, 100%), 1fr));
     gap: 8px;
     align-items: start;
-    transition: opacity 140ms ease;
-  }
-
-  /* The charts are catching up with a period switch: dimmed until the new bars are drawn. */
-  .activity-grid.is-redrawing {
-    opacity: 0.6;
   }
 
   .activity-message {
