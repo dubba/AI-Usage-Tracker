@@ -259,7 +259,7 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 
 | Component | Manifest state | Guard |
 | --- | --- | --- |
-| `MainActivity` | exported (launcher; `aiusage-signin:` BROWSABLE, which only brings the app forward and whose data is not read). No pairing link opens the app | See §6 for the one intent input (`open_update_notes` extra) |
+| `MainActivity` | exported (launcher; `aiusage-signin:` BROWSABLE, which only brings the app forward and whose data is not read; `VIEW` of a Sync Devices transfer file, by its own type `application/vnd.aiut.pair` or an address ending in `.aiutpair`, which for now also only brings the app forward: the file is opened from inside the app). No pairing link opens the app | See §6 for the one intent input (`open_update_notes` extra) |
 | `BootReceiver` | exported; filter action `BOOT_COMPLETED` only, a protected broadcast only the system can send (`AndroidManifest.xml:70-77`) | Acts only on `BOOT_COMPLETED`; reads no intent extras. If `autostartEnabled` is true in `app-settings.json`, starts the app's own launcher activity (`BootReceiver.kt:10-30`) |
 | `SignInTabKeepAliveService` | exported, no intent filter or permission: the browser that shows the sign-in Custom Tab binds it by class name | Returns a binder with no methods; binding it only keeps the app's process from being frozen while the tab is up. Any app could bind it and keep the process running, which costs battery and reveals nothing (`SignInTabKeepAliveService.kt`) |
 | `ApkInstallReceiver` | not exported | Reached only through the `PendingIntent` the app creates for its own install session (`AppUpdateInstaller.kt` `commitApkSession`, `ApkInstallReceiver.kt:9-20`) |

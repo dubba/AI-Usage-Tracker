@@ -60,8 +60,12 @@ internal class TransferFiles(private val activity: Activity) {
   }
 
   companion object {
-    /** The files have no registered type; any app that takes a file can carry them. */
-    const val MIME_TYPE = "application/octet-stream"
+    /**
+     * The files' own type (the same in `AndroidManifest.xml`'s VIEW filter). Quick Share sends it
+     * with the file; if the receiving phone keeps it, tapping the file opens this app and no
+     * other. Android has no extension registry, so `.aiutpair` alone gives it no type there.
+     */
+    const val MIME_TYPE = "application/vnd.aiut.pair"
     private const val BUFFER_BYTES = 64 * 1024
   }
 }
