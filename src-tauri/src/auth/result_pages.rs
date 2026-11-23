@@ -298,6 +298,24 @@ pub(crate) fn auth_failure_html(title: &str, message: &str) -> String {
 mod tests {
     use super::*;
 
+    /// The Android back gesture (`SignInPages.kt`) reads the same cases, so the two rules agree.
+    #[test]
+    fn result_pages_match_the_shared_cases() {
+        let cases = include_str!("result_page_cases.txt");
+        let mut count = 0;
+        for line in cases.lines().map(str::trim) {
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let (expected, url) = line.split_once(' ').unwrap();
+            let expected: bool = expected.parse().unwrap();
+            let actual = Url::parse(url).is_ok_and(|url| is_result_page(&url));
+            assert_eq!(actual, expected, "{url}");
+            count += 1;
+        }
+        assert!(count >= 20);
+    }
+
     fn account(provider: Provider, email: Option<&str>, label: &str) -> Account {
         Account {
             id: String::new(),

@@ -1,0 +1,37 @@
+# Which loopback addresses are the redirect a sign-in ends on (the OAuth callback server's page).
+# One case per line: `true` or `false`, a space, then the URL. Lines starting with # are comments.
+#
+# Read by two tests that must agree: `result_pages_match_the_shared_cases` (src-tauri/src/auth/
+# result_pages.rs, the rule the sign-in window uses) and `SignInPagesTest` (the Android back
+# gesture, gen/android/.../SignInPages.kt). The "Account connected" `data:` page is not here:
+# Rust compares it with the exact page it made, which Android cannot know.
+
+# The redirect, whatever its path: OpenAI and Anthropic use a callback path, Google the bare origin.
+true http://localhost:1455/auth/callback?code=x&state=y
+true http://localhost:1455/callback?code=x&state=y
+true http://127.0.0.1:11461/?code=x&state=y&scope=a
+true http://127.0.0.1:11461/?state=y&error=access_denied
+true http://[::1]:1455/callback?code=x
+true http://LOCALHOST:1455/?code=x
+# Any loopback IPv4 address.
+true http://127.0.0.2:1455/?code=x
+# A percent-encoded key still names the result.
+true http://localhost:1455/?%63ode=x
+
+# Without `code` or `error`, a callback path alone is not the result.
+false http://localhost:1455/auth/callback
+false http://127.0.0.1:11461/
+false http://127.0.0.1:11461/?other=1
+false http://127.0.0.1:11461/?codes=1
+# Not plain http on a loopback host.
+false https://localhost:1455/?code=x
+false http://evil.example/?code=x
+false http://localhost.evil.example/?code=x
+false http://tauri.localhost/?code=x
+false http://128.0.0.1/?code=x
+# A user part is never part of the app's redirect.
+false http://user@localhost:1455/?code=x
+# Provider and app pages.
+false https://accounts.google.com/o/oauth2/auth?client_id=x&code=x
+false https://claude.ai/login
+false about:blank
