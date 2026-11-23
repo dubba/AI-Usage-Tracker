@@ -1,9 +1,50 @@
 //! The system share menu for a transfer file (`commands::pairing`): on macOS, AppKit's
-//! `NSSharingServicePicker` (AirDrop, Messages, Mail, …) over the middle of the window. Other
-//! platforms save the file instead, until they get their own menu.
+//! `NSSharingServicePicker` (AirDrop, Messages, Mail, …) over the middle of the window; on
+//! Windows, the share panel (`share_sheet/windows.rs`: Nearby Sharing, Quick Share when installed,
+//! Mail). Other platforms save the file instead, until they get their own menu.
 
 /// Whether this platform has a share menu for files.
-pub const AVAILABLE: bool = cfg!(target_os = "macos");
+pub const AVAILABLE: bool = cfg!(any(target_os = "macos", windows));
+
+#[cfg(any(target_os = "macos", windows))]
+const FAILED: &str = "Couldn't open the share menu. Save the file instead.";
+
+#[cfg(windows)]
+#[path = "share_sheet/windows.rs"]
+mod windows_share;
+
+/// Shows the share panel for the file at `path`. Returns once the panel is open; what the user
+/// picks, or whether they dismiss it, is not reported.
+#[cfg(windows)]
+pub async fn share_file(
+    window: &tauri::WebviewWindow,
+    path: &std::path::Path,
+) -> Result<(), String> {
+    let failed = |error: String| {
+        crate::diagnostics::warn(&format!("Share panel failed: {error}"));
+        FAILED.to_string()
+    };
+    let path = path.to_string_lossy().into_owned();
+    let file = tauri::async_runtime::spawn_blocking(move || windows_share::open_file(&path))
+        .await
+        .map_err(|error| failed(error.to_string()))?
+        .map_err(|error| failed(error.to_string()))?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    let target = window.clone();
+    window
+        .run_on_main_thread(move || {
+            let shown = target
+                .hwnd()
+                .map_err(|error| error.to_string())
+                .and_then(|hwnd| windows_share::show(hwnd, &file).map_err(|error| error.to_string()));
+            let _ = sender.send(shown);
+        })
+        .map_err(|error| failed(error.to_string()))?;
+    receiver
+        .await
+        .map_err(|error| failed(error.to_string()))?
+        .map_err(failed)
+}
 
 /// Shows the share menu for the file at `path`. Returns once the menu is open; what the user
 /// picks, or whether they dismiss it, is not reported.
@@ -12,7 +53,6 @@ pub async fn share_file(
     window: &tauri::WebviewWindow,
     path: &std::path::Path,
 ) -> Result<(), String> {
-    const FAILED: &str = "Couldn't open the share menu. Save the file instead.";
     let path = path.to_string_lossy().into_owned();
     let (sender, receiver) = tokio::sync::oneshot::channel();
     let target = window.clone();
@@ -30,7 +70,7 @@ pub async fn share_file(
         })
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 pub async fn share_file(
     _window: &tauri::WebviewWindow,
     _path: &std::path::Path,

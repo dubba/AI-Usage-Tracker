@@ -79,6 +79,8 @@ dependencies = [
  "url",
  "usage-core",
  "uuid",
+ "windows 0.62.2",
+ "windows-collections 0.3.2",
  "windows-sys 0.60.2",
  "winreg 0.10.1",
  "zeroize",

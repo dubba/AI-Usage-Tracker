@@ -110,6 +110,10 @@ winreg = "0.10"
 # Lists and deletes the app's Credential Manager entries on uninstall (src/store/credentials/
 # uninstall.rs). The same version keyring already pulls in.
 windows-sys = { version = "0.60", features = ["Win32_Foundation", "Win32_Security_Credentials"] }
+# The share panel for transfer files (src/platform/share_sheet/windows.rs). The same versions
+# tauri already pulls in.
+windows = { version = "0.62", features = ["ApplicationModel_DataTransfer", "Foundation", "Storage", "Storage_Streams", "Win32_Foundation", "Win32_UI_Shell"] }
+windows-collections = "0.3"
 
 [dev-dependencies]
 # Generates the TypeScript types the frontend uses for backend values (`src/types.generated.ts`,
