@@ -1,6 +1,7 @@
 pub mod airgap;
 pub mod crypto;
 pub mod discovery;
+pub mod file_transfer;
 // Bonjour discovery for iOS; also built into macOS tests to check it
 // interoperates with mdns-sd.
 #[cfg(any(target_os = "ios", all(test, target_os = "macos")))]
@@ -202,6 +203,9 @@ pub struct ActiveSession {
     /// Installed when the transfer confirmation starts. Absent until then, so an earlier answer is refused.
     pub transfer_confirm_tx: Option<oneshot::Sender<bool>>,
     pub advertisement: Option<discovery::MdnsAdvertisement>,
+    /// The link code a host shows, until it answers a request by file
+    /// (`file_transfer::answer_request`): one answer per code. `None` on a joiner.
+    pub file_reply_code: Option<String>,
 }
 
 pub struct PairingSessionManager {
@@ -304,6 +308,23 @@ impl PairingSessionManager {
         Ok(())
     }
 
+    /// The code this device shows, for answering one request by file. Only while it is waiting for
+    /// the other device (not once a Wi-Fi transfer has started), and only once per code.
+    #[cfg_attr(not(test), allow(dead_code))] // Called from the commands added in step 3.
+    pub(crate) async fn take_code_for_file_reply(&self) -> Result<String, String> {
+        let mut active = self.active.write().await;
+        let Some(session) = active.as_mut() else {
+            return Err(file_transfer::NO_CODE_SHOWN.into());
+        };
+        if !matches!(*self.status.read().await, PairingStatus::HostWaiting { .. }) {
+            return Err(file_transfer::NO_CODE_SHOWN.into());
+        }
+        session
+            .file_reply_code
+            .take()
+            .ok_or_else(|| file_transfer::CODE_ALREADY_USED.to_string())
+    }
+
     /// Publish the role answer channel once that phase is reached.
     /// A session that has moved on, or that already has a channel, drops `tx`
     /// so the waiter hears a disconnect and aborts.
@@ -404,6 +425,7 @@ impl PairingSessionManager {
                 role_select_tx: None,
                 transfer_confirm_tx: None,
                 advertisement: None,
+                file_reply_code: Some(join_code.clone()),
             });
         }
 
@@ -578,6 +600,7 @@ impl PairingSessionManager {
                 role_select_tx: None,
                 transfer_confirm_tx: None,
                 advertisement: None,
+                file_reply_code: None,
             });
         }
 
@@ -673,6 +696,26 @@ impl PairingSessionManager {
             role_select_tx: None,
             transfer_confirm_tx: None,
             advertisement: None,
+            file_reply_code: None,
+        });
+    }
+
+    /// A host session showing `code`, with no listener behind it, for tests of the file route.
+    #[cfg(test)]
+    pub(crate) async fn testing_show_code(&self, code: &str) {
+        let session_id = Uuid::new_v4().to_string();
+        *self.status.write().await = PairingStatus::HostWaiting {
+            session_id: session_id.clone(),
+            join_code: code.to_string(),
+            expires_at: 0,
+        };
+        *self.active.write().await = Some(ActiveSession {
+            session_id,
+            cancel_tx: None,
+            role_select_tx: None,
+            transfer_confirm_tx: None,
+            advertisement: None,
+            file_reply_code: Some(code.to_string()),
         });
     }
 }

@@ -194,6 +194,9 @@ pub struct AppState {
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
     /// The ticket the latest air-gap preview handed out (L-104).
     pub airgap_import_ticket: Mutex<Option<crate::pairing::airgap::AirgapImportTicket>>,
+    /// The receiving side of a transfer by file: the request that is out, or the reply that was
+    /// opened and counted (`pairing::file_transfer`). Memory only.
+    pub pairing_file_receiver: Mutex<Option<crate::pairing::file_transfer::ReceiverState>>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
     in_flight_refreshes: Mutex<HashMap<String, InFlightRefreshReceiver>>,
     /// Caps how many accounts are refreshed at once so a large account list
@@ -257,6 +260,7 @@ impl AppState {
             app_handle: RwLock::new(None),
             pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
             airgap_import_ticket: Mutex::new(None),
+            pairing_file_receiver: Mutex::new(None),
             account_locks: Mutex::new(HashMap::new()),
             in_flight_refreshes: Mutex::new(HashMap::new()),
             refresh_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_REFRESHES)),
