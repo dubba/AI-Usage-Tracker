@@ -1,17 +1,19 @@
 //! Whether Wi-Fi is on, and a way to open the system Wi-Fi panel so the user
-//! can turn it on. Link-code pairing only works on the same Wi-Fi network.
+//! can turn it on. Link-code pairing only works on the same local network:
+//! a Wi-Fi network, or a hotspot this phone shares.
 
-/// `true` when the Wi-Fi radio looks usable, or when this platform does not
-/// need a check (desktop). A failure to ask the OS is reported as `true` so
-/// pairing is not blocked by a broken probe.
+/// `true` when the Wi-Fi radio looks usable or this phone is sharing a
+/// hotspot, or when this platform does not need a check (desktop). A failure
+/// to ask the OS is reported as `true` so pairing is not blocked by a broken
+/// probe.
 pub fn is_enabled() -> Result<bool, String> {
     #[cfg(target_os = "android")]
     {
-        return android_is_enabled();
+        return Ok(android_is_enabled()? || hotspot_active());
     }
     #[cfg(target_os = "ios")]
     {
-        return Ok(ios_wifi_enabled());
+        return Ok(ios_wifi_enabled() || hotspot_active());
     }
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
@@ -84,6 +86,48 @@ pub(crate) fn wifi_from_interfaces(candidates: impl IntoIterator<Item = impl AsR
     candidates
         .into_iter()
         .any(|name| is_wifi_interface_name(name.as_ref()))
+}
+
+/// Interface names a phone's own hotspot uses. Android has no public way to
+/// ask whether the hotspot is on, but while it is, an interface such as `ap0`,
+/// `swlan0`, `softap0` or `wlan1` carries the hotspot's address. With the Wi-Fi
+/// radio off no Wi-Fi network has an address, so any `wlan` interface that has
+/// one is the hotspot too. iOS shows Personal Hotspot as `bridge100` only once
+/// a device has joined it, so before that the app cannot tell it is on.
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
+pub(crate) fn is_hotspot_interface_name(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    ["ap", "swlan", "softap", "wlan", "bridge"]
+        .iter()
+        .any(|prefix| {
+            name.strip_prefix(prefix)
+                .is_some_and(|rest| rest.chars().next().is_some_and(|c| c.is_ascii_digit()))
+        })
+}
+
+/// `true` when a hotspot-named interface has a usable IPv4 address (not
+/// loopback, link-local or unspecified).
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
+pub(crate) fn hotspot_from_interfaces<'a>(
+    interfaces: impl IntoIterator<Item = (&'a str, std::net::Ipv4Addr)>,
+) -> bool {
+    interfaces.into_iter().any(|(name, ip)| {
+        is_hotspot_interface_name(name)
+            && !ip.is_loopback()
+            && !ip.is_link_local()
+            && !ip.is_unspecified()
+    })
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn hotspot_active() -> bool {
+    let Ok(ifaces) = if_addrs::get_if_addrs() else {
+        return false;
+    };
+    hotspot_from_interfaces(ifaces.iter().filter_map(|iface| match &iface.addr {
+        if_addrs::IfAddr::V4(v4) => Some((iface.name.as_str(), v4.ip)),
+        if_addrs::IfAddr::V6(_) => None,
+    }))
 }
 
 #[cfg(target_os = "ios")]
@@ -165,6 +209,46 @@ mod tests {
         assert!(!wifi_from_interfaces(["pdp_ip0", "lo0"]));
         assert!(wifi_from_interfaces(["pdp_ip0", "en0"]));
         assert!(wifi_from_interfaces(["wlan0"]));
+    }
+
+    #[test]
+    fn hotspot_interface_names_match_phones() {
+        for name in ["ap0", "swlan0", "softap0", "wlan1", "WLAN0", "bridge100"] {
+            assert!(is_hotspot_interface_name(name), "{name}");
+        }
+        for name in [
+            "rmnet0",
+            "rmnet_data1",
+            "pdp_ip0",
+            "tun0",
+            "p2p-wlan0-0",
+            "lo",
+            "en0",
+            "apple0",
+            "wlan",
+            "bridge",
+        ] {
+            assert!(!is_hotspot_interface_name(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn hotspot_needs_an_address_on_a_hotspot_interface() {
+        use std::net::Ipv4Addr;
+        let hotspot = ("swlan0", Ipv4Addr::new(192, 168, 43, 1));
+        let cellular = ("rmnet_data0", Ipv4Addr::new(10, 21, 4, 7));
+        assert!(hotspot_from_interfaces([cellular, hotspot]));
+        assert!(hotspot_from_interfaces([(
+            "bridge100",
+            Ipv4Addr::new(172, 20, 10, 1)
+        )]));
+        assert!(!hotspot_from_interfaces([cellular]));
+        assert!(!hotspot_from_interfaces([(
+            "ap0",
+            Ipv4Addr::new(169, 254, 3, 4)
+        )]));
+        assert!(!hotspot_from_interfaces([("ap0", Ipv4Addr::UNSPECIFIED)]));
+        assert!(!hotspot_from_interfaces([]));
     }
 
     #[test]

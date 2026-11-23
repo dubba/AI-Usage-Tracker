@@ -577,7 +577,7 @@ export function PairingModal({
       open={wifiPrompt != null}
       kicker="Link code"
       title="Turn on Wi-Fi"
-      body="Link codes work over the same Wi-Fi network. Turn Wi-Fi on, then come back to continue, or use another way to connect."
+      body="Link codes work over the same Wi-Fi network, or a hotspot one device shares. Turn Wi-Fi or your hotspot on, then come back to continue, or use another way to connect."
       confirmLabel="Turn On Wi-Fi"
       cancelLabel="Other Ways"
       confirmDanger={false}

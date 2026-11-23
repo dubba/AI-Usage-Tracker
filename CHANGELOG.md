@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (6 changes)
+## Unreleased (7 changes)
 
-### Improved (5)
+### Improved (6)
 
+- On a phone that shares its hotspot, Sync Devices no longer asks you to turn on Wi-Fi before showing or entering a link code. On iPhone this works once another device has joined the hotspot, because iOS does not let apps see it earlier.
 - The status bar at the top of the Dashboard has larger text, on desktop and on phones. On a phone, the "Next reset" line now always sits in its own gray row under a divider, not only when a limit is running low.
 - The Usage page's key (Measured, Estimated, No data, Reset) has larger text, matching the Dashboard's status bar, on desktop and on phones. On desktop the key box is now as tall as the status bar, and on narrow phones it stays on one line.
 - Sync Devices takes one step less: after choosing Send or Receive, the sending device shows its link code at once and the receiving device asks for it. Showing or entering a code the other way round (for a device with an older version) and the QR code are under "Other ways to connect", which also opens when you choose not to turn on Wi-Fi. A failed pairing now says "Pairing Failed" in the heading, with a green Try Again button.
