@@ -4,6 +4,12 @@ import { ChevronIcon } from "../../../shared/ui/icons";
 import { isMobileDevice } from "../../../shared/lib/platform";
 import { OtherWaysLink } from "./HostCodeView";
 
+/** Shows the code as two groups of three ("123 456"), like the placeholder and the sending device. */
+const CODE_GROUP = 3;
+function groupCode(digits: string): string {
+  return digits.length > CODE_GROUP ? `${digits.slice(0, CODE_GROUP)} ${digits.slice(CODE_GROUP)}` : digits;
+}
+
 /** Typing in the six-digit link code shown on the other device. */
 export function CodeEntryView({
   value,
@@ -37,9 +43,9 @@ export function CodeEntryView({
         inputMode="numeric"
         autoComplete="one-time-code"
         pattern="[0-9]*"
-        maxLength={PAIRING_CODE_LENGTH}
+        maxLength={PAIRING_CODE_LENGTH + 1}
         placeholder="000 000"
-        value={value}
+        value={groupCode(value)}
         autoFocus
         disabled={busy}
         onFocus={() => {

@@ -352,16 +352,26 @@ describe("entering a link code", () => {
   }
   const input = () => document.getElementById("pairing-join-code-input") as HTMLInputElement;
 
-  it("keeps only digits, at most six, and enables Connect at six", async () => {
+  it("keeps only digits, at most six, shown in two groups of three, and enables Connect at six", async () => {
     await openCodeEntry();
     expect(title()).toBe("Enter Link Code");
     expect(button("Connect to Device").disabled).toBe(true);
+    typeInto(input(), "12a");
+    expect(input().value).toBe("12");
     typeInto(input(), "12ab34c");
-    expect(input().value).toBe("1234");
+    expect(input().value).toBe("123 4");
     expect(button("Connect to Device").disabled).toBe(true);
     typeInto(input(), "1234567890");
-    expect(input().value).toBe("123456");
+    expect(input().value).toBe("123 456");
     expect(button("Connect to Device").disabled).toBe(false);
+  });
+
+  it("sends only the digits of a code typed or pasted with its space", async () => {
+    await openCodeEntry();
+    typeInto(input(), "123 456");
+    expect(input().value).toBe("123 456");
+    await press("Connect to Device");
+    expect(api.startClientByCode).toHaveBeenCalledWith("123456", true);
   });
 
   it("provides an accessible name for the code input", async () => {
@@ -493,7 +503,7 @@ describe("entering a link code", () => {
     await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "The link to the other device broke." } } });
     await press("Try Again");
     expect(title()).toBe("Enter Link Code");
-    expect(input().value).toBe("123456");
+    expect(input().value).toBe("123 456");
   });
 });
 
