@@ -19,6 +19,48 @@ pub fn set_pairing_lan_binding(enabled: bool) -> Result<(), String> {
     })
 }
 
+/// Keeps the pairing tie to Wi-Fi when `interface` is the Wi-Fi network's, and drops it
+/// otherwise (see `PairingNetwork.routePairingTo`).
+#[cfg(target_os = "android")]
+fn route_pairing_to(interface: &str) -> Result<(), String> {
+    const PREFIX: &str = "Unable to route the pairing connection";
+    crate::platform::android_context::with_activity(PREFIX, |env, activity| {
+        let name = env
+            .new_string(interface)
+            .map_err(|error| format!("{PREFIX}: {error}"))?;
+        let result = env.call_method(
+            activity,
+            "routePairingTo",
+            "(Ljava/lang/String;)V",
+            &[JValue::Object(&name.into())],
+        );
+        check_call(env, result, PREFIX)
+    })
+}
+
+/// Before a joiner connects to `peer`: while pairing, the process is tied to the Wi-Fi network
+/// (`set_pairing_lan_binding`), but a phone sharing its hotspot reaches a peer on that hotspot
+/// through the hotspot interface, which the tie would bypass. So the tie stays only when the peer
+/// is on the Wi-Fi network's subnet. A peer on no local subnet leaves the tie as it is. Other
+/// platforms do nothing.
+pub async fn route_pairing_connection(peer: std::net::IpAddr) {
+    #[cfg(target_os = "android")]
+    {
+        let _ = tokio::task::spawn_blocking(move || {
+            let Some(interface) = crate::pairing::transport::lan::local_interface_for_peer(peer)
+            else {
+                return;
+            };
+            if let Err(error) = route_pairing_to(&interface) {
+                crate::diagnostics::warn(&error);
+            }
+        })
+        .await;
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = peer;
+}
+
 /// Maps a void JNI call result to `Err("{prefix}: {reason}")`, clearing any
 /// pending Java exception so the attached thread is left usable.
 #[cfg(target_os = "android")]

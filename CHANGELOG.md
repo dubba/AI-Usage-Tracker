@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Fixed (1)
+
+- On Android, a phone that shares its hotspot while also connected to Wi-Fi can now enter the link code of a device that joined its hotspot. Before, pairing failed with "The link to the other device broke" unless that phone showed the code instead.
 
 ## v0.6.8 - 2026-11-22 (12 changes)
 

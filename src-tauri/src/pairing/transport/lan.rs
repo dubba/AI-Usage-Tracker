@@ -80,6 +80,42 @@ pub(crate) fn interface_index_for_ip(ip: &str) -> Option<u32> {
         .and_then(|iface| iface.index)
 }
 
+/// The local interface whose subnet holds `peer`, from `(interface name, IPv4, prefix length)`
+/// entries; the most specific subnet wins. `None` when no interface is on the peer's subnet (it
+/// is reached through a router), or for loopback.
+pub(crate) fn interface_on_peer_subnet(
+    interfaces: &[(String, std::net::Ipv4Addr, u8)],
+    peer: std::net::Ipv4Addr,
+) -> Option<&str> {
+    interfaces
+        .iter()
+        .filter(|(_, ip, prefix)| !ip.is_loopback() && (1..=32).contains(prefix))
+        .filter(|(_, ip, prefix)| {
+            let mask = u32::MAX << (32 - u32::from(*prefix));
+            u32::from(*ip) & mask == u32::from(peer) & mask
+        })
+        .max_by_key(|(_, _, prefix)| *prefix)
+        .map(|(name, _, _)| name.as_str())
+}
+
+/// The name of the local interface on the same subnet as `peer`, such as `wlan0` or a phone's
+/// hotspot interface (`ap0`, `swlan0`). See [`interface_on_peer_subnet`].
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub(crate) fn local_interface_for_peer(peer: std::net::IpAddr) -> Option<String> {
+    let std::net::IpAddr::V4(peer) = peer else {
+        return None;
+    };
+    let interfaces: Vec<(String, std::net::Ipv4Addr, u8)> = if_addrs::get_if_addrs()
+        .ok()?
+        .into_iter()
+        .filter_map(|iface| match iface.addr {
+            if_addrs::IfAddr::V4(v4) => Some((iface.name, v4.ip, v4.prefixlen)),
+            if_addrs::IfAddr::V6(_) => None,
+        })
+        .collect();
+    interface_on_peer_subnet(&interfaces, peer).map(str::to_string)
+}
+
 pub fn get_local_lan_ip() -> String {
     if let Ok(interfaces) = if_addrs::get_if_addrs() {
         let candidates: Vec<(String, std::net::Ipv4Addr)> = interfaces

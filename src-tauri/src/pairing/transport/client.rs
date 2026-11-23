@@ -276,6 +276,7 @@ async fn connect_to_host(host: &DiscoveredHost) -> Result<TcpStream, String> {
         .parse::<std::net::IpAddr>()
         .map_err(|_| BAD_ADDRESS.to_string())?;
     let connect_addr = std::net::SocketAddr::new(ip, host.port);
+    crate::platform::lan_binding::route_pairing_connection(ip).await;
     match timeout(
         Duration::from_secs(CONNECT_TIMEOUT_SECS),
         TcpStream::connect(connect_addr),

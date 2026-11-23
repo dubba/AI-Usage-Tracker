@@ -361,6 +361,8 @@ class MainActivity : TauriActivity() {
 
   fun setPairingLanBinding(enabled: Boolean) = pairingNetwork.setLanBinding(enabled)
 
+  fun routePairingTo(interfaceName: String) = pairingNetwork.routePairingTo(interfaceName)
+
   /**
    * Keeps this window out of screenshots, screen recordings and the recent-apps preview while
    * the air-gap transfer codes are showing (capture_protection.rs).

@@ -13,6 +13,8 @@ import android.provider.Settings
 internal class PairingNetwork(private val activity: Activity) {
   private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
   private var boundLanNetwork: Boolean = false
+  /** A pairing session is running (between `setLanBinding(true)` and `setLanBinding(false)`). */
+  private var pairingActive: Boolean = false
 
   /**
    * Pairing (Link Devices) finds peers with mDNS over multicast, and Android filters
@@ -82,16 +84,13 @@ internal class PairingNetwork(private val activity: Activity) {
    */
   fun setLanBinding(enabled: Boolean) {
     activity.runOnUiThread {
+      pairingActive = enabled
       setMulticastLock(enabled)
       try {
-        val cm = activity.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE)
-          as android.net.ConnectivityManager
+        val cm = connectivity()
         if (enabled) {
           if (boundLanNetwork) return@runOnUiThread
-          val wifi = cm.allNetworks.firstOrNull { network ->
-            cm.getNetworkCapabilities(network)
-              ?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
-          }
+          val wifi = wifiNetwork(cm)
           boundLanNetwork = if (wifi != null) {
             cm.bindProcessToNetwork(wifi)
           } else {
@@ -108,4 +107,47 @@ internal class PairingNetwork(private val activity: Activity) {
       }
     }
   }
+
+  /**
+   * Called from Rust before the joining device connects, with the name of the local interface on
+   * the other device's subnet. The tie to Wi-Fi above stays only when that is the Wi-Fi
+   * network's interface. A phone that shares its hotspot while also on Wi-Fi reaches a device on
+   * its hotspot through the hotspot interface, which apps cannot bind to; tied to the Wi-Fi, the
+   * connection would go out the wrong way and fail. Waits until it has run, so the connection
+   * that follows uses the new routing.
+   */
+  fun routePairingTo(interfaceName: String) {
+    val done = java.util.concurrent.CountDownLatch(1)
+    activity.runOnUiThread {
+      try {
+        if (pairingActive) {
+          val cm = connectivity()
+          val wifi = wifiNetwork(cm)
+          val peerOnWifi = wifi != null &&
+            cm.getLinkProperties(wifi)?.interfaceName == interfaceName
+          if (peerOnWifi && !boundLanNetwork) {
+            boundLanNetwork = cm.bindProcessToNetwork(wifi)
+          } else if (!peerOnWifi && boundLanNetwork) {
+            cm.bindProcessToNetwork(null)
+            boundLanNetwork = false
+          }
+        }
+      } catch (e: Throwable) {
+        android.util.Log.w(LOG_TAG, "routePairingTo failed: ${e.message}")
+      } finally {
+        done.countDown()
+      }
+    }
+    done.await(2, java.util.concurrent.TimeUnit.SECONDS)
+  }
+
+  private fun connectivity(): android.net.ConnectivityManager =
+    activity.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE)
+      as android.net.ConnectivityManager
+
+  private fun wifiNetwork(cm: android.net.ConnectivityManager): android.net.Network? =
+    cm.allNetworks.firstOrNull { network ->
+      cm.getNetworkCapabilities(network)
+        ?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+    }
 }

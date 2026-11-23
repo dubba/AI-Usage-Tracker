@@ -970,6 +970,45 @@ fn host_address_prefers_wifi_over_cellular_and_vpn() {
     assert_eq!(select_lan_ipv4(&none), None);
 }
 
+/// A phone sharing its hotspot while it is also on a Wi-Fi network: a joiner on the hotspot is
+/// found on the hotspot interface, not the Wi-Fi the app ties pairing to.
+#[test]
+fn a_peer_is_matched_to_the_interface_on_its_subnet() {
+    use super::transport::lan::interface_on_peer_subnet;
+    use std::net::Ipv4Addr;
+    let interfaces: Vec<(String, Ipv4Addr, u8)> = [
+        ("lo", [127, 0, 0, 1], 8),
+        ("rmnet_data0", [10, 120, 4, 2], 30),
+        ("tun0", [10, 111, 222, 1], 32),
+        ("wlan0", [192, 168, 1, 40], 24),
+        ("swlan0", [10, 46, 172, 1], 24),
+    ]
+    .iter()
+    .map(|(name, ip, prefix)| (name.to_string(), Ipv4Addr::from(*ip), *prefix))
+    .collect();
+    let on = |peer: [u8; 4]| interface_on_peer_subnet(&interfaces, Ipv4Addr::from(peer));
+
+    assert_eq!(on([10, 46, 172, 88]), Some("swlan0"));
+    assert_eq!(on([192, 168, 1, 7]), Some("wlan0"));
+    // Behind a router, or loopback: no interface holds it.
+    assert_eq!(on([192, 168, 2, 7]), None);
+    assert_eq!(on([127, 0, 0, 1]), None);
+
+    // The most specific subnet wins when two overlap.
+    let overlapping: Vec<(String, Ipv4Addr, u8)> = vec![
+        ("wide".into(), Ipv4Addr::new(10, 0, 0, 1), 8),
+        ("narrow".into(), Ipv4Addr::new(10, 46, 172, 1), 24),
+    ];
+    assert_eq!(
+        interface_on_peer_subnet(&overlapping, Ipv4Addr::new(10, 46, 172, 9)),
+        Some("narrow")
+    );
+    assert_eq!(
+        interface_on_peer_subnet(&overlapping, Ipv4Addr::new(10, 9, 9, 9)),
+        Some("wide")
+    );
+}
+
 /// A sender with an account plus everything an opted-in transfer carries: a group, non-default
 /// settings, an account order and an alert.
 async fn export_everything() -> (tempfile::TempDir, Vec<u8>) {
