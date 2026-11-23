@@ -29,7 +29,7 @@ fn remap_ui_page_id(
 /// secret and metadata (it is counted as skipped, and the sender's layout is mapped onto it). A
 /// transfer therefore cannot overwrite a sign-in, however the other device is set up.
 ///
-/// `accept_settings` is the receiving user's own choice ("Also Transfer Settings & Layout" on this
+/// `accept_settings` is the receiving user's own choice ("Also Sync Settings and Layout" on this
 /// device). Without it the sender's app settings, account order, alerts and layout are dropped,
 /// whatever the sender chose to include: a sender cannot change this device's settings alone.
 pub async fn import_sync_payload(

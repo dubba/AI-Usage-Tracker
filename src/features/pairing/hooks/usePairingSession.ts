@@ -30,7 +30,7 @@ export function usePairingSession({
 }: {
   context: PairingActionContext;
   roleAutoSelectedRef: MutableRefObject<boolean>;
-  /** "Also Transfer Settings & Layout" on this device: what it sends, and what it accepts. */
+  /** "Also Sync Settings and Layout" on this device: what it sends, and what it accepts. */
   includeSettings: boolean;
   setConfirmed: (confirmed: boolean) => void;
 }) {

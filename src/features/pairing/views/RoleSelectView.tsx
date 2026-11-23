@@ -19,9 +19,9 @@ export function RoleSelectView({
       <label className="pairing-settings-toggle">
         <input type="checkbox" checked={includeSettings} onChange={(e) => onIncludeSettingsChange(e.target.checked)} />
         <span>
-          Also Transfer Settings &amp; Layout
+          Also Sync Settings and Layout
           <small>
-            Includes appearance, menu bar labels, launch at startup, whether the local API is on, account refresh intervals, automatic updates, app alerts, and card ordering.
+            Includes appearance, menu bar labels, launch at startup, account refresh intervals, automatic updates, app alerts, and card ordering.
           </small>
         </span>
       </label>

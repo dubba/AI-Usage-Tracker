@@ -378,7 +378,7 @@ impl PairingSessionManager {
     }
 
     /// Starts hosting: shows a link code and waits for the device that types it.
-    /// `accept_settings` is this device's "Also Transfer Settings & Layout" choice, used if it
+    /// `accept_settings` is this device's "Also Sync Settings and Layout" choice, used if it
     /// turns out to be the receiver.
     pub async fn start_host(
         &self,
@@ -572,7 +572,7 @@ impl PairingSessionManager {
     }
 
     /// Joins the device showing `code`: finds the pairing hosts on the network and tries the
-    /// code against them. `accept_settings` is this device's "Also Transfer Settings & Layout"
+    /// code against them. `accept_settings` is this device's "Also Sync Settings and Layout"
     /// choice, used if it turns out to be the receiver.
     pub async fn start_client_by_code(
         &self,

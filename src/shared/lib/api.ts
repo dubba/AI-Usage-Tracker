@@ -105,7 +105,7 @@ export const pairingApi = {
   ensureCameraPermission: () => invoke<void>("ensure_camera_permission"),
   wifiEnabled: () => invoke<boolean>("pairing_wifi_enabled"),
   openWifiSettings: () => invoke<void>("pairing_open_wifi_settings"),
-  /** `acceptSettings`: this device's "Also Transfer Settings & Layout" choice, used if it receives. */
+  /** `acceptSettings`: this device's "Also Sync Settings and Layout" choice, used if it receives. */
   startHost: (acceptSettings: boolean) =>
     invoke<PairingHostInit>("pairing_start_host", { acceptSettings }),
   startClientByCode: (code: string, acceptSettings: boolean) =>

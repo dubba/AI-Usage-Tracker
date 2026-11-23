@@ -22,7 +22,7 @@ export function useFileTransfer({
   showView,
 }: {
   context: PairingActionContext;
-  /** "Also Transfer Settings & Layout" on this device: what it sends, and what it accepts. */
+  /** "Also Sync Settings and Layout" on this device: what it sends, and what it accepts. */
   includeSettings: boolean;
   showView: (view: ViewMode) => void;
 }) {

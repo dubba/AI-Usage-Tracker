@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (15 changes)
 
 ### Added (1)
 
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens.
 
-### Improved (9)
+### Improved (10)
 
+- In Sync Devices, the settings option is now called "Also Sync Settings and Layout", and its description no longer mentions the local API.
 - On Android, Sync Devices now asks you to connect to Wi-Fi whenever the phone isn't on a Wi-Fi network, not only when Wi-Fi is turned off, so a Pixel with Wi-Fi on but not connected gets the prompt too. The prompt is now titled "Connect to Wi-Fi", and its button reads "Open Wi-Fi Settings". Closing it carries on without Wi-Fi, to send a file by Quick Share instead.
 - On the Usage page's 90D view, the back and forward arrows on each card now have tooltips ("Show previous 30 days" and "Show next 30 days"), lined up with the forward arrow's right edge.
 - On desktop, the Compact button has moved from the top bar to the Dashboard header, beside the % Used / % Left switch, and is now labeled `Compact`.

@@ -180,9 +180,9 @@ describe("choosing a role and a way to connect", () => {
     expect(text()).toContain("Send Accounts from This Device");
     expect(text()).toContain("Receive Accounts on This Device");
     expect(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")?.checked).toBe(true);
-    expect(document.querySelector(".pairing-settings-toggle span")?.textContent).toContain("Also Transfer Settings & Layout");
+    expect(document.querySelector(".pairing-settings-toggle span")?.textContent).toContain("Also Sync Settings and Layout");
     expect(document.querySelector(".pairing-settings-toggle small")?.textContent).toBe(
-      "Includes appearance, menu bar labels, launch at startup, whether the local API is on, account refresh intervals, automatic updates, app alerts, and card ordering."
+      "Includes appearance, menu bar labels, launch at startup, account refresh intervals, automatic updates, app alerts, and card ordering."
     );
   });
 
@@ -1382,7 +1382,7 @@ describe("air-gap transfer: receiving", () => {
     api.importAirgapFrames.mockResolvedValue({ added: 1, updated: 0, skipped: 0 });
     await captureAll();
     await press("Add Accounts");
-    // The receiving device's own "Also Transfer Settings & Layout" choice goes with the import.
+    // The receiving device's own "Also Sync Settings and Layout" choice goes with the import.
     expect(api.importAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2], "ticket-1", true);
     expect(title()).toBe("Devices linked");
     expect(onCompleted).toHaveBeenCalledTimes(1);
