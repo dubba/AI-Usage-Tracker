@@ -28,7 +28,7 @@ export function RoleSelectView({
 
       <div className="pairing-security-note">
         <ShieldIcon />
-        <span>End-to-end encrypted · Direct device-to-device transfer</span>
+        <span>End-to-end encrypted device sync</span>
       </div>
     </div>
   );

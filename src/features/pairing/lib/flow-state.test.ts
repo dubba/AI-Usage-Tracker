@@ -8,9 +8,9 @@ describe("flowReducer", () => {
     expect(INITIAL_FLOW).toEqual({ viewMode: "select-role", activeFlow: null, intendedRole: null });
   });
 
-  it("remembers the chosen role and moves on to the connection choice", () => {
+  it("remembers the chosen role and leaves the view to the code step", () => {
     expect(flowReducer(INITIAL_FLOW, { type: "choose-role", role: "send" })).toEqual({
-      viewMode: "select-mode",
+      viewMode: "select-role",
       activeFlow: null,
       intendedRole: "send",
     });

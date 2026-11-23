@@ -168,14 +168,17 @@ export function PairingModal({
   // backdrop, Cancel) may close the modal.
   const requestClose = useModalClosePolicy(status.status !== "transferring", handleClose);
 
-  /** Abandon the current attempt and return to choosing how to connect. */
-  const backToModes = useCallback((clearError = true) => {
+  /**
+   * Abandon the current attempt and go to `view`: the role choice, the other ways to connect, or
+   * (Try Again) the code entry.
+   */
+  const leaveAttempt = useCallback((view: ViewMode, flow: ActiveFlow = null) => {
     cancelPairing();
     request.cancel();
-    if (clearError) clearAllErrors();
+    clearAllErrors();
     setBusy(false);
     setStatus({ status: "idle" });
-    showView("select-mode", null);
+    showView(view, flow);
   }, [request, showView, setStatus, clearAllErrors]);
 
   const isWaitingState = isWaitingStatus(status.status);
@@ -183,32 +186,31 @@ export function PairingModal({
   /**
    * One step back from the view that is showing: the rule behind every Back button and the
    * Escape key. Returns false when there is no earlier step (the first view, or a pairing that
-   * has moved past choosing how to connect).
+   * has moved past choosing how to connect). The code screens follow the role choice directly;
+   * the QR screens are reached from the other ways to connect.
    */
   const goBack = useCallback((): boolean => {
     if (!isWaitingState) return false;
     switch (viewMode) {
       case "select-mode":
-        showView("select-role");
-        return true;
       case "host":
       case "code":
-        backToModes();
+        leaveAttempt("select-role");
         return true;
       case "scanner":
         stopCamera();
         capture.clearCapture();
-        backToModes();
+        leaveAttempt("select-mode");
         return true;
       case "airgap-sender":
         clearExport();
         capture.clearCapture();
-        backToModes();
+        leaveAttempt("select-mode");
         return true;
       case "select-role":
         return false;
     }
-  }, [isWaitingState, viewMode, backToModes, stopCamera, showView, capture, clearExport]);
+  }, [isWaitingState, viewMode, leaveAttempt, stopCamera, capture, clearExport]);
 
   const handleEscape = useCallback(() => {
     if (errorMessage || airgapPrepareError || cameraError) {
@@ -395,7 +397,11 @@ export function PairingModal({
           <RoleSelectView
             includeSettings={includeSettings}
             onIncludeSettingsChange={setIncludeSettings}
-            onChoose={(role) => dispatchFlow({ type: "choose-role", role })}
+            onChoose={(role) => {
+              // The sender shows the link code and the receiver types it.
+              dispatchFlow({ type: "choose-role", role });
+              void requireWifiThen(role === "send" ? "host" : "code");
+            }}
           />
         )}
 
@@ -422,6 +428,7 @@ export function PairingModal({
             status={status}
             remainingSecs={remainingSecs}
             onRegenerate={() => void initHostSession()}
+            onOtherWays={() => leaveAttempt("select-mode")}
           />
         )}
 
@@ -464,6 +471,7 @@ export function PairingModal({
             onChange={setJoinCodeInput}
             onSubmit={() => void handleConnectByCode(joinCodeInput)}
             onBack={goBack}
+            onOtherWays={() => leaveAttempt("select-mode")}
             setKeyboardOpen={setIsKeyboardOpen}
           />
         )}
@@ -522,9 +530,11 @@ export function PairingModal({
                 void startAirgapSender();
               } else if (viewMode === "host") {
                 void initHostSession();
+              } else if (viewMode === "code") {
+                // The other device may still show the same code: keep what was typed.
+                leaveAttempt("code", "wifi");
               } else {
-                dispatchFlow({ type: "set-flow", flow: null });
-                backToModes();
+                leaveAttempt("select-mode");
               }
             }}
           />
@@ -545,7 +555,7 @@ export function PairingModal({
           {isWaitingState && (viewMode === "select-mode" || viewMode === "host") ? (
             <BackButton onClick={goBack} />
           ) : null}
-          {status.status === "failed" ? <BackButton onClick={() => backToModes()} /> : null}
+          {status.status === "failed" ? <BackButton onClick={() => leaveAttempt("select-role")} /> : null}
           <button
             type="button"
             className="button ghost"
@@ -565,13 +575,18 @@ export function PairingModal({
       open={wifiPrompt != null}
       kicker="Link code"
       title="Turn on Wi-Fi"
-      body="Link codes work over the same Wi-Fi network. Turn Wi-Fi on, then come back to continue."
+      body="Link codes work over the same Wi-Fi network. Turn Wi-Fi on, then come back to continue, or use another way to connect."
       confirmLabel="Turn On Wi-Fi"
+      cancelLabel="Other Ways"
       confirmDanger={false}
       onConfirm={() => {
         void pairingApi.openWifiSettings().catch((cause) => logIgnored("pairing.openWifiSettings", cause));
       }}
-      onCancel={() => setWifiPrompt(null)}
+      onCancel={() => {
+        // Without Wi-Fi, the QR code is still a way to connect.
+        setWifiPrompt(null);
+        showView("select-mode");
+      }}
     />
     </>
   );

@@ -5,7 +5,10 @@ export type FlowState = {
   viewMode: ViewMode;
   /** Which way of connecting was picked; the air-gap flow reads and ends differently from Wi-Fi. */
   activeFlow: ActiveFlow;
-  /** The role chosen in step 1, applied automatically once the devices connect. */
+  /**
+   * The role chosen in step 1. It decides how the devices connect (the sender shows the link code,
+   * the receiver types it) and is applied automatically once they do.
+   */
   intendedRole: IntendedRole | null;
 };
 
@@ -21,7 +24,8 @@ export type FlowAction =
 export function flowReducer(state: FlowState, action: FlowAction): FlowState {
   switch (action.type) {
     case "choose-role":
-      return { ...state, intendedRole: action.role, viewMode: "select-mode" };
+      // The view changes once the Wi-Fi check lets the code step start (`PairingModal`).
+      return { ...state, intendedRole: action.role };
     case "show":
       return { ...state, viewMode: action.view, activeFlow: action.flow === undefined ? state.activeFlow : action.flow };
     case "set-flow":

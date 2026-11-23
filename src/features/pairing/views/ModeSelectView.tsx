@@ -1,7 +1,10 @@
 import { CameraIcon, KeypadIcon, QrIcon } from "../../../shared/ui/icons";
 import type { IntendedRole } from "../lib/view-model";
 
-/** Step 2: show a link code, enter one, show an animated QR code, or scan one. */
+/**
+ * Other ways to connect, reached from the code screens: show or enter a link code against the role
+ * (for a device with an older version, which lets either side show it), or the animated QR code.
+ */
 export function ModeSelectView({
   intendedRole,
   onShowCode,

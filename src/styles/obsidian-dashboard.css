@@ -1865,7 +1865,8 @@ button.account-card-provider-icon:active {
 }
 
 /* Green action buttons: the Updates card's one button (Check Now, then Update / Install Update), the
-   What's Changed modal's Update button, and the Paseo Bridge window's Regenerate. */
+   What's Changed modal's Update button, the Paseo Bridge window's Regenerate, and Link Devices'
+   Try Again after a failure. */
 .settings-update-action.button-green,
 .update-notes-actions .settings-update-action {
   background: var(--success-fill) !important;

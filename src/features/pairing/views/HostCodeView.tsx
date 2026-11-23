@@ -6,11 +6,14 @@ export function HostCodeView({
   status,
   remainingSecs,
   onRegenerate,
+  onOtherWays,
 }: {
   status: PairingStatus;
   remainingSecs: number | null;
   /** The countdown hit zero; start a fresh session and code. */
   onRegenerate: () => void;
+  /** Ends this session and lists the other ways to connect (older versions, QR code). */
+  onOtherWays: () => void;
 }) {
   const host = hostWaitingFields(status);
   const joinCode = host?.joinCode ?? "";
@@ -57,6 +60,17 @@ export function HostCodeView({
         <span className="spinner" />
         <span>Waiting for the other device to connect…</span>
       </div>
+
+      <OtherWaysLink onClick={onOtherWays} />
     </div>
+  );
+}
+
+/** Opens the other ways to connect from a code screen. */
+export function OtherWaysLink({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className="pairing-other-ways" disabled={disabled} onClick={onClick}>
+      Other ways to connect
+    </button>
   );
 }

@@ -170,13 +170,12 @@ export function CompletedCard({ summary, onDone }: { summary: SyncSummary; onDon
 }
 
 export function FailedCard({ onRetry }: { onRetry: () => void }) {
-  // The failure detail renders below the modal footer (see PairingModal), so the
-  // card holds only the heading and the retry action.
+  // "Pairing Failed" is the dialog's heading (`pairingHeader`) and the reason renders below the
+  // modal footer as an alert (see PairingModal), so the card holds only the retry action.
   return (
-    <div className="pairing-error-card" role="alert">
-      <h3>Pairing Failed</h3>
+    <div className="pairing-error-card">
       <div className="pairing-error-actions">
-        <button type="button" className="button primary" onClick={onRetry}>
+        <button type="button" className="button settings-update-action button-green" onClick={onRetry}>
           <RefreshIcon />
           <span>Try Again</span>
         </button>

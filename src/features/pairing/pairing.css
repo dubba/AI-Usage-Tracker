@@ -502,6 +502,29 @@
   color: var(--obsidian-muted);
 }
 
+/* The way from a code screen to the other ways to connect: a text link, not a third button. */
+.pairing-other-ways {
+  align-self: center;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 0.775rem;
+  color: var(--obsidian-purple);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.pairing-other-ways:hover {
+  color: var(--obsidian-purple-strong);
+}
+
+.pairing-other-ways:disabled {
+  color: var(--obsidian-muted);
+  cursor: default;
+}
+
 .pairing-security-note {
   display: inline-flex;
   align-items: center;
@@ -920,11 +943,6 @@
   padding: 0 8px 14px;
   gap: 12px;
   width: 100%;
-}
-
-.pairing-error-card h3 {
-  margin: 0;
-  color: var(--obsidian-red, #ff756b);
 }
 
 /* Mobile responsive adjustments */

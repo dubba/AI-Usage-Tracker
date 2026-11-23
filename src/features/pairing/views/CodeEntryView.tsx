@@ -1,7 +1,8 @@
 import { PAIRING_CODE_LENGTH } from "../lib/view-model";
 
-import { ChevronIcon, ShieldIcon } from "../../../shared/ui/icons";
+import { ChevronIcon } from "../../../shared/ui/icons";
 import { isMobileDevice } from "../../../shared/lib/platform";
+import { OtherWaysLink } from "./HostCodeView";
 
 /** Typing in the six-digit link code shown on the other device. */
 export function CodeEntryView({
@@ -10,6 +11,7 @@ export function CodeEntryView({
   onChange,
   onSubmit,
   onBack,
+  onOtherWays,
   setKeyboardOpen,
 }: {
   value: string;
@@ -18,6 +20,8 @@ export function CodeEntryView({
   onChange: (digits: string) => void;
   onSubmit: () => void;
   onBack: () => void;
+  /** Lists the other ways to connect (older versions, QR code). */
+  onOtherWays: () => void;
   /** Lets the field flag the on-screen keyboard before the viewport has resized. */
   setKeyboardOpen: (open: boolean) => void;
 }) {
@@ -59,10 +63,7 @@ export function CodeEntryView({
         Both devices must be connected to the same Wi-Fi network.
       </p>
 
-      <div className="pairing-security-note">
-        <ShieldIcon />
-        <span>End-to-end encrypted · Direct peer-to-peer transfer</span>
-      </div>
+      <OtherWaysLink disabled={busy} onClick={onOtherWays} />
 
       <div className="pairing-scanner-controls pairing-code-actions">
         <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>

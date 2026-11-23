@@ -166,23 +166,53 @@ describe("choosing a role and a way to connect", () => {
     );
   });
 
-  it("offers every way to connect when sending", async () => {
+  it("shows a link code at once when sending", async () => {
     render();
     await press("Send Accounts from This Device");
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Link Code");
+    expect(api.startHost).toHaveBeenCalledTimes(1);
+    expect(text()).toContain("go to Settings → Sync Devices, select Receive, and enter this code");
+  });
+
+  it("asks for the link code at once when receiving", async () => {
+    render();
+    await press("Receive Accounts on This Device");
+    expect(title()).toBe("Enter Link Code");
+    expect(api.startHost).not.toHaveBeenCalled();
+    expect(text()).toContain("shown on the sending device");
+  });
+
+  it("lists every way to connect under the other ways when sending, ending the code session", async () => {
+    render();
+    await press("Send Accounts from This Device");
+    cancelPairing.mockClear();
+    await press("Other ways to connect");
+    expect(cancelPairing).toHaveBeenCalledTimes(1);
+    expect(title()).toBe("Other Ways to Connect");
     for (const label of ["Show Link Code", "Enter Link Code", "Show QR Code", "Scan QR Code"]) expect(text()).toContain(label);
   });
 
   it("does not offer the animated QR code when receiving", async () => {
     render();
     await press("Receive Accounts on This Device");
+    await press("Other ways to connect");
     expect(text()).toContain("Show Link Code");
     expect(text()).not.toContain("Show QR Code");
   });
 
-  it("goes back from the connection choices to the role choice", async () => {
+  it("lets a receiver show the code instead, for an older sender", async () => {
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Other ways to connect");
+    await press("Show Link Code");
+    expect(title()).toBe("Link Code");
+    expect(api.startHost).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes back from the other ways to the role choice", async () => {
     render();
     await press("Send Accounts from This Device");
+    await press("Other ways to connect");
     await press("Back");
     expect(title()).toBe("Send or Receive Accounts");
   });
@@ -196,14 +226,9 @@ describe("mobile Wi-Fi prompt for link codes", () => {
     });
   });
 
-  async function openModes() {
+  it("starts the host session when Wi-Fi is already on", async () => {
     render();
     await press("Send Accounts from This Device");
-  }
-
-  it("starts the host session when Wi-Fi is already on", async () => {
-    await openModes();
-    await press("Show Link Code");
     expect(api.wifiEnabled).toHaveBeenCalled();
     expect(api.startHost).toHaveBeenCalledTimes(1);
     expect(text()).not.toContain("Turn on Wi-Fi");
@@ -211,38 +236,40 @@ describe("mobile Wi-Fi prompt for link codes", () => {
 
   it("asks to turn Wi-Fi on instead of starting a session when it is off", async () => {
     api.wifiEnabled.mockResolvedValue(false);
-    await openModes();
-    await press("Show Link Code");
+    render();
+    await press("Send Accounts from This Device");
     expect(api.startHost).not.toHaveBeenCalled();
     expect(document.querySelector(".confirm-dialog-backdrop")?.textContent).toContain("Turn on Wi-Fi");
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Send or Receive Accounts");
   });
 
   it("opens system Wi-Fi settings from the prompt", async () => {
     api.wifiEnabled.mockResolvedValue(false);
-    await openModes();
-    await press("Show Link Code");
+    render();
+    await press("Send Accounts from This Device");
     await press("Turn On Wi-Fi");
     expect(api.openWifiSettings).toHaveBeenCalledTimes(1);
     expect(api.startHost).not.toHaveBeenCalled();
   });
 
-  it("cancels the prompt and stays on the connection choices", async () => {
+  it("offers the other ways to connect when the prompt is declined", async () => {
     api.wifiEnabled.mockResolvedValue(false);
-    await openModes();
-    await press("Show Link Code");
-    click(document.querySelector<HTMLButtonElement>(".confirm-dialog-backdrop .button.ghost")!);
+    render();
+    await press("Send Accounts from This Device");
+    const decline = document.querySelector<HTMLButtonElement>(".confirm-dialog-backdrop .button.ghost")!;
+    expect(decline.textContent).toBe("Other Ways");
+    click(decline);
     await settle();
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
     expect(api.startHost).not.toHaveBeenCalled();
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Other Ways to Connect");
   });
 
   it("continues into Enter Link Code after Wi-Fi is turned on", async () => {
     api.wifiEnabled.mockResolvedValue(false);
-    await openModes();
-    await press("Enter Link Code");
-    expect(title()).toBe("How to Connect Devices");
+    render();
+    await press("Receive Accounts on This Device");
+    expect(title()).toBe("Send or Receive Accounts");
     expect(document.querySelector(".confirm-dialog-backdrop")).not.toBeNull();
     api.wifiEnabled.mockResolvedValue(true);
     await act(async () => {
@@ -258,13 +285,12 @@ describe("showing a link code", () => {
   async function openHost() {
     render();
     await press("Send Accounts from This Device");
-    await press("Show Link Code");
   }
 
   it("starts a host session and shows the code and a countdown", async () => {
     await openHost();
     expect(api.startHost).toHaveBeenCalledTimes(1);
-    expect(title()).toBe("Show Link Code");
+    expect(title()).toBe("Link Code");
     expect(text()).toContain("123 456");
     expect(text()).toMatch(/Expires in\s*2:0\d/);
     expect(text()).toContain("Waiting for the other device to connect…");
@@ -274,7 +300,6 @@ describe("showing a link code", () => {
     api.startHost.mockReturnValue(new Promise(() => {}));
     render();
     await press("Send Accounts from This Device");
-    await press("Show Link Code");
     expect(text()).toContain("Starting pairing session…");
   });
 
@@ -284,11 +309,11 @@ describe("showing a link code", () => {
     expect(text()).toContain("no network");
   });
 
-  it("cancels the session and returns to the choices on Back", async () => {
+  it("cancels the session and returns to the role choice on Back", async () => {
     await openHost();
     await press("Back");
     expect(cancelPairing).toHaveBeenCalled();
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Send or Receive Accounts");
   });
 
   it("offers a new code when the countdown expires", async () => {
@@ -309,7 +334,6 @@ describe("entering a link code", () => {
   async function openCodeEntry() {
     render();
     await press("Receive Accounts on This Device");
-    await press("Enter Link Code");
   }
   const input = () => document.getElementById("pairing-join-code-input") as HTMLInputElement;
 
@@ -356,7 +380,7 @@ describe("entering a link code", () => {
     expect(button("Connect to Device").disabled).toBe(false);
   });
 
-  it("clears connection error when going back to the connection choices", async () => {
+  it("clears connection error when going back to the role choice", async () => {
     api.startClientByCode.mockRejectedValue(new Error("code not found"));
     await openCodeEntry();
     typeInto(input(), "123456");
@@ -364,7 +388,7 @@ describe("entering a link code", () => {
     expect(text()).toContain("code not found");
     expect(document.querySelector(".modal-error")).not.toBeNull();
     await press("Back");
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Send or Receive Accounts");
     expect(document.querySelector(".modal-error")).toBeNull();
     expect(text()).not.toContain("code not found");
   });
@@ -379,7 +403,7 @@ describe("entering a link code", () => {
     await press("Connect to Device");
     // Connect is still in-flight. User hits Back now.
     await press("Back");
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Send or Receive Accounts");
     expect(document.querySelector(".modal-error")).toBeNull();
 
     // Now the in-flight connect fails with mDNS resolution error
@@ -387,7 +411,7 @@ describe("entering a link code", () => {
       rejectConnect(new Error("No matching service found for link code 016142"));
     });
 
-    // The error MUST NOT appear on "How to Connect Devices"!
+    // The error MUST NOT appear on the role choice!
     expect(document.querySelector(".modal-error")).toBeNull();
     expect(text()).not.toContain("No matching service found");
   });
@@ -429,10 +453,20 @@ describe("entering a link code", () => {
     }
   });
 
-  it("goes back to the connection choices", async () => {
+  it("goes back to the role choice", async () => {
     await openCodeEntry();
     await press("Back");
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Send or Receive Accounts");
+  });
+
+  it("keeps the typed code when Try Again follows a failed connection", async () => {
+    await openCodeEntry();
+    typeInto(input(), "123456");
+    await press("Connect to Device");
+    await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "The link to the other device broke." } } });
+    await press("Try Again");
+    expect(title()).toBe("Enter Link Code");
+    expect(input().value).toBe("123456");
   });
 });
 
@@ -451,7 +485,6 @@ describe("progress reported by the backend", () => {
   it("applies a role chosen in step 1 as soon as the devices connect", async () => {
     render();
     await press("Send Accounts from This Device");
-    await press("Show Link Code");
     await emit({ status: "roleSelection", data: { sessionId: "s1" } });
     await settle();
     expect(api.selectRole).toHaveBeenCalledWith("send");
@@ -598,6 +631,7 @@ describe("accepting the other device's settings", () => {
   it("tells the backend this device's choice when it shows a link code", async () => {
     render();
     await press("Receive Accounts on This Device");
+    await press("Other ways to connect");
     await press("Show Link Code");
     expect(api.startHost).toHaveBeenLastCalledWith(true);
   });
@@ -607,6 +641,7 @@ describe("accepting the other device's settings", () => {
     click(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!);
     await settle();
     await press("Receive Accounts on This Device");
+    await press("Other ways to connect");
     await press("Show Link Code");
     expect(api.startHost).toHaveBeenLastCalledWith(false);
   });
@@ -660,9 +695,10 @@ describe("finishing", () => {
     expect(cancelPairing).toHaveBeenCalled();
   });
 
-  it("shows a failure with Try Again, which returns to the connection choices", async () => {
+  it("shows a failure with Try Again, which returns to the other ways to connect", async () => {
     render();
     await press("Send Accounts from This Device");
+    await press("Other ways to connect");
     await press("Scan QR Code");
     await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "peer vanished" } } });
     expect(text()).toContain("Pairing Failed");
@@ -670,7 +706,7 @@ describe("finishing", () => {
     expect(document.querySelector(".pairing-step-dots")).toBeNull();
     await press("Try Again");
     expect(cancelPairing).toHaveBeenCalled();
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Other Ways to Connect");
   });
 
   it("auto-dismisses the pairing-failed detail after 6 seconds even if the poll repeats it", async () => {
@@ -678,6 +714,7 @@ describe("finishing", () => {
     try {
       render();
       await press("Send Accounts from This Device");
+      await press("Other ways to connect");
       await press("Scan QR Code");
       const failed = { status: "failed" as const, data: { error: { code: "pairing" as const, message: "peer vanished" } } };
       api.status.mockResolvedValue(failed);
@@ -705,7 +742,6 @@ describe("finishing", () => {
   it("restarts the host session from Try Again when showing a code", async () => {
     render();
     await press("Send Accounts from This Device");
-    await press("Show Link Code");
     await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "timed out" } } });
     await press("Try Again");
     expect(api.startHost).toHaveBeenCalledTimes(2);
@@ -730,7 +766,7 @@ describe("finishing", () => {
   it("starts over each time it is reopened", async () => {
     render();
     await press("Send Accounts from This Device");
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Link Code");
     mounted.rerender(<PairingModal open={false} onClose={onClose} onCompleted={onCompleted} />);
     expect(document.querySelector(".pairing-modal")).toBeNull();
     mounted.rerender(<PairingModal open onClose={onClose} onCompleted={onCompleted} />);
@@ -743,6 +779,7 @@ describe("air-gap transfer: sending", () => {
   async function openSender() {
     render();
     await press("Send Accounts from This Device");
+    await press("Other ways to connect");
     await press("Show QR Code");
   }
 
@@ -761,6 +798,7 @@ describe("air-gap transfer: sending", () => {
     render();
     click(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!);
     await press("Send Accounts from This Device");
+    await press("Other ways to connect");
     await press("Show QR Code");
     expect(api.prepareAirgapExport).toHaveBeenCalledWith(false, undefined);
   });
@@ -830,13 +868,13 @@ describe("air-gap transfer: sending", () => {
     }
   });
 
-  it("goes back to the connection choices when the export failed without carrying the error", async () => {
+  it("goes back to the other ways to connect when the export failed without carrying the error", async () => {
     api.prepareAirgapExport.mockRejectedValueOnce(new Error("The transfer was cancelled."));
     await openSender();
     expect(text()).toContain("The transfer was cancelled.");
     expect(document.querySelector(".airgap-sender-view")).not.toBeNull();
     await press("Back");
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Other Ways to Connect");
     expect(document.querySelector(".airgap-sender-view")).toBeNull();
     expect(document.querySelector(".modal-error")).toBeNull();
     expect(text()).not.toContain("The transfer was cancelled.");
@@ -848,10 +886,10 @@ describe("air-gap transfer: sending", () => {
     expect(text()).not.toContain("The transfer was cancelled.");
   });
 
-  it("returns to the connection choices from Back", async () => {
+  it("returns to the other ways to connect from Back", async () => {
     await openSender();
     await press("Back");
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Other Ways to Connect");
     expect(document.querySelector(".airgap-sender-view")).toBeNull();
   });
 
@@ -860,7 +898,7 @@ describe("air-gap transfer: sending", () => {
     cancelPairing.mockClear();
     await press("Back");
     expect(cancelPairing).toHaveBeenCalledTimes(1);
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Other Ways to Connect");
 
     await press("Show QR Code");
     cancelPairing.mockClear();
@@ -868,7 +906,7 @@ describe("air-gap transfer: sending", () => {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     });
     expect(cancelPairing).toHaveBeenCalledTimes(1);
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Other Ways to Connect");
     expect(document.querySelector(".airgap-sender-view")).toBeNull();
   });
 });
@@ -877,6 +915,7 @@ describe("scanning", () => {
   async function openScanner() {
     render();
     await press("Receive Accounts on This Device");
+    await press("Other ways to connect");
     await press("Scan QR Code");
   }
 
@@ -945,14 +984,17 @@ describe("scanning", () => {
     expect(live?.getAttribute("aria-live")).toBe("polite");
     expect(live?.textContent).toContain("Send or Receive Accounts");
     await press("Send Accounts from This Device");
-    expect(live?.textContent).toContain("How to Connect Devices");
+    expect(live?.textContent).toContain("Link Code");
   });
 
-  it("marks failures as alerts and moves focus to Try Again", async () => {
+  it("heads failures Pairing Failed, shows the reason as an alert and moves focus to Try Again", async () => {
     render();
     await settle();
     await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "The other device left." } } });
-    expect(document.querySelector(".pairing-error-card")?.getAttribute("role")).toBe("alert");
+    expect(title()).toBe("Pairing Failed");
+    expect(document.querySelectorAll("h2, h3").length).toBe(1);
+    expect(document.querySelector(".modal-error")?.getAttribute("role")).toBe("alert");
+    expect(document.querySelector(".modal-error")?.textContent).toBe("The other device left.");
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 80));
     });
@@ -995,13 +1037,14 @@ describe("scanning", () => {
     await openScanner();
     await press("Back");
     expect(cancelPairing).toHaveBeenCalled();
-    expect(title()).toBe("How to Connect Devices");
+    expect(title()).toBe("Other Ways to Connect");
     expect(scanner.options?.active).toBe(false);
   });
 
   it("scans for the air-gap sender's animated code", async () => {
     render();
     await press("Send Accounts from This Device");
+    await press("Other ways to connect");
     await press("Scan QR Code");
     expect(title()).toBe("Scan QR Code");
     expect(text()).toContain("Point the camera at the QR code on the other device.");
@@ -1024,6 +1067,7 @@ describe("air-gap transfer: receiving", () => {
   async function captureAll() {
     render();
     await press("Receive Accounts on This Device");
+    await press("Other ways to connect");
     await press("Scan QR Code");
     const now = vi.spyOn(Date, "now");
     now.mockReturnValue(1_000_000);
@@ -1070,6 +1114,7 @@ describe("air-gap transfer: receiving", () => {
     api.previewAirgapFrames.mockRejectedValue(new Error("frames damaged"));
     render();
     await press("Receive Accounts on This Device");
+    await press("Other ways to connect");
     await press("Scan QR Code");
     const before = scanner.options!.restartKey;
     await scan("aiut-airgap://1/sess-1/1/1/aa?d=a");

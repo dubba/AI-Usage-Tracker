@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (3 changes)
 
-### Improved (1)
+### Improved (2)
 
+- Sync Devices takes one step less: after choosing Send or Receive, the sending device shows its link code at once and the receiving device asks for it. Showing or entering a code the other way round (for a device with an older version) and the QR code are under "Other ways to connect", which also opens when you choose not to turn on Wi-Fi. A failed pairing now says "Pairing Failed" in the heading, with a green Try Again button.
 - In Settings, the Menu Bar Labels switch description now reads "Show labels below icons in bottom bar."
 
 ### Fixed (1)

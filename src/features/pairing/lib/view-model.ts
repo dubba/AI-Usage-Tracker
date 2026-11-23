@@ -40,9 +40,9 @@ export function pairingHeader(input: {
   const waiting = isWaitingStatus(status);
 
   let title = "Link Devices";
-  let subtitle = "Transfer accounts & credentials between devices.";
+  let subtitle = "Sync accounts & credentials between devices.";
   if (activeFlow === "airgap" || viewMode === "airgap-sender") {
-    subtitle = "On the other device, open Link Devices, select Scan QR Code, then scan this QR code below.";
+    subtitle = "On the other device, open Link Devices, choose Receive, then Scan QR Code (under Other Ways to Connect), and scan this QR code.";
   }
   if (status === "clientConnecting") {
     title = "Connecting";
@@ -50,8 +50,8 @@ export function pairingHeader(input: {
   } else if (waiting && viewMode === "airgap-sender") {
     title = "Show QR Code";
   } else if (waiting && viewMode === "host") {
-    title = "Show Link Code";
-    subtitle = "On the other device, open Link Devices, select Enter Link Code, then enter the code below.";
+    title = "Link Code";
+    subtitle = "Open this app on the other device, go to Settings → Sync Devices, select Receive, and enter this code.";
   } else if (waiting && viewMode === "scanner") {
     title = "Scan QR Code";
     subtitle =
@@ -60,7 +60,7 @@ export function pairingHeader(input: {
         : "Point the camera at the QR code on the other device.";
   } else if (waiting && viewMode === "code") {
     title = "Enter Link Code";
-    subtitle = "Type the 6-digit link code shown on the other device.";
+    subtitle = "Type the 6-digit link code shown on the sending device.";
   } else if (status === "roleSelection") {
     title = intendedRole ? "Connecting" : "Send or Receive Accounts";
     subtitle = intendedRole ? "Applying send or receive on this device." : "Choose what this device should do.";
@@ -75,12 +75,15 @@ export function pairingHeader(input: {
   } else if (status === "transferring") {
     title = "Transferring";
     subtitle = "Encrypted accounts and groups are moving between devices.";
+  } else if (status === "failed") {
+    title = "Pairing Failed";
+    subtitle = "The devices didn't finish linking. The reason is below.";
   } else if (status === "completed") {
     title = "Devices linked";
     subtitle = "Accounts and credentials are synchronized.";
   } else if (waiting && viewMode === "select-mode") {
-    title = "How to Connect Devices";
-    subtitle = "Step 2: Show a pairing code here, or scan or enter the code from your other device.";
+    title = "Other Ways to Connect";
+    subtitle = "For a device with an older version of the app, or one that is not on the same Wi-Fi.";
   } else if (waiting && viewMode === "select-role") {
     title = "Send or Receive Accounts";
     subtitle = "Step 1: Choose a role for this device.";

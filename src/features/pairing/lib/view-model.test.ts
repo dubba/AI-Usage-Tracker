@@ -42,8 +42,8 @@ describe("pairingStep", () => {
 describe("pairingHeader titles", () => {
   const cases: Array<[string, Partial<Parameters<typeof pairingHeader>[0]>, string]> = [
     ["role choice", {}, "Send or Receive Accounts"],
-    ["connection choice", { viewMode: "select-mode" }, "How to Connect Devices"],
-    ["showing a link code", { viewMode: "host" }, "Show Link Code"],
+    ["other ways to connect", { viewMode: "select-mode" }, "Other Ways to Connect"],
+    ["showing a link code", { viewMode: "host" }, "Link Code"],
     ["scanning", { viewMode: "scanner" }, "Scan QR Code"],
     ["entering a code", { viewMode: "code" }, "Enter Link Code"],
     ["showing animated QR", { viewMode: "airgap-sender" }, "Show QR Code"],
@@ -55,7 +55,7 @@ describe("pairingHeader titles", () => {
     ["waiting as the receiver", { status: "confirmTransfer", isSender: false }, "Devices connected"],
     ["transferring", { status: "transferring" }, "Transferring"],
     ["done", { status: "completed" }, "Devices linked"],
-    ["failed", { status: "failed" }, "Link Devices"],
+    ["failed", { status: "failed" }, "Pairing Failed"],
     ["air-gap receiver with every frame", { viewMode: "scanner", airgapVerifyPrompt: true }, "Add the accounts"],
   ];
   it.each(cases)("%s", (_name, over, title) => {
@@ -72,7 +72,7 @@ describe("pairingHeader subtitles and steps", () => {
   });
 
   it("keeps the air-gap instructions while its sender is shown", () => {
-    expect(header({ viewMode: "airgap-sender" }).subtitle).toContain("scan this QR code below");
+    expect(header({ viewMode: "airgap-sender" }).subtitle).toContain("Scan QR Code (under Other Ways to Connect)");
   });
 
   it("tells the sender to send and the receiver to wait, with no code to compare", () => {
