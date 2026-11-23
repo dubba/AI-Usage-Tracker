@@ -231,6 +231,24 @@
     flex-shrink: 0;
   }
 
+  /* On desktop the meters sit beside the name and buttons and are centered with them, but the
+     label line's room above the capitals made the visible meters sit about 2.5px low. Trimming
+     that room centers what you see; the row gap grows by the same amount, so rows of a card with
+     several meters keep their spacing. Older WebViews without `text-box` keep the old layout. */
+  @supports (text-box: trim-start cap alphabetic) {
+    @media (min-width: 861px) {
+      .compact-metric-label,
+      .compact-metric-value {
+        text-box: trim-start cap alphabetic;
+      }
+
+      .compact-card-metrics,
+      .compact-card-metrics.is-two-col {
+        row-gap: 13px;
+      }
+    }
+  }
+
   .compact-metric-value.tone-healthy {
     color: var(--c-f5f1ef);
   }
