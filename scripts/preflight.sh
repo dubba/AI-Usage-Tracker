@@ -184,7 +184,7 @@ android_check() {
 
 script_tests() {
   npm run test:resolve-version && npm run test:release-notes && npm run test:sidestore-source &&
-    npm run test:updater-manifest && npm run test:windows-uninstall &&
+    npm run test:updater-manifest &&
     npm run test:macos-uninstall && npm run test:workflows && npm run test:tauri-dev
 }
 

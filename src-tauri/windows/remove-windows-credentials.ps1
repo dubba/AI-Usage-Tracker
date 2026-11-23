@@ -1,6 +1,7 @@
 # Removes this app's saved accounts, settings, and Windows sign-ins on uninstall.
-# An in-app update does not run this script. The decision procedure is duplicated
-# in scripts/windows-uninstall-targets.mjs; change both together.
+# Only a fallback now, for one release: the uninstaller runs the app with
+# --uninstall-cleanup (src-tauri/src/uninstall.rs), and runs this script only
+# when the app could not run. An in-app update does not run either.
 # Credential blobs are never read. Nothing here is written to the pipeline.
 
 $ErrorActionPreference = "Stop"

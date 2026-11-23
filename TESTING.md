@@ -13,7 +13,7 @@ its assertions would plausibly fail if the guard were removed.
 | --- | --- | --- |
 | Frontend unit tests | `npm test` (`vitest run`) | 102 `*.test.ts(x)` files under `src/` |
 | Rust tests | `cargo test --manifest-path src-tauri/Cargo.toml --workspace` (the app crate and `crates/usage-core`) | 498 `#[test]`/`#[tokio::test]` in 56 files (all lib unit tests; no `src-tauri/tests/` integration dir, no doc tests) |
-| Release-script tests | `npm run test:resolve-version`, `test:release-notes`, `test:sidestore-source`, `test:updater-manifest`, `test:windows-uninstall`, `test:macos-uninstall`, `test:workflows`, `test:tauri-dev` | 8 `node --test` suites in `scripts/` |
+| Release-script tests | `npm run test:resolve-version`, `test:release-notes`, `test:sidestore-source`, `test:updater-manifest`, `test:macos-uninstall`, `test:workflows`, `test:tauri-dev` | 7 `node --test` suites in `scripts/` |
 | Type check + lint | `npm run check` | `tsc -b` + `oxlint src` |
 | Rust lint/format | `cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings`, `cargo fmt --manifest-path src-tauri/Cargo.toml --all --check` | |
 

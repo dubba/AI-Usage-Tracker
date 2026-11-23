@@ -15,6 +15,8 @@ pub(crate) mod buckets;
 #[cfg(any(target_os = "android", debug_assertions))]
 pub(crate) mod credential_file;
 mod credentials;
+#[cfg(windows)]
+pub(crate) use credentials::uninstall as credential_uninstall;
 pub(crate) mod installation;
 pub(crate) mod json_file;
 pub(crate) mod settings;

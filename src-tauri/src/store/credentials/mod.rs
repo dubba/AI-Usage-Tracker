@@ -6,6 +6,8 @@ mod keychain_access;
 pub(super) mod keyring_store;
 #[cfg(not(target_os = "android"))]
 pub(super) mod legacy_cleanup;
+#[cfg(any(windows, test))]
+pub(crate) mod uninstall;
 
 use self::cache::{
     cached_secret, cached_secret_is_clean, forget_secret, mark_secret_clean, remember_secret,

@@ -103,6 +103,9 @@ jni = "0.21"
 # Quotes the start-at-login command (src/autostart.rs). The same version
 # tauri-plugin-autostart already pulls in through auto-launch.
 winreg = "0.10"
+# Lists and deletes the app's Credential Manager entries on uninstall (src/store/credentials/
+# uninstall.rs). The same version keyring already pulls in.
+windows-sys = { version = "0.60", features = ["Win32_Foundation", "Win32_Security_Credentials"] }
 
 [dev-dependencies]
 # Generates the TypeScript types the frontend uses for backend values (`src/types.generated.ts`,

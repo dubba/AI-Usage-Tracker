@@ -24,6 +24,8 @@ mod state;
 mod store;
 #[cfg(test)]
 mod type_contract;
+#[cfg(any(windows, test))]
+mod uninstall;
 mod updater;
 mod usage;
 
@@ -35,6 +37,13 @@ use tauri_plugin_autostart::MacosLauncher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // The uninstaller runs the app with this flag to remove its data. Handled before anything
+    // else, the single-instance plugin included, so it never reaches a copy already running.
+    #[cfg(windows)]
+    if uninstall::requested(std::env::args_os()) {
+        std::process::exit(uninstall::run());
+    }
+
     let _ = rustls::crypto::ring::default_provider().install_default();
 
     // iOS wants every background task handler registered before the app finishes
