@@ -15,5 +15,6 @@ pub(crate) mod ios_background;
 pub(crate) mod lan_binding;
 #[cfg(target_os = "macos")]
 pub(crate) mod macos_notifications;
+pub(crate) mod share_sheet;
 pub(crate) mod tray;
 pub(crate) mod wifi;

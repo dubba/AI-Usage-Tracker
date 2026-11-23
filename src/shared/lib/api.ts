@@ -131,15 +131,19 @@ export const pairingApi = {
   /** Imports the frames a preview checked, with the ticket that preview returned (used once). */
   importAirgapFrames: (chunks: string[], ticket: string, acceptSettings: boolean) =>
     invoke<SyncSummary>("pairing_import_airgap", { chunks, ticket, acceptSettings }),
-  // Transfer by file. Rust shows the native open and save dialogs and reads and writes the files;
-  // each call resolves to false or null when the user cancels its dialog.
-  /** Receiver: makes the request for the device showing `code` and saves it. */
-  saveFileRequest: (code: string) => invoke<boolean>("pairing_file_save_request", { code }),
+  // Transfer by file. Rust shows the native menus and dialogs and reads and writes the files; an
+  // open or save resolves to null or false when the user cancels its dialog.
+  /** Receiver: makes the request for the device showing `code`. Resolves to whether a share menu exists. */
+  makeFileRequest: (code: string) => invoke<boolean>("pairing_file_make_request", { code }),
+  /** Sender, after its user agreed: answers the opened request (uses the code up). Resolves to whether a share menu exists. */
+  makeFileReply: (includeSettings: boolean, uiState?: Record<string, unknown>) =>
+    invoke<boolean>("pairing_file_make_reply", { includeSettings, uiState: uiState ?? null }),
+  /** Opens the system share menu for the file made last. */
+  shareFile: () => invoke<void>("pairing_file_share"),
+  /** Saves a copy of the file made last where the user chooses. */
+  saveFile: () => invoke<boolean>("pairing_file_save"),
   /** Sender: opens a request file for the code this device shows. */
   openFileRequest: () => invoke<FileRequestInfo | null>("pairing_file_open_request"),
-  /** Sender, after its user agreed: answers the opened request and saves the reply. */
-  saveFileReply: (includeSettings: boolean, uiState?: Record<string, unknown>) =>
-    invoke<boolean>("pairing_file_save_reply", { includeSettings, uiState: uiState ?? null }),
   /** Receiver: opens the reply file and counts its accounts; imports nothing. */
   openFileReply: () => invoke<FilePreview | null>("pairing_file_open_reply"),
   /** Receiver, after its user agreed: imports the opened reply, with its preview's ticket. */

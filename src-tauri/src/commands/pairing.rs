@@ -212,6 +212,7 @@ const REQUEST_FILE_NAME: &str = "AI Usage Tracker request.aiutpair";
 const REPLY_FILE_NAME: &str = "AI Usage Tracker reply.aiutpair";
 const FILE_READ_FAILED: &str = "Couldn't read that file. Choose it again.";
 const FILE_SAVE_FAILED: &str = "Couldn't save the file. Choose another place and try again.";
+const NOTHING_TO_SEND: &str = "There's no transfer file to send. Start again.";
 
 fn file_error(message: impl Into<String>) -> super::error::CommandError {
     super::error::CommandError::new(super::error::ErrorCode::Pairing, message.into())
@@ -283,8 +284,106 @@ fn read_capped(path: &std::path::Path, max_len: usize) -> CommandResult<Vec<u8>>
     Ok(bytes)
 }
 
-async fn write_transfer_file(path: std::path::PathBuf, bytes: Vec<u8>) -> CommandResult<()> {
-    tauri::async_runtime::spawn_blocking(move || std::fs::write(&path, bytes))
+/// Puts `bytes` in the app's cache folder as the file to share or save next, replacing the last
+/// one. Returns whether this platform has a share menu (otherwise the page offers Save only).
+async fn keep_outgoing(
+    app: &AppHandle,
+    state: &AppState,
+    file_name: &'static str,
+    bytes: Vec<u8>,
+) -> CommandResult<bool> {
+    use tauri::Manager;
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|_| file_error(FILE_SAVE_FAILED))?
+        .join("transfer-files");
+    let path = dir.join(file_name);
+    let written = tauri::async_runtime::spawn_blocking(move || {
+        // Only the newest file is kept: older ones (encrypted, or holding no key) go.
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir)?;
+        std::fs::write(&path, bytes).map(|()| path)
+    })
+    .await
+    .map_err(|_| file_error(FILE_SAVE_FAILED))?
+    .map_err(|error| {
+        crate::diagnostics::warn(&format!(
+            "Keeping a transfer file failed: {}",
+            crate::diagnostics::command_error(error)
+        ));
+        file_error(FILE_SAVE_FAILED)
+    })?;
+    *state.pairing_file_outgoing.lock() = Some((written, file_name));
+    Ok(crate::platform::share_sheet::AVAILABLE)
+}
+
+/// Receiver: makes the request for the device showing `code`, ready to share or save. Returns
+/// whether a share menu is available.
+#[tauri::command]
+pub async fn pairing_file_make_request(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+    code: String,
+) -> CommandResult<bool> {
+    let request =
+        pairing::file_transfer::create_request(state.inner(), &code).map_err(file_error)?;
+    keep_outgoing(&app, state.inner(), REQUEST_FILE_NAME, request).await
+}
+
+/// Sender, after its user agreed: answers the opened request (this uses the code up), ready to
+/// share or save. `include_settings` and `ui_state` are this transfer's extras, as for the QR
+/// export. Returns whether a share menu is available.
+#[tauri::command]
+pub async fn pairing_file_make_reply(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+    include_settings: bool,
+    ui_state: Option<serde_json::Value>,
+) -> CommandResult<bool> {
+    if let Some(ui) = ui_state.as_ref() {
+        limits::check_ui_state_size(ui)?;
+    }
+    {
+        let mut options = state.pairing_options.write();
+        options.unfreeze();
+        options.include_settings = include_settings;
+        options.pending_ui_state = if include_settings { ui_state } else { None };
+    }
+    let reply = pairing::file_transfer::answer_request(state.inner())
+        .await
+        .map_err(file_error)?;
+    keep_outgoing(&app, state.inner(), REPLY_FILE_NAME, reply).await
+}
+
+/// Opens the system share menu (AirDrop, Messages, Mail, …) for the file made last.
+#[tauri::command]
+pub async fn pairing_file_share(
+    window: tauri::WebviewWindow,
+    state: State<'_, Arc<AppState>>,
+) -> CommandResult<()> {
+    let Some((path, _)) = state.pairing_file_outgoing.lock().clone() else {
+        return Err(file_error(NOTHING_TO_SEND));
+    };
+    crate::platform::share_sheet::share_file(&window, &path)
+        .await
+        .map_err(file_error)
+}
+
+/// Saves a copy of the file made last where the user chooses. False when the dialog was
+/// cancelled.
+#[tauri::command]
+pub async fn pairing_file_save(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+) -> CommandResult<bool> {
+    let Some((source, file_name)) = state.pairing_file_outgoing.lock().clone() else {
+        return Err(file_error(NOTHING_TO_SEND));
+    };
+    let Some(target) = choose_save_path(&app, "Save the file", file_name).await else {
+        return Ok(false);
+    };
+    tauri::async_runtime::spawn_blocking(move || std::fs::copy(&source, &target))
         .await
         .map_err(|_| file_error(FILE_SAVE_FAILED))?
         .map_err(|error| {
@@ -293,26 +392,7 @@ async fn write_transfer_file(path: std::path::PathBuf, bytes: Vec<u8>) -> Comman
                 crate::diagnostics::command_error(error)
             ));
             file_error(FILE_SAVE_FAILED)
-        })
-}
-
-/// Receiver: makes the request for the device showing `code` and saves it where the user
-/// chooses. False when the save dialog was cancelled (no request is kept then).
-#[tauri::command]
-pub async fn pairing_file_save_request(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-    code: String,
-) -> CommandResult<bool> {
-    let Some(path) = choose_save_path(&app, "Save the request", REQUEST_FILE_NAME).await else {
-        return Ok(false);
-    };
-    let request =
-        pairing::file_transfer::create_request(state.inner(), &code).map_err(file_error)?;
-    if let Err(error) = write_transfer_file(path, request).await {
-        state.pairing_file_receiver.lock().take();
-        return Err(error);
-    }
+        })?;
     Ok(true)
 }
 
@@ -336,36 +416,6 @@ pub async fn pairing_file_open_request(
         .await
         .map(Some)
         .map_err(file_error)
-}
-
-/// Sender, after its user agreed: answers the opened request and saves the reply where the user
-/// chooses. The place is chosen first, so cancelling the dialog does not use the code up. False
-/// when it was cancelled. `include_settings` and `ui_state` are this transfer's extras, as for the
-/// QR export.
-#[tauri::command]
-pub async fn pairing_file_save_reply(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-    include_settings: bool,
-    ui_state: Option<serde_json::Value>,
-) -> CommandResult<bool> {
-    if let Some(ui) = ui_state.as_ref() {
-        limits::check_ui_state_size(ui)?;
-    }
-    let Some(path) = choose_save_path(&app, "Save the reply", REPLY_FILE_NAME).await else {
-        return Ok(false);
-    };
-    {
-        let mut options = state.pairing_options.write();
-        options.unfreeze();
-        options.include_settings = include_settings;
-        options.pending_ui_state = if include_settings { ui_state } else { None };
-    }
-    let reply = pairing::file_transfer::answer_request(state.inner())
-        .await
-        .map_err(file_error)?;
-    write_transfer_file(path, reply).await?;
-    Ok(true)
 }
 
 /// Receiver: opens the reply file and says how many accounts it holds, importing nothing.

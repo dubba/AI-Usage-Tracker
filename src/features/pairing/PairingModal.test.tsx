@@ -19,9 +19,11 @@ const api = vi.hoisted(() => ({
   ensureCameraPermission: vi.fn(),
   wifiEnabled: vi.fn(),
   openWifiSettings: vi.fn(),
-  saveFileRequest: vi.fn(),
+  makeFileRequest: vi.fn(),
+  makeFileReply: vi.fn(),
+  shareFile: vi.fn(),
+  saveFile: vi.fn(),
   openFileRequest: vi.fn(),
-  saveFileReply: vi.fn(),
   openFileReply: vi.fn(),
   importFileReply: vi.fn(),
 }));
@@ -146,9 +148,12 @@ beforeEach(() => {
   api.ensureCameraPermission.mockResolvedValue(undefined);
   api.wifiEnabled.mockResolvedValue(true);
   api.openWifiSettings.mockResolvedValue(undefined);
-  api.saveFileRequest.mockResolvedValue(true);
+  // A Mac: the files go out through the share menu.
+  api.makeFileRequest.mockResolvedValue(true);
+  api.makeFileReply.mockResolvedValue(true);
+  api.shareFile.mockResolvedValue(undefined);
+  api.saveFile.mockResolvedValue(true);
   api.openFileRequest.mockResolvedValue({ accountCount: 3 });
-  api.saveFileReply.mockResolvedValue(true);
   api.openFileReply.mockResolvedValue({ accountCount: 2, ticket: "ticket-1" });
   api.importFileReply.mockResolvedValue({ added: 2, updated: 0, skipped: 0, warnings: [] });
   Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh)", configurable: true });
@@ -501,15 +506,17 @@ describe("transfer by file", () => {
     typeInto(codeInput(), "123456");
   }
 
-  it("saves a request for the typed code, then opens and adds the reply", async () => {
+  it("makes a request for the typed code, shares it, then opens and adds the reply", async () => {
     render();
     await press("Receive Accounts on This Device");
     expect(button("Use a file instead").disabled).toBe(true);
     typeInto(codeInput(), "123456");
     await press("Use a file instead");
-    expect(api.saveFileRequest).toHaveBeenCalledWith("123456");
+    expect(api.makeFileRequest).toHaveBeenCalledWith("123456");
+    expect(api.shareFile).toHaveBeenCalledTimes(1);
+    expect(api.saveFile).not.toHaveBeenCalled();
     expect(title()).toBe("Receive by File");
-    expect(text()).toContain("Request saved");
+    expect(text()).toContain("Request ready");
 
     await press("Open Reply…");
     expect(text()).toContain("Add 2 accounts?");
@@ -519,12 +526,31 @@ describe("transfer by file", () => {
     expect(onCompleted).toHaveBeenCalledTimes(1);
   });
 
-  it("stays on the code when the save dialog is cancelled", async () => {
-    api.saveFileRequest.mockResolvedValue(false);
+  it("shares again or saves a copy of the request", async () => {
+    await receiveWithCode();
+    await press("Use a file instead");
+    await press("Share the request again");
+    expect(api.shareFile).toHaveBeenCalledTimes(2);
+    await press("Save the request to a file");
+    expect(api.saveFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves the request where there is no share menu", async () => {
+    api.makeFileRequest.mockResolvedValue(false);
+    await receiveWithCode();
+    await press("Use a file instead");
+    expect(api.saveFile).toHaveBeenCalledTimes(1);
+    expect(api.shareFile).not.toHaveBeenCalled();
+    expect(text()).not.toContain("Share the request again");
+    expect(text()).toContain("Save the request to a file");
+  });
+
+  it("stays on the code when the request can't be made", async () => {
+    api.makeFileRequest.mockRejectedValue({ code: "pairing", message: "Enter the 6-digit code shown on the other device." });
     await receiveWithCode();
     await press("Use a file instead");
     expect(title()).toBe("Enter Link Code");
-    expect(codeInput().value).toBe("123456");
+    expect(document.querySelector(".modal-error")?.textContent).toContain("Enter the 6-digit code");
   });
 
   it("keeps waiting when the open dialog is cancelled, and goes back to the code", async () => {
@@ -532,7 +558,7 @@ describe("transfer by file", () => {
     await receiveWithCode();
     await press("Use a file instead");
     await press("Open Reply…");
-    expect(text()).toContain("Request saved");
+    expect(text()).toContain("Request ready");
     await press("Back");
     expect(title()).toBe("Enter Link Code");
   });
@@ -554,10 +580,14 @@ describe("transfer by file", () => {
     await press("Open a request file");
     expect(title()).toBe("Send by File");
     expect(text()).toContain("Send 3 accounts?");
-    expect(api.saveFileReply).not.toHaveBeenCalled();
-    await press("Save Reply…");
-    expect(api.saveFileReply).toHaveBeenCalledWith(true, { marker: true });
-    expect(text()).toContain("Reply saved");
+    expect(api.makeFileReply).not.toHaveBeenCalled();
+    await press("Send Reply");
+    expect(api.makeFileReply).toHaveBeenCalledWith(true, { marker: true });
+    expect(api.shareFile).toHaveBeenCalledTimes(1);
+    expect(text()).toContain("Reply ready");
+    await press("Save the reply to a file");
+    expect(api.saveFile).toHaveBeenCalledTimes(1);
+    expect(api.makeFileReply).toHaveBeenCalledTimes(1);
     await press("Done");
     expect(onClose).toHaveBeenCalled();
   });
@@ -568,8 +598,8 @@ describe("transfer by file", () => {
     await settle();
     await press("Send Accounts from This Device");
     await press("Open a request file");
-    await press("Save Reply…");
-    expect(api.saveFileReply).toHaveBeenCalledWith(false, undefined);
+    await press("Send Reply");
+    expect(api.makeFileReply).toHaveBeenCalledWith(false, undefined);
   });
 
   it("goes back to the code without ending the session", async () => {

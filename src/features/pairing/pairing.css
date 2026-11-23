@@ -686,6 +686,15 @@
   margin: 0;
 }
 
+/* The file transfer's "share again" and "save to a file" links, side by side above its buttons. */
+.pairing-file-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 14px;
+  margin: -4px 0 14px;
+}
+
 /* A row with one button (the file transfer's Done) centers it instead of leaving it on the left. */
 .pairing-nav-row.is-single {
   justify-content: center;

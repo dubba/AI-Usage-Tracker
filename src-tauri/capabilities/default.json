@@ -99,9 +99,11 @@
     "allow-pairing-prepare-airgap-export",
     "allow-pairing-verify-airgap",
     "allow-pairing-import-airgap",
-    "allow-pairing-file-save-request",
+    "allow-pairing-file-make-request",
+    "allow-pairing-file-make-reply",
+    "allow-pairing-file-share",
+    "allow-pairing-file-save",
     "allow-pairing-file-open-request",
-    "allow-pairing-file-save-reply",
     "allow-pairing-file-open-reply",
     "allow-pairing-file-import-reply"
   ]

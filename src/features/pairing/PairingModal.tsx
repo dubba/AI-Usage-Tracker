@@ -452,8 +452,11 @@ export function PairingModal({
         {isWaitingState && viewMode === "file-send" && fileTransfer.sendState && (
           <FileSendView
             state={fileTransfer.sendState}
+            canShare={fileTransfer.canShare}
             busy={busy}
-            onSaveReply={() => void fileTransfer.saveReply()}
+            onSendReply={() => void fileTransfer.sendReply()}
+            onShare={fileTransfer.share}
+            onSave={fileTransfer.save}
             onBack={goBack}
             onDone={handleClose}
           />
@@ -462,9 +465,12 @@ export function PairingModal({
         {isWaitingState && viewMode === "file-receive" && (
           <FileReceiveView
             preview={fileTransfer.preview}
+            canShare={fileTransfer.canShare}
             busy={busy}
             onOpenReply={() => void fileTransfer.openReply()}
             onImport={() => void fileTransfer.importReply()}
+            onShare={fileTransfer.share}
+            onSave={fileTransfer.save}
             onBack={goBack}
           />
         )}
@@ -509,7 +515,7 @@ export function PairingModal({
             onSubmit={() => void handleConnectByCode(joinCodeInput)}
             onBack={goBack}
             onOtherWays={() => leaveAttempt("select-mode")}
-            onUseFile={filesOffered ? () => void fileTransfer.saveRequest(joinCodeInput) : undefined}
+            onUseFile={filesOffered ? () => void fileTransfer.startRequest(joinCodeInput) : undefined}
             setKeyboardOpen={setIsKeyboardOpen}
           />
         )}

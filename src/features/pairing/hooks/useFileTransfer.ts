@@ -5,14 +5,15 @@ import { collectUiState } from "../../layout/ui-state";
 import type { ViewMode } from "../lib/view-model";
 import type { PairingActionContext } from "./usePairingSession";
 
-/** Where the sender is in answering a request: agreeing to send, then the reply saved. */
-export type FileSendState = { accountCount: number; replySaved: boolean };
+/** Where the sender is in answering a request: agreeing to send, then the reply made. */
+export type FileSendState = { accountCount: number; replyMade: boolean };
 
 /**
- * Transfer by file, for two devices that are not on one network. The receiver saves a request
+ * Transfer by file, for two devices that are not on one network. The receiver makes a request
  * for the code it typed and later opens the reply; the sender, while showing its code, opens the
- * request and saves the reply. Rust shows every open and save dialog and keeps the files between
- * steps, so these calls carry only counts and a ticket. A cancelled dialog changes nothing.
+ * request and makes the reply. Each file, once made, goes out through the system share menu where
+ * there is one (macOS) or a save dialog, and either can be repeated. Rust shows every menu and
+ * dialog and keeps the files between steps, so these calls carry only counts and a ticket.
  */
 export function useFileTransfer({
   context,
@@ -27,6 +28,8 @@ export function useFileTransfer({
   const { request, setBusy, setStatus, setErrorMessage, showError } = context;
   const [sendState, setSendState] = useState<FileSendState | null>(null);
   const [preview, setPreview] = useState<FilePreview | null>(null);
+  /** Whether this device has a share menu; until a file is made, assume not. */
+  const [canShare, setCanShare] = useState(false);
 
   /**
    * Runs one step: busy while it runs, its answer dropped if the user moved on. Busy ends before
@@ -51,15 +54,26 @@ export function useFileTransfer({
     then(value);
   };
 
+  const share = () => step("Couldn't open the share menu", () => pairingApi.shareFile(), () => {});
+  const save = () => step("Couldn't save the file", () => pairingApi.saveFile(), () => {});
+  /** Sends the file just made: the share menu if there is one, otherwise the save dialog. */
+  const deliver = (shareMenu: boolean) => void (shareMenu ? share() : save());
+
   return {
     sendState,
     preview,
-    /** Receiver: save the request for `code`, then wait for the reply. */
-    saveRequest: (code: string) =>
-      step("Couldn't save the request", () => pairingApi.saveFileRequest(code), (saved) => {
-        if (!saved) return;
+    canShare,
+    /** Shows the share menu again for the file made last. */
+    share: () => void share(),
+    /** Saves a copy of the file made last. */
+    save: () => void save(),
+    /** Receiver: make the request for `code`, send it, then wait for the reply. */
+    startRequest: (code: string) =>
+      step("Couldn't make the request", () => pairingApi.makeFileRequest(code), (shareMenu) => {
+        setCanShare(shareMenu);
         setPreview(null);
         showView("file-receive");
+        deliver(shareMenu);
       }),
     /** Receiver: open the reply and show how many accounts it holds. */
     openReply: () =>
@@ -83,22 +97,25 @@ export function useFileTransfer({
     openRequest: () =>
       step("Couldn't open the request", () => pairingApi.openFileRequest(), (info) => {
         if (!info) return;
-        setSendState({ accountCount: info.accountCount, replySaved: false });
+        setSendState({ accountCount: info.accountCount, replyMade: false });
         showView("file-send");
       }),
-    /** Sender, after its user agreed: answer the request and save the reply. */
-    saveReply: () =>
+    /** Sender, after its user agreed: make the reply (this uses the code up) and send it. */
+    sendReply: () =>
       step(
-        "Couldn't save the reply",
-        () => pairingApi.saveFileReply(includeSettings, includeSettings ? collectUiState() : undefined),
-        (saved) => {
-          if (saved) setSendState((current) => (current ? { ...current, replySaved: true } : current));
+        "Couldn't make the reply",
+        () => pairingApi.makeFileReply(includeSettings, includeSettings ? collectUiState() : undefined),
+        (shareMenu) => {
+          setCanShare(shareMenu);
+          setSendState((current) => (current ? { ...current, replyMade: true } : current));
+          deliver(shareMenu);
         },
       ),
     /** Forget both sides' screens (the dialog closed). */
     reset: () => {
       setSendState(null);
       setPreview(null);
+      setCanShare(false);
     },
   };
 }
