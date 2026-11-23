@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (11 changes)
+## Unreleased (12 changes)
 
-### Security (4)
+### Security (5)
 
 - On iPhone and iPad, saved sign-ins no longer travel with an encrypted backup onto another device. The app can still refresh usage while the phone is locked.
 - A device you pair with over Wi-Fi can no longer add more accounts than the number shown before the transfer. If it tries, the transfer stops and nothing is added.
 - On a phone, removing an account, or deleting all local data, now forgets the provider sign-in kept inside the app. Opening sign-in in the app asks for an account again, even when there was no account left to delete. A sign-in that opened in the phone's own browser is unchanged.
 - Using a saved limit reset now also asks in a system dialog. The reset is used only after that dialog is confirmed.
+- Updated the `url` library to 2.5.9, which fixes a crash (RUSTSEC-2026-0592) that a specially crafted web address could cause when the app checks where a sign-in page is going.
 
 ### Improved (4)
 
