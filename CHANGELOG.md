@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
+
+### Improved (1)
+
+- In Settings, the Menu Bar Labels switch description now reads "Show labels below icons in bottom bar."
 
 ### Fixed (1)
 

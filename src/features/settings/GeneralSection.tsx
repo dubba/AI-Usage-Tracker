@@ -53,7 +53,7 @@ export function GeneralSection() {
           >
             <div>
               <strong id="setting-nav-labels-label">Menu Bar Labels</strong>
-              <small>Show page labels below icons in bottom bar.</small>
+              <small>Show labels below icons in bottom bar.</small>
             </div>
           </SettingsToggleRow>
         ) : null}

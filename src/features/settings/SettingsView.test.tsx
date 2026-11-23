@@ -147,7 +147,7 @@ describe("General", () => {
     setNarrowWindow(true);
     try {
       app = mount(view());
-      expect(document.body.textContent).toContain("Show page labels below icons in bottom bar.");
+      expect(document.body.textContent).toContain("Show labels below icons in bottom bar.");
       const toggle = toggleLabelled("setting-nav-labels-label");
       expect(toggle.getAttribute("aria-checked")).toBe("true");
       click(toggle);
