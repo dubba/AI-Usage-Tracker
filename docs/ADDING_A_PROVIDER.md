@@ -76,7 +76,7 @@ A new command means four edits, and a test fails if one is missing:
 - `src/features/accounts/AccountsView.tsx` — `EMPTY_STATE_PROVIDERS` is the short list of first-run cards. Add the provider only if it should be offered there.
 - `src-tauri/crates/usage-core/src/plan.rs` — the provider's arm in `plan_display` (how the stored plan string is shown; the match is exhaustive, so a new provider does not compile without one). Add cases to `plan_names.json` next to it.
 - `src/shared/lib/display.ts` — `DEFAULT_GROUP_BY_PROVIDER` (the group a window falls into when its label names none). Add cases to `display.test.ts`.
-- `src/types.generated.ts` — only if the provider adds a field to a type the frontend receives. Add the field in Rust, then run `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract` and `npx vitest run src/shared/lib/types-contract.test.ts`.
+- `src/types.generated.ts` — only if the provider adds a field to a type the frontend receives. Add the field in Rust, then run `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract`; `npm run check` then shows any frontend code the new type no longer fits.
 
 ## 5. Documents and release notes
 

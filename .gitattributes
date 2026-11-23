@@ -2,8 +2,8 @@
 # line endings identical on every platform, including Windows CI checkouts.
 *.rs text eol=lf
 
-# The backend-samples fixture and generated TypeScript bindings are compared byte for byte
-# with generated output (type_contract.rs), so a Windows checkout must not turn their line
-# endings into CRLF.
+# Fixtures shared by the Rust and TypeScript tests, and the generated TypeScript bindings
+# (compared byte for byte by type_contract.rs), must not get CRLF line endings in a Windows
+# checkout.
 *.fixture.json text eol=lf
 src/types.generated.ts text eol=lf
