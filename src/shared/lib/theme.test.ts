@@ -15,6 +15,7 @@ describe("theme preference", () => {
   it("resolves explicit choices regardless of the system setting", () => {
     expect(resolveTheme("dark", true)).toBe("dark");
     expect(resolveTheme("light", false)).toBe("light");
+    expect(resolveTheme("oled", true)).toBe("oled");
   });
 
   it("follows the system setting when set to system", () => {
@@ -24,6 +25,7 @@ describe("theme preference", () => {
 
   it("validates stored values", () => {
     expect(isThemePreference("light")).toBe(true);
+    expect(isThemePreference("oled")).toBe(true);
     expect(isThemePreference("sepia")).toBe(false);
     expect(isThemePreference(null)).toBe(false);
   });
@@ -37,5 +39,7 @@ describe("theme preference", () => {
   it("reads a saved preference", () => {
     window.localStorage.setItem(STORAGE_KEYS.theme, "system");
     expect(readThemePreference()).toBe("system");
+    window.localStorage.setItem(STORAGE_KEYS.theme, "oled");
+    expect(readThemePreference()).toBe("oled");
   });
 });

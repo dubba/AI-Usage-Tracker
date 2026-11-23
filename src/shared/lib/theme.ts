@@ -2,14 +2,15 @@ import { logIgnored } from "./log";
 import { createPreferenceStore } from "./preference-store";
 import { STORAGE_KEYS } from "./storage";
 
-export type ThemePreference = "dark" | "light" | "system";
-export type ResolvedTheme = "dark" | "light";
+/** "oled" is the dark theme with pure black surfaces instead of grays. */
+export type ThemePreference = "dark" | "oled" | "light" | "system";
+export type ResolvedTheme = "dark" | "oled" | "light";
 
 const DEFAULT_PREFERENCE: ThemePreference = "dark";
 const LIGHT_QUERY = "(prefers-color-scheme: light)";
 
 export function isThemePreference(value: unknown): value is ThemePreference {
-  return value === "dark" || value === "light" || value === "system";
+  return value === "dark" || value === "oled" || value === "light" || value === "system";
 }
 
 export function resolveTheme(preference: ThemePreference, systemPrefersLight: boolean): ResolvedTheme {
@@ -36,7 +37,7 @@ async function applyToWindow(): Promise<void> {
   try {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const preference = store.get();
-    await getCurrentWindow().setTheme(preference === "system" ? null : preference);
+    await getCurrentWindow().setTheme(preference === "system" ? null : preference === "light" ? "light" : "dark");
   } catch (cause) {
     // Mobile and test environments have no window theme to set.
     logIgnored("window theme", cause);

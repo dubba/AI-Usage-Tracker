@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (11 changes)
+## Unreleased (12 changes)
+
+### Added (1)
+
+- A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens.
 
 ### Improved (9)
 

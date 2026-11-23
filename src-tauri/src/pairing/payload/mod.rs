@@ -63,7 +63,8 @@ pub struct UiStateSyncPayload {
     pub page_account_order: Option<std::collections::BTreeMap<String, Vec<String>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sidebar_width: Option<u32>,
-    /// Appearance theme ("dark" | "light" | "system"). Older peers ignore it.
+    /// Appearance theme ("dark" | "oled" | "light" | "system"). Older peers ignore it,
+    /// and peers from before "oled" drop that value (their allowlist below lacks it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub theme: Option<String>,
     /// Whether usage percentages show the quota left or used ("left" | "used"). Older peers ignore it.
@@ -121,7 +122,7 @@ impl UiStateSyncPayload {
         if self
             .theme
             .as_deref()
-            .is_some_and(|theme| !matches!(theme, "dark" | "light" | "system"))
+            .is_some_and(|theme| !matches!(theme, "dark" | "oled" | "light" | "system"))
         {
             self.theme = None;
         }

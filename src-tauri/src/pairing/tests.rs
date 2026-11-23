@@ -465,6 +465,13 @@ fn ui_state_clamp_bounds_lists_pages_and_text() {
     assert_eq!(evil.usage_display_mode, None);
     assert_eq!(evil.bottom_nav_labels, None);
 
+    let mut oled = UiStateSyncPayload {
+        theme: Some("oled".into()),
+        ..Default::default()
+    };
+    oled.clamp();
+    assert_eq!(oled.theme, Some("oled".to_string()));
+
     let mut labels_on = UiStateSyncPayload {
         bottom_nav_labels: Some("on".into()),
         ..Default::default()

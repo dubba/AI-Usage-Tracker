@@ -239,4 +239,22 @@
     --c-255-255-255-a100: rgba(0, 0, 0, 0.1);
     --c-ffbcbc: #7a1f1f;
   }
+  /* OLED black: only the gray surfaces of the dark theme change (see tokens.css). */
+  :root[data-theme="oled"] {
+    /* Top bar and sidebar. */
+    --c-171616: #000000;
+    /* Card fallback, sub-cards and inner sections. */
+    --c-1c1b1b: #000000;
+    --c-141313: #000000;
+    --c-131816: #000000;
+    /* Text inputs, dropdown triggers and selects. */
+    --c-0f0f0f: #000000;
+    --c-0f1311: #000000;
+    --c-141316: #000000;
+    --c-1a1820: #0c0b10;
+    /* Small buttons and toggles keep a little gray so they read as controls. */
+    --c-232222: #121212;
+    --c-242323: #141414;
+    --c-211e29: #121016;
+  }
 }

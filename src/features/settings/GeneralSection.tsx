@@ -15,6 +15,7 @@ import { useAppSettingsState } from "./settings-context";
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
 const DEFAULT_REFRESH_OPTION = 15;
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "oled", label: "Black" },
   { value: "dark", label: "Dark" },
   { value: "light", label: "Light" },
   { value: "system", label: "System" },
@@ -60,7 +61,7 @@ export function GeneralSection() {
         <div className="settings-row">
           <div>
             <strong>Appearance</strong>
-            <small>Dark, light, or match your device.</small>
+            <small>Black, dark, light, or match your device.</small>
           </div>
           <div className="settings-account-refresh settings-appearance-dropdown">
             <CustomDropdown<ThemePreference>

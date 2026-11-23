@@ -4,10 +4,10 @@
   var pref = "dark";
   try {
     var saved = window.localStorage.getItem("ai-usage-tracker:theme");
-    if (saved === "dark" || saved === "light" || saved === "system") pref = saved;
+    if (saved === "dark" || saved === "oled" || saved === "light" || saved === "system") pref = saved;
   } catch (e) {}
   var light =
     pref === "light" ||
     (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
-  document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
+  document.documentElement.setAttribute("data-theme", light ? "light" : pref === "oled" ? "oled" : "dark");
 })();
