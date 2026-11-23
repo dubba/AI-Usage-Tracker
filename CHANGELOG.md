@@ -5,7 +5,7 @@
 ### Improved (4)
 
 - The status bar at the top of the Dashboard has larger text, on desktop and on phones. On a phone, the "Next reset" line now always sits in its own gray row under a divider, not only when a limit is running low.
-- On a phone, the Usage page's key (Measured, Estimated, No data, Reset) has larger text, matching the Dashboard's status bar, and stays on one line on narrow phones.
+- The Usage page's key (Measured, Estimated, No data, Reset) has larger text, matching the Dashboard's status bar, on desktop and on phones. On desktop the key box is now as tall as the status bar, and on narrow phones it stays on one line.
 - Sync Devices takes one step less: after choosing Send or Receive, the sending device shows its link code at once and the receiving device asks for it. Showing or entering a code the other way round (for a device with an older version) and the QR code are under "Other ways to connect", which also opens when you choose not to turn on Wi-Fi. A failed pairing now says "Pairing Failed" in the heading, with a green Try Again button.
 - In Settings, the Menu Bar Labels switch description now reads "Show labels below icons in bottom bar."
 
