@@ -162,7 +162,7 @@ describe("choosing a role and a way to connect", () => {
     expect(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")?.checked).toBe(true);
     expect(document.querySelector(".pairing-settings-toggle span")?.textContent).toContain("Also Transfer Settings & Layout");
     expect(document.querySelector(".pairing-settings-toggle small")?.textContent).toBe(
-      "Includes appearance, menu bar labels, launch at startup, account refresh intervals, automatic updates, app alerts, and card ordering."
+      "Includes appearance, menu bar labels, launch at startup, whether the local API is on, account refresh intervals, automatic updates, app alerts, and card ordering."
     );
   });
 

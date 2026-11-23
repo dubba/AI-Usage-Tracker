@@ -691,3 +691,71 @@ fn only_the_google_models_request_uses_the_api_key_client() {
         );
     }
 }
+
+/// A failed removal must not touch the phone's in-app provider session, and
+/// deleting everything must, even when no account was stored. The WebView
+/// clear itself runs only on a phone; this pins the order in the source.
+#[test]
+fn removing_an_account_clears_the_in_app_sign_in_session() {
+    let source = include_str!("../state.rs").replace("\r\n", "\n");
+    let remove = method_body(&source, "pub async fn remove_account(");
+    let failed = remove
+        .find("result?")
+        .expect("remove_account must keep the removal result");
+    let cleared = remove
+        .find("self.clear_provider_sign_in_session()")
+        .expect("remove_account must clear the in-app sign-in session");
+    assert!(
+        failed < cleared,
+        "a failed removal must not clear the sign-in session"
+    );
+
+    let wipe = method_body(&source, "pub async fn delete_all_local_data(");
+    let reset = wipe
+        .find("self.settings.reset()")
+        .expect("delete_all_local_data resets settings");
+    assert!(
+        wipe[reset..].contains("self.clear_provider_sign_in_session()"),
+        "delete all must clear the sign-in session even when no account was stored"
+    );
+
+    let helper = include_str!("../auth/mobile_auth/mod.rs").replace("\r\n", "\n");
+    let clear = function_body(&helper, "fn clear_provider_sign_in_session(");
+    let signature = clear.lines().next().expect("signature");
+    assert!(
+        !signature.contains("Result"),
+        "a cookie-clear failure must not fail the removal"
+    );
+    let mobile = clear
+        .find("#[cfg(mobile)]")
+        .expect("the clear runs on a phone");
+    let desktop = clear
+        .find("#[cfg(not(mobile))]")
+        .expect("desktop has no in-app provider session to clear");
+    assert!(
+        clear[mobile..desktop].contains("forget_provider_sign_in("),
+        "the phone clear must drop the WebView's provider cookies"
+    );
+    assert!(
+        !clear[desktop..].contains("forget_provider_sign_in("),
+        "desktop must not try to clear an in-app session"
+    );
+}
+
+/// The body of a method inside `impl AppState`, through its closing brace.
+fn method_body<'a>(source: &'a str, signature: &str) -> &'a str {
+    let start = source
+        .find(signature)
+        .unwrap_or_else(|| panic!("missing {signature}"));
+    let body = &source[start..];
+    &body[..body.find("\n    }\n").expect("end of method")]
+}
+
+/// The body of a top-level function, through its closing brace.
+fn function_body<'a>(source: &'a str, signature: &str) -> &'a str {
+    let start = source
+        .find(signature)
+        .unwrap_or_else(|| panic!("missing {signature}"));
+    let body = &source[start..];
+    &body[..body.find("\n}\n").expect("end of function")]
+}

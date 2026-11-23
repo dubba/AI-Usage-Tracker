@@ -1,6 +1,7 @@
-//! Native confirmation for the two commands that hand secrets to the page: the
-//! Paseo Bridge bearer token, and the air-gapped transfer, whose QR frames
-//! carry their own key and so decrypt to every stored sign-in.
+//! Native confirmation for commands the page must not be able to finish on its
+//! own: revealing the Paseo Bridge bearer token, building an air-gapped
+//! transfer (its QR frames carry their own key), and spending a saved limit
+//! reset.
 //!
 //! The page asks for these when the user clicks, but code injected into the
 //! page could ask too, and the backend cannot tell a real click from a script.
@@ -26,6 +27,15 @@ pub(crate) const REVEAL_BRIDGE_TOKEN: SensitiveAction = SensitiveAction {
               Only continue if you just asked to reveal or copy the token.",
     confirm: "Show Token",
     cancelled: "Showing the token was cancelled.",
+};
+
+pub(crate) const USE_LIMIT_RESET: SensitiveAction = SensitiveAction {
+    title: "Use this limit reset?",
+    message: "AI Usage Tracker is about to use one saved limit reset with the provider. \
+              That cannot be undone.\n\n\
+              Only continue if you just chose Use on an account card.",
+    confirm: "Use Reset",
+    cancelled: "The limit reset was cancelled.",
 };
 
 pub(crate) const AIRGAP_EXPORT: SensitiveAction = SensitiveAction {
@@ -98,14 +108,14 @@ mod tests {
         assert_eq!(runs.load(Ordering::SeqCst), 1);
     }
 
-    /// Both secret-returning commands must go through the native confirmation
-    /// before doing their work; a refactor that drops it should fail here.
+    /// Each sensitive command must go through the native confirmation before
+    /// doing its work; a refactor that drops it should fail here.
     ///
     /// The sources are read as embedded text, which carries CRLF line endings
     /// when Windows checks the repository out with `core.autocrlf`, so they
     /// are normalized before looking for the end of the function.
     #[test]
-    fn both_secret_commands_ask_before_returning_secrets() {
+    fn sensitive_commands_ask_before_they_act() {
         for (file, source, command, action, work) in [
             (
                 "commands/bridge.rs",
@@ -121,6 +131,13 @@ mod tests {
                 "confirm::AIRGAP_EXPORT",
                 "airgap::prepare_airgap_export(",
             ),
+            (
+                "commands/accounts.rs",
+                include_str!("commands/accounts.rs"),
+                "fn use_limit_reset(",
+                "confirm::USE_LIMIT_RESET",
+                "usage::use_limit_reset(",
+            ),
         ] {
             let source = source.replace("\r\n", "\n");
             let start = source
@@ -129,7 +146,7 @@ mod tests {
             let body = &source[start..];
             let body = &body[..body.find("\n}\n").expect("end of function")];
             let asked = body.find("confirm::ask(").unwrap_or_else(|| {
-                panic!("{file}: {command} must call confirm::ask before returning a secret")
+                panic!("{file}: {command} must call confirm::ask before doing its work")
             });
             assert!(body.contains(action), "{file}: {command} must use {action}");
             let worked = body[asked..].find(work).map(|offset| asked + offset);

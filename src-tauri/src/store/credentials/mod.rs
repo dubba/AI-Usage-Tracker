@@ -431,3 +431,23 @@ pub(crate) fn find_credential_file(filename: &str) -> Option<PathBuf> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    /// Release iOS builds retag every saved sign-in after it is written.
+    /// `AfterFirstUnlock` without `ThisDeviceOnly` is eligible for an encrypted
+    /// backup restored onto another device, so the source must not use it.
+    #[test]
+    fn ios_keychain_items_stay_on_this_device() {
+        let source = include_str!("keychain_access.rs");
+        assert!(
+            source.contains("kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly"),
+            "locked background refresh must use the this-device-only class"
+        );
+        let relaxed = source.replace("kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly", "");
+        assert!(
+            !relaxed.contains("kSecAttrAccessibleAfterFirstUnlock"),
+            "items must not use the class an encrypted backup can restore onto another device"
+        );
+    }
+}

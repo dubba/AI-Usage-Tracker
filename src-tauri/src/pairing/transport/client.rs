@@ -85,6 +85,7 @@ async fn join_host(host: &DiscoveredHost, code: &str) -> Result<AuthenticatedPee
         stream,
         encryption_key,
         transcript,
+        shown_account_count: 0,
     };
 
     let joiner_proof = compute_confirmation_tag(
@@ -256,6 +257,7 @@ pub async fn run_client_connector(
         })
         .await;
 
+    peer.shown_account_count = account_count;
     run_authenticated_transfer(
         state,
         peer,

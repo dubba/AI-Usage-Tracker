@@ -55,6 +55,9 @@ pub const OTHER_DEVICE_CANCELED: &str = "The other device canceled the transfer.
 pub const OTHER_DEVICE_DECLINED: &str = "The other device declined the transfer.";
 pub const ROLES_DISAGREE: &str =
     "The two devices disagree about which one sends. Start the transfer again.";
+/// The decrypted payload held more accounts than the number both screens showed.
+pub const MORE_ACCOUNTS_THAN_SHOWN: &str =
+    "The other device tried to send more accounts than it showed. Nothing was added.";
 pub const CANCELED_BY_USER: &str = "Canceled by user";
 pub const SESSION_TIMED_OUT: &str = "Pairing session timed out";
 /// Delay before rejecting a bad handshake, throttles brute-force/garbage
@@ -73,6 +76,9 @@ pub struct AuthenticatedPeer {
     stream: TcpStream,
     encryption_key: [u8; 32],
     transcript: Vec<u8>,
+    /// How many accounts the role exchange told both screens this transfer
+    /// holds. The receiver refuses a payload with more than this.
+    shown_account_count: usize,
 }
 
 impl Drop for AuthenticatedPeer {

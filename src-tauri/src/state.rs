@@ -529,7 +529,19 @@ impl AppState {
         drop(guard);
         drop(lock);
         self.forget_account_lock(account_id);
-        result
+        result?;
+        // The saved sign-in is gone. On a phone the in-app WebView can still
+        // hold that provider's cookies, so drop those too. A failure here is
+        // logged and does not bring the account back.
+        self.clear_provider_sign_in_session();
+        Ok(())
+    }
+
+    /// Drops the phone's in-app provider session. No window on desktop, and no
+    /// app handle in tests, so those calls do nothing.
+    fn clear_provider_sign_in_session(&self) {
+        let app = self.app_handle.read().clone();
+        crate::auth::mobile_auth::clear_provider_sign_in_session(app.as_ref());
     }
 
     fn remove_account_locked(&self, account_id: &str) -> Result<(), String> {
@@ -558,6 +570,9 @@ impl AppState {
         self.buckets.clear()?;
         self.history.clear()?;
         self.settings.reset()?;
+        // Also when nothing was stored: a sign-in can leave cookies without
+        // an account, and each removal above already cleared them once.
+        self.clear_provider_sign_in_session();
         Ok(())
     }
 

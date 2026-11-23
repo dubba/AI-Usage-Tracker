@@ -1,17 +1,20 @@
-//! Keeps the app's Keychain items readable while the phone is locked (iOS).
+//! Keeps the app's Keychain items readable while the phone is locked (iOS),
+//! and only on this phone.
 //!
 //! An item saved without an accessibility setting is only readable while the
 //! phone is unlocked. The background refresh (`platform/ios_background.rs`)
 //! usually runs with the phone locked, so with such items every account would
 //! fail to load its sign-in, and a token rotated by the provider could not be
-//! written back. `kSecAttrAccessibleAfterFirstUnlock` keeps an item readable
-//! and writable from the first unlock after a restart until the next restart.
-//! The items stay in this app's Keychain, are not synced and are not exported.
+//! written back. `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` keeps an
+//! item readable and writable from the first unlock after a restart until the
+//! next restart, which is what background refresh needs. The same class keeps
+//! the item out of a backup restored onto a different device.
 //!
 //! `keyring` does not expose the setting, so this changes it in place with
 //! `SecItemUpdate`, which updates only the attribute and keeps the secret.
-//! The first run after an update, while the phone is unlocked, converts the
-//! items saved earlier. Later runs find nothing to change.
+//! The first run after an update, while the phone is unlocked, converts items
+//! saved earlier (including ones marked `AfterFirstUnlock`). Later runs find
+//! nothing to change. A new sign-in is converted as soon as it is saved.
 
 use super::keyring_store::{CREDENTIAL_SERVICE, LEGACY_CREDENTIAL_SERVICE};
 use core_foundation::{
@@ -30,7 +33,7 @@ extern "C" {
     static kSecClassGenericPassword: CFStringRef;
     static kSecAttrService: CFStringRef;
     static kSecAttrAccessible: CFStringRef;
-    static kSecAttrAccessibleAfterFirstUnlock: CFStringRef;
+    static kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly: CFStringRef;
     fn SecItemUpdate(query: CFDictionaryRef, attributes_to_update: CFDictionaryRef) -> OSStatus;
 }
 
@@ -38,7 +41,7 @@ extern "C" {
 /// nothing, quietly, when there are no items or the phone is locked right now.
 pub(crate) fn allow_background_access() {
     for service in [CREDENTIAL_SERVICE, LEGACY_CREDENTIAL_SERVICE] {
-        let status = set_after_first_unlock(service);
+        let status = set_after_first_unlock_this_device(service);
         if !matches!(
             status,
             0 | ERR_SEC_ITEM_NOT_FOUND | ERR_SEC_INTERACTION_NOT_ALLOWED
@@ -50,7 +53,7 @@ pub(crate) fn allow_background_access() {
     }
 }
 
-fn set_after_first_unlock(service: &str) -> OSStatus {
+fn set_after_first_unlock_this_device(service: &str) -> OSStatus {
     // SAFETY: the constants are Security framework globals that live for the
     // whole process, so wrapping them under the get rule only retains them.
     // `SecItemUpdate` copies both dictionaries and keeps no reference.
@@ -67,7 +70,8 @@ fn set_after_first_unlock(service: &str) -> OSStatus {
         ]);
         let update = CFDictionary::from_CFType_pairs(&[(
             CFString::wrap_under_get_rule(kSecAttrAccessible).as_CFType(),
-            CFString::wrap_under_get_rule(kSecAttrAccessibleAfterFirstUnlock).as_CFType(),
+            CFString::wrap_under_get_rule(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
+                .as_CFType(),
         )]);
         SecItemUpdate(query.as_concrete_TypeRef(), update.as_concrete_TypeRef())
     }

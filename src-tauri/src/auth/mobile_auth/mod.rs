@@ -5,9 +5,9 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 #[cfg(mobile)]
 use std::time::Duration;
-use tauri::WebviewWindow;
 #[cfg(mobile)]
-use tauri::{AppHandle, Manager};
+use tauri::Manager;
+use tauri::{AppHandle, WebviewWindow};
 use url::Url;
 
 #[cfg(target_os = "android")]
@@ -124,6 +124,25 @@ pub fn main_window(app: &AppHandle) -> Result<WebviewWindow, String> {
 
 pub fn is_app_shell(window: &WebviewWindow) -> bool {
     window.label() == MAIN_WINDOW
+}
+
+/// Drops provider cookies in the in-app WebView so the next sign-in asks for
+/// an account instead of reusing the last one. Stored account secrets in the
+/// app are not touched. Failure is logged without cookie values and does not
+/// block the caller. Desktop sign-in uses a separate window, so there is
+/// nothing to clear there. A missing window is logged the same way.
+pub(crate) fn clear_provider_sign_in_session(app: Option<&AppHandle>) {
+    #[cfg(mobile)]
+    if let Some(app) = app {
+        match main_window(app) {
+            Ok(window) => forget_provider_sign_in(&window),
+            Err(error) => {
+                crate::diagnostics::warn(&format!("Sign-in session reset failed: {error}"));
+            }
+        }
+    }
+    #[cfg(not(mobile))]
+    let _ = app;
 }
 
 /// Drops provider cookies in the in-app WebView so the next sign-in asks for

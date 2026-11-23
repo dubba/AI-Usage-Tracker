@@ -124,9 +124,11 @@ pub async fn run_host_listener(
         })
         .await;
 
+    let mut peer = negotiated.peer;
+    peer.shown_account_count = negotiated.account_count;
     run_authenticated_transfer(
         state,
-        negotiated.peer,
+        peer,
         negotiated.is_sender,
         confirm_rx,
         cancel_rx,
@@ -286,6 +288,7 @@ async fn negotiate_as_host(
         stream,
         encryption_key,
         transcript,
+        shown_account_count: 0,
     };
 
     if write_frame(&mut peer.stream, MSG_HANDSHAKE_RESP, &host_message)

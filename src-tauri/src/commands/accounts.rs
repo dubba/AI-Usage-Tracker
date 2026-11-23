@@ -7,7 +7,7 @@ use crate::{
 };
 use chrono::Utc;
 use std::sync::Arc;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 pub async fn get_dashboard_snapshot(
@@ -77,10 +77,17 @@ pub async fn refresh_account(
 
 #[tauri::command]
 pub async fn use_limit_reset(
+    app: AppHandle,
     state: State<'_, Arc<AppState>>,
     account_id: String,
     grant_id: String,
 ) -> CommandResult<Account> {
+    // A native dialog, outside the page, decides. The page's own confirmation
+    // explains the account and what would come back; page code cannot answer
+    // this one, and nothing is spent until it is confirmed.
+    if !crate::confirm::ask(&app, &crate::confirm::USE_LIMIT_RESET).await {
+        return Err(crate::confirm::USE_LIMIT_RESET.cancelled.into());
+    }
     usage::use_limit_reset(state.inner().clone(), &account_id, &grant_id)
         .await
         .map_err(Into::into)

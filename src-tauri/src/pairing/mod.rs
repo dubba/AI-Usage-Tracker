@@ -122,7 +122,9 @@ pub(crate) fn failure(detail: String) -> CommandError {
         | OTHER_DEVICE_DECLINED => ErrorCode::Cancelled,
         WRONG_CODE | TOO_MANY_WRONG_CODES | BAD_ADDRESS => ErrorCode::Invalid,
         NO_DEVICE => ErrorCode::NotFound,
-        CONNECTION_REJECTED | ROLES_DISAGREE | SESSION_TIMED_OUT => ErrorCode::Pairing,
+        CONNECTION_REJECTED | ROLES_DISAGREE | SESSION_TIMED_OUT | MORE_ACCOUNTS_THAN_SHOWN => {
+            ErrorCode::Pairing
+        }
         _ => {
             crate::diagnostics::warn(&format!(
                 "Pairing failed: {}",

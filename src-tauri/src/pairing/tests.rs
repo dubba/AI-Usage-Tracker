@@ -7,12 +7,15 @@ use super::{
     payload::{create_export_payload, import_sync_payload},
     protocol::{
         read_frame, read_frame_limited, write_frame, AbortReason, DiscoveredHost,
-        HANDSHAKE_INIT_LEN, MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE, MSG_ABORT, MSG_HANDSHAKE_INIT,
-        MSG_HANDSHAKE_RESP, MSG_KEY_CONFIRM, PAKE_MESSAGE_LEN,
+        HANDSHAKE_INIT_LEN, MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE, MSG_ABORT,
+        MSG_ENCRYPTED_PAYLOAD, MSG_HANDSHAKE_INIT, MSG_HANDSHAKE_RESP, MSG_KEY_CONFIRM,
+        MSG_ROLE_SELECT, MSG_ROLE_SELECT_RESP, MSG_TRANSFER_CONFIRM, PAKE_MESSAGE_LEN,
+        ROLE_JOINER_SENDS, TRANSFER_ACCEPTED,
     },
     transport::{
         run_client_connector, run_host_listener, ClientEvent, HostEvent, HostSession, RoleChannels,
-        SessionChannels, MAX_CODE_ATTEMPTS, MAX_HOSTS_TRIED, TOO_MANY_WRONG_CODES, WRONG_CODE,
+        SessionChannels, MAX_CODE_ATTEMPTS, MAX_HOSTS_TRIED, MORE_ACCOUNTS_THAN_SHOWN,
+        TOO_MANY_WRONG_CODES, WRONG_CODE,
     },
 };
 use crate::{
@@ -1729,6 +1732,148 @@ async fn the_joiner_sends_after_one_confirmation_and_the_receiver_needs_none() {
     drop(host.confirm);
 }
 
+/// A peer that finished the link-code exchange still cannot deliver more
+/// accounts than the number the role frame put on the confirm screen.
+#[tokio::test]
+async fn a_sender_cannot_deliver_more_accounts_than_it_showed() {
+    let (dir_host, dir_sender) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let host_state = state_in(&dir_host, "tok-lie-h").await;
+    let sender_state = state_with_account(&dir_sender, "tok-lie-s").await;
+    let mut host = spawn_host(&host_state, TEST_CODE).await;
+    let found = host.found.clone();
+    let sender = sender_state.clone();
+    let join = tokio::spawn(async move {
+        lie_about_the_account_count(&found, TEST_CODE, &sender).await;
+    });
+
+    assert!(matches!(
+        next(&mut host.events).await,
+        HostEvent::PeerConnected
+    ));
+    match next(&mut host.events).await {
+        HostEvent::ConfirmTransfer {
+            role,
+            account_count,
+        } => {
+            assert_eq!(role, "receiver");
+            assert_eq!(account_count, 0);
+        }
+        other => panic!("unexpected host event: {other:?}"),
+    }
+    assert!(matches!(
+        next(&mut host.events).await,
+        HostEvent::Transferring
+    ));
+    assert_eq!(
+        host_failure(&mut host.events).await,
+        MORE_ACCOUNTS_THAN_SHOWN
+    );
+    assert!(
+        host_state.store.list().is_empty(),
+        "a payload larger than the shown count must not be imported"
+    );
+    join.await.unwrap();
+}
+
+/// Joins `host` with the real link code, tells it this device has no accounts,
+/// then sends one. The host must refuse.
+async fn lie_about_the_account_count(host: &DiscoveredHost, code: &str, sender: &AppState) {
+    let mut stream = TcpStream::connect((host.host.as_str(), host.port))
+        .await
+        .unwrap();
+    let (exchange, joiner_message) = PakeExchange::start_joiner(code);
+    let mut init = Vec::with_capacity(HANDSHAKE_INIT_LEN);
+    init.extend_from_slice(&joiner_message);
+    init.extend_from_slice(host.session_id.as_bytes());
+    write_frame(&mut stream, MSG_HANDSHAKE_INIT, &init)
+        .await
+        .unwrap();
+
+    let (msg_type, host_message) = timeout(
+        Duration::from_secs(5),
+        read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(msg_type, MSG_HANDSHAKE_RESP);
+    assert_eq!(host_message.len(), PAKE_MESSAGE_LEN);
+    let key = exchange.finish(&host_message, &host.session_nonce).unwrap();
+    let transcript = build_transcript(
+        host.session_id.as_bytes(),
+        &host.session_nonce,
+        &joiner_message,
+        &host_message,
+    );
+    let proof = compute_confirmation_tag(&key, &transcript, KEY_CONFIRM_JOINER_INFO);
+    write_frame(&mut stream, MSG_KEY_CONFIRM, &proof)
+        .await
+        .unwrap();
+
+    let (msg_type, payload) = timeout(
+        Duration::from_secs(5),
+        read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(msg_type, MSG_KEY_CONFIRM);
+    let tag: [u8; 32] = payload.as_slice().try_into().unwrap();
+    assert!(verify_confirmation_tag(
+        &key,
+        &transcript,
+        KEY_CONFIRM_HOST_INFO,
+        &tag
+    ));
+
+    write_frame(
+        &mut stream,
+        MSG_ROLE_SELECT,
+        &[ROLE_JOINER_SENDS, 0x00, 0x00],
+    )
+    .await
+    .unwrap();
+    let (msg_type, _) = timeout(
+        Duration::from_secs(5),
+        read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(msg_type, MSG_ROLE_SELECT_RESP);
+
+    let confirm = compute_confirmation_tag(&key, &transcript, CONFIRM_SENDER_INFO);
+    let mut body = Vec::with_capacity(1 + confirm.len());
+    body.push(TRANSFER_ACCEPTED);
+    body.extend_from_slice(&confirm);
+    write_frame(&mut stream, MSG_TRANSFER_CONFIRM, &body)
+        .await
+        .unwrap();
+    // Read the host's own confirmation before sending the payload. Closing
+    // with that frame still unread makes the kernel reset the connection,
+    // and the host then never sees the payload.
+    let (msg_type, _) = timeout(
+        Duration::from_secs(5),
+        read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(msg_type, MSG_TRANSFER_CONFIRM);
+
+    let export = create_export_payload(sender).unwrap();
+    let encrypted = encrypt_payload(&key, &transcript, &export).unwrap();
+    write_frame(&mut stream, MSG_ENCRYPTED_PAYLOAD, &encrypted)
+        .await
+        .unwrap();
+    // Drain the refusal too, so dropping the socket does not reset it.
+    let _ = timeout(
+        Duration::from_secs(5),
+        read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE),
+    )
+    .await;
+}
+
 #[tokio::test]
 async fn the_host_sends_when_the_joiner_chooses_to_receive() {
     let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
@@ -2447,8 +2592,8 @@ fn an_unknown_enum_value_from_a_newer_peer_refuses_the_payload() {
 #[test]
 fn pairing_failures_are_sentences_with_codes() {
     use super::transport::{
-        CANCELED_BY_USER, NO_DEVICE, OTHER_DEVICE_DECLINED, ROLES_DISAGREE, TOO_MANY_WRONG_CODES,
-        WRONG_CODE,
+        CANCELED_BY_USER, MORE_ACCOUNTS_THAN_SHOWN, NO_DEVICE, OTHER_DEVICE_DECLINED,
+        ROLES_DISAGREE, TOO_MANY_WRONG_CODES, WRONG_CODE,
     };
     use crate::commands::error::ErrorCode;
     let cases = [
@@ -2458,6 +2603,7 @@ fn pairing_failures_are_sentences_with_codes() {
         (CANCELED_BY_USER, ErrorCode::Cancelled),
         (NO_DEVICE, ErrorCode::NotFound),
         (ROLES_DISAGREE, ErrorCode::Pairing),
+        (MORE_ACCOUNTS_THAN_SHOWN, ErrorCode::Pairing),
     ];
     for (sentence, code) in cases {
         let error = super::failure(sentence.to_string());

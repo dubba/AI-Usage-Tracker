@@ -1,9 +1,17 @@
 # Changelog
 
-## Unreleased (6 changes)
+## Unreleased (11 changes)
 
-### Improved (3)
+### Security (4)
 
+- On iPhone and iPad, saved sign-ins no longer travel with an encrypted backup onto another device. The app can still refresh usage while the phone is locked.
+- A device you pair with over Wi-Fi can no longer add more accounts than the number shown before the transfer. If it tries, the transfer stops and nothing is added.
+- On a phone, removing an account, or deleting all local data, now forgets the provider sign-in kept inside the app. Opening sign-in in the app asks for an account again, even when there was no account left to delete. A sign-in that opened in the phone's own browser is unchanged.
+- Using a saved limit reset now also asks in a system dialog. The reset is used only after that dialog is confirmed.
+
+### Improved (4)
+
+- The option to transfer settings when pairing devices now says that it includes whether the local API is on.
 - When an update skips several versions (for example, from v0.6.4 to v0.6.7), the update window now lists the changes of every release since your version (up to the 10 newest), newest first, instead of only the newest release.
 - Switching the Usage page between 7D, 30D, and 90D is now smoother: the other periods load in the background, the switch responds at once, and the charts dim briefly while they redraw.
 - On the Usage page, the Today summary stat now shows 0% when today has no usage yet (instead of "No data") and omits the "est." suffix.

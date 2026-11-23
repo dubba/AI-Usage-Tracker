@@ -2,8 +2,8 @@
 
 use super::{
     events::TransferEvent, send_abort, AuthenticatedPeer, CANCELED_BY_USER, CONFIRM_TIMEOUT_SECS,
-    DECLINED_HERE, OTHER_DEVICE_CANCELED, OTHER_DEVICE_DECLINED, ROLES_DISAGREE,
-    SOCKET_TIMEOUT_SECS,
+    DECLINED_HERE, MORE_ACCOUNTS_THAN_SHOWN, OTHER_DEVICE_CANCELED, OTHER_DEVICE_DECLINED,
+    ROLES_DISAGREE, SOCKET_TIMEOUT_SECS,
 };
 use crate::{
     pairing::{
@@ -11,7 +11,7 @@ use crate::{
             compute_confirmation_tag, decrypt_payload, encrypt_payload, verify_confirmation_tag,
             CONFIRM_RECEIVER_INFO, CONFIRM_SENDER_INFO,
         },
-        payload::{create_export_payload, import_sync_payload, SyncSummary},
+        payload::{create_export_payload, import_sync_payload, validate_payload, SyncSummary},
         protocol::{
             read_frame_limited, write_frame, AbortReason, CONFIRM_TAG_LEN, MAX_CONTROL_FRAME_SIZE,
             MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE, MSG_ACK, MSG_ENCRYPTED_PAYLOAD,
@@ -196,6 +196,17 @@ async fn send_accounts(
     ack_res.unwrap_or_else(|_| Err("Timed out waiting for transfer ACK".into()))
 }
 
+/// Accepts a decrypted payload only when it does not contain more accounts
+/// than the confirm screen showed.
+fn account_count_within_shown(payload_bytes: &[u8], shown: usize) -> Result<(), String> {
+    let payload = validate_payload(payload_bytes)?;
+    if payload.accounts.len() > shown {
+        Err(MORE_ACCOUNTS_THAN_SHOWN.into())
+    } else {
+        Ok(())
+    }
+}
+
 /// RECEIVER: reads the encrypted payload, decrypts and imports it, and tells
 /// the sender what happened.
 async fn receive_accounts(
@@ -229,6 +240,17 @@ async fn receive_accounts(
             return Err("Payload reception timed out".into());
         }
     };
+
+    // The count on the confirm screen is the role frame, which is not covered
+    // by the confirmation tag. Refuse a payload with more accounts than that
+    // number before anything is saved. Fewer is allowed: an account with no
+    // saved sign-in is left out of an honest export.
+    let shown = peer.shown_account_count;
+    if let Err(error) = account_count_within_shown(&decrypted_bytes, shown) {
+        decrypted_bytes.zeroize();
+        send_abort(&mut stream, AbortReason::PayloadInvalid).await;
+        return Err(error);
+    }
 
     // Import into native keystore and accounts.json
     // Settings, order, alerts and layout are taken only if this device's user asked for them.
