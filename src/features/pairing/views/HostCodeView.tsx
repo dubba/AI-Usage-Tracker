@@ -64,12 +64,14 @@ export function HostCodeView({
         <span>Waiting for the other device to connect…</span>
       </div>
 
-      {onOpenRequest ? (
-        <button type="button" className="pairing-other-ways" onClick={onOpenRequest}>
-          Not on the same network? Open a request file
-        </button>
-      ) : null}
-      <OtherWaysLink onClick={onOtherWays} />
+      <div className="pairing-code-links">
+        {onOpenRequest ? (
+          <button type="button" className="pairing-other-ways" onClick={onOpenRequest}>
+            Not on the same network? Open a request file
+          </button>
+        ) : null}
+        <OtherWaysLink onClick={onOtherWays} />
+      </div>
     </div>
   );
 }

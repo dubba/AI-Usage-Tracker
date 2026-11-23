@@ -170,7 +170,7 @@ describe("choosing a role and a way to connect", () => {
     render();
     await settle();
     expect(title()).toBe("Send or Receive Accounts");
-    expect(document.querySelector(".modal-kicker")?.textContent).toBe("Sync devices over local network");
+    expect(document.querySelector(".modal-kicker")?.textContent).toBe("Sync devices");
     expect(document.querySelector('[aria-label="Step 1 of 3"]')).not.toBeNull();
     expect(text()).toContain("Send Accounts from This Device");
     expect(text()).toContain("Receive Accounts on This Device");
@@ -509,7 +509,10 @@ describe("transfer by file", () => {
   it("makes a request for the typed code, shares it, then opens and adds the reply", async () => {
     render();
     await press("Receive Accounts on This Device");
-    expect(button("Use a file instead").disabled).toBe(true);
+    // Before the code is complete the link only points at the box.
+    await press("Use a file instead");
+    expect(api.makeFileRequest).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(codeInput());
     typeInto(codeInput(), "123456");
     await press("Use a file instead");
     expect(api.makeFileRequest).toHaveBeenCalledWith("123456");

@@ -63,20 +63,29 @@ export function CodeEntryView({
         aria-describedby="pairing-code-help"
       />
       <p id="pairing-code-help" className="pairing-code-help">
-        Both devices must be connected to the same Wi-Fi network.
+        {onUseFile
+          ? "Works when both devices are on the same Wi-Fi. If they aren't, use a file instead."
+          : "Both devices must be connected to the same Wi-Fi network."}
       </p>
 
-      {onUseFile ? (
-        <button
-          type="button"
-          className="pairing-other-ways"
-          disabled={busy || value.length !== PAIRING_CODE_LENGTH}
-          onClick={onUseFile}
-        >
-          Not on the same network? Use a file instead
-        </button>
-      ) : null}
-      <OtherWaysLink disabled={busy} onClick={onOtherWays} />
+      <div className="pairing-code-links">
+        {onUseFile ? (
+          <button
+            type="button"
+            className="pairing-other-ways"
+            disabled={busy}
+            onClick={() => {
+              // The request is made for the typed code, so until it is complete the tap only
+              // points at the box (the link stays purple rather than looking unavailable).
+              if (value.length === PAIRING_CODE_LENGTH) onUseFile();
+              else document.getElementById("pairing-join-code-input")?.focus();
+            }}
+          >
+            Not on the same network? Use a file instead
+          </button>
+        ) : null}
+        <OtherWaysLink disabled={busy} onClick={onOtherWays} />
+      </div>
 
       <div className="pairing-scanner-controls pairing-code-actions">
         <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>

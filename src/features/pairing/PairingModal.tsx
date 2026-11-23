@@ -397,7 +397,7 @@ export function PairingModal({
       <div className="sr-only" role="status" aria-live="polite">
         {modalTitle}. {modalSubtitle}
       </div>
-      <div className="modal-kicker">Sync devices over local network</div>
+      <div className="modal-kicker">Sync devices</div>
       <h2 id="pairing-modal-title">{modalTitle}</h2>
       {showStepDots ? (
         <ol className="pairing-step-dots" aria-label={`Step ${step} of 3`}>
@@ -639,7 +639,7 @@ export function PairingModal({
 
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" className="button primary pairing-back-btn" onClick={onClick}>
+    <button type="button" className="button ghost pairing-back-btn" onClick={onClick}>
       <ChevronIcon style={{ transform: "rotate(180deg)" }} />
       <span>Back</span>
     </button>

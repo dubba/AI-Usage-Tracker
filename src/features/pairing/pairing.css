@@ -525,6 +525,14 @@
   cursor: default;
 }
 
+/* The file link and "Other ways to connect" on a code screen: one pair, close together. */
+.pairing-code-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
 .pairing-security-note {
   display: inline-flex;
   align-items: center;
