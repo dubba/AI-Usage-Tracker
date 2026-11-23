@@ -8,8 +8,6 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false && npm run lint",
     "lint": "oxlint src",
-    "probe:gemini-quota": "node scripts/gemini-quota-probe.mjs",
-    "test:gemini-quota-probe": "node --test scripts/gemini-quota-probe.test.mjs",
     "tauri": "tauri",
     "tauri:dev": "node scripts/tauri-dev.mjs",
     "tauri:build": "tauri build",

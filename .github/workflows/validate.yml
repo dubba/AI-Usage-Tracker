@@ -35,7 +35,6 @@ jobs:
       - run: npm run test:release-notes
       - run: npm run test:sidestore-source
       - run: npm run test:updater-manifest
-      - run: npm run test:gemini-quota-probe
       - run: npm run test:windows-uninstall
       - run: npm run test:macos-uninstall
       - run: npm run test:workflows
