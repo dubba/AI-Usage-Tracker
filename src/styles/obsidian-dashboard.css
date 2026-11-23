@@ -1100,7 +1100,7 @@ button.summary-strip:focus-visible {
 
 .summary-status-text {
   color: var(--tone-healthy-text);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.25;
   font-weight: 600;
   white-space: nowrap;
@@ -1146,7 +1146,7 @@ button.summary-strip:focus-visible {
 
 .next-reset-prefix {
   color: var(--obsidian-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1157,12 +1157,12 @@ button.summary-strip:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 20px;
-  padding: 0 6px;
+  height: 22px;
+  padding: 0 7px;
   border-radius: 5px;
   background: var(--purple-surface);
   color: var(--purple-text);
-  font-size: 10.5px;
+  font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1174,7 +1174,7 @@ button.summary-strip:focus-visible {
   overflow: hidden;
   min-width: 0;
   color: var(--c-f3f0ef);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.25;
   font-weight: 650;
   white-space: nowrap;
@@ -1185,13 +1185,13 @@ button.summary-strip:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
-  padding: 0 9px;
+  height: 26px;
+  padding: 0 11px;
   border: 1px solid rgb(var(--tint-green-rgb) / 0.45);
   border-radius: 999px;
   background: var(--c-0-56-36-a420);
   color: var(--obsidian-green);
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -3242,21 +3242,25 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
     padding: 0;
   }
 
-  .summary-strip.is-low-warning,
-  .summary-strip.is-low-critical {
+  /* On a phone the status and "Next reset" always sit on two lines, so every state splits them the way the
+     low-limit states do on desktop: a divider and a gray lower row. The filtering strip has its own rows. */
+  .summary-strip:not(.is-empty):not(.is-filtering) {
     gap: 0;
     padding: 0;
   }
 
-  .summary-strip.is-low-warning .summary-status-cluster,
-  .summary-strip.is-low-critical .summary-status-cluster {
+  .summary-strip:not(.is-empty):not(.is-filtering) > .summary-status-cluster {
     min-height: 36px;
     padding: 7px 10px;
+    box-sizing: border-box;
   }
 
-  .summary-strip.is-low-warning .next-reset-inline,
-  .summary-strip.is-low-critical .next-reset-inline {
+  .summary-strip:not(.is-empty):not(.is-filtering) > .next-reset-inline {
     padding: 5px 10px;
+    border-top: 1px solid var(--obsidian-border);
+    border-radius: 0 0 7px 7px;
+    background: var(--obsidian-surface-container);
+    box-sizing: border-box;
   }
 
   .summary-strip.has-attention.is-filtering .summary-strip-toggle {
@@ -3286,7 +3290,7 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   }
 
   .summary-status-text {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .next-reset-inline {
@@ -3298,19 +3302,19 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
 
   .next-reset-prefix,
   .next-reset-account {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .next-reset-limit {
-    height: 18px;
+    height: 21px;
     padding: 0 5px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .next-reset-pill {
-    height: 20px;
+    height: 23px;
     padding: 0 8px;
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .reorder-hint-banner,
