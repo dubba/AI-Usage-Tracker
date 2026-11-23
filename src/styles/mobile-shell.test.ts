@@ -33,6 +33,15 @@ describe("mobile shell clears the bottom bar", () => {
     expect(OBSIDIAN).toMatch(/\.modal-backdrop\s*\{[^}]*z-index:\s*var\(--z-modal,\s*10000\);/);
   });
 
+  it("draws a confirmation above the dialog it opens over and below toasts", () => {
+    const modalZ = Number(TOKENS.match(/--z-modal:\s*(\d+);/)?.[1]);
+    const stackedZ = Number(TOKENS.match(/--z-modal-stacked:\s*(\d+);/)?.[1]);
+    const toastZ = Number(TOKENS.match(/--z-toast:\s*(\d+);/)?.[1]);
+    expect(stackedZ).toBeGreaterThan(modalZ);
+    expect(toastZ).toBeGreaterThan(stackedZ);
+    expect(OBSIDIAN).toMatch(/\.confirm-dialog-backdrop\s*\{[^}]*z-index:\s*var\(--z-modal-stacked,\s*10050\);/);
+  });
+
   it("clears the extra gap above the first settings card", () => {
     const mobileIndex = OBSIDIAN.indexOf("@media (max-width: 860px)");
     expect(mobileIndex).toBeGreaterThan(-1);

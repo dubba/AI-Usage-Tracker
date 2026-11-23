@@ -2849,7 +2849,7 @@ select.text-input option,
  * over another dialog (e.g. the group form), it sits above it and adds only a light layer with no
  * blur of its own, since the dialog under it already dims and blurs the page. */
 .confirm-dialog-backdrop {
-  z-index: 1100;
+  z-index: var(--z-modal-stacked, 10050);
 }
 
 body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop {

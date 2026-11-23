@@ -149,6 +149,8 @@
     /* Documented z-index scale by role */
     --z-dropdown: 1000;
     --z-modal: 10000;
+    /* A confirmation opened over another dialog (the shared ConfirmDialog) sits above it. */
+    --z-modal-stacked: 10050;
     /* What every dialog (and the phone menu) lays over the page: 70% black and a 3px blur, in both
      * themes. A confirmation that opens over another dialog adds only the light stacked layer, so
      * the two together do not turn the window black. */
