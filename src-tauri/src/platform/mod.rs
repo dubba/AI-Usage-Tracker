@@ -3,6 +3,8 @@
 #[cfg(target_os = "android")]
 pub(crate) mod android_context;
 #[cfg(target_os = "android")]
+pub(crate) mod android_files;
+#[cfg(target_os = "android")]
 pub(crate) mod android_keystore;
 #[cfg(target_os = "android")]
 pub(crate) mod apk_install;

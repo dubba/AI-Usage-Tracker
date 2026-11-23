@@ -67,6 +67,7 @@ class MainActivity : TauriActivity() {
   private var appShellUrl: String = "http://tauri.localhost/"
 
   private val pairingNetwork = PairingNetwork(this)
+  private val transferFiles = TransferFiles(this)
   private val signInTabs = SignInTabLauncher(this)
   private val updateNotifications = UpdateNotifications(this)
   private val updateInstaller = AppUpdateInstaller(this, updateNotifications)
@@ -362,6 +363,13 @@ class MainActivity : TauriActivity() {
   fun setPairingLanBinding(enabled: Boolean) = pairingNetwork.setLanBinding(enabled)
 
   fun routePairingTo(interfaceName: String) = pairingNetwork.routePairingTo(interfaceName)
+
+  // Sync Devices transfer files (android_files.rs). read and write throw on failure.
+  fun shareTransferFile(path: String) = transferFiles.share(path)
+
+  fun readTransferFile(uri: String, maxBytes: Int): ByteArray = transferFiles.read(uri, maxBytes)
+
+  fun writeTransferFile(uri: String, data: ByteArray) = transferFiles.write(uri, data)
 
   /**
    * Keeps this window out of screenshots, screen recordings and the recent-apps preview while

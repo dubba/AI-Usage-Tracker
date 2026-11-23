@@ -218,23 +218,35 @@ fn file_error(message: impl Into<String>) -> super::error::CommandError {
     super::error::CommandError::new(super::error::ErrorCode::Pairing, message.into())
 }
 
-/// Shows the native save dialog; `None` when the user cancels.
+/// The open and save dialogs, filtered to transfer files where the system knows file types by
+/// extension. Android's dialogs filter by MIME type, which these files do not have.
+fn transfer_dialog(
+    app: &AppHandle,
+    title: &str,
+) -> tauri_plugin_dialog::FileDialogBuilder<tauri::Wry> {
+    use tauri_plugin_dialog::DialogExt;
+    let dialog = app.dialog().file().set_title(title);
+    if cfg!(target_os = "android") {
+        dialog
+    } else {
+        dialog.add_filter("AI Usage Tracker transfer", &[TRANSFER_FILE_EXTENSION])
+    }
+}
+
+/// Shows the native save dialog; `None` when the user cancels. A path on desktop, a
+/// `content://` address on Android.
 async fn choose_save_path(
     app: &AppHandle,
     title: &str,
     file_name: &str,
-) -> Option<std::path::PathBuf> {
-    use tauri_plugin_dialog::DialogExt;
+) -> Option<tauri_plugin_dialog::FilePath> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
-    app.dialog()
-        .file()
-        .set_title(title)
+    transfer_dialog(app, title)
         .set_file_name(file_name)
-        .add_filter("AI Usage Tracker transfer", &[TRANSFER_FILE_EXTENSION])
         .save_file(move |path| {
             let _ = sender.send(path);
         });
-    receiver.await.ok().flatten()?.into_path().ok()
+    receiver.await.ok().flatten()
 }
 
 /// Shows the native open dialog and reads the chosen file, refusing one larger than `max_len`
@@ -244,23 +256,53 @@ async fn pick_transfer_file(
     title: &str,
     max_len: usize,
 ) -> CommandResult<Option<Vec<u8>>> {
-    use tauri_plugin_dialog::DialogExt;
     let (sender, receiver) = tokio::sync::oneshot::channel();
-    app.dialog()
-        .file()
-        .set_title(title)
-        .add_filter("AI Usage Tracker transfer", &[TRANSFER_FILE_EXTENSION])
-        .pick_file(move |path| {
-            let _ = sender.send(path);
-        });
+    transfer_dialog(app, title).pick_file(move |path| {
+        let _ = sender.send(path);
+    });
     let Some(path) = receiver.await.ok().flatten() else {
         return Ok(None);
     };
-    let path = path.into_path().map_err(|_| file_error(FILE_READ_FAILED))?;
-    tauri::async_runtime::spawn_blocking(move || read_capped(&path, max_len))
+    tauri::async_runtime::spawn_blocking(move || read_picked(path, max_len))
         .await
         .map_err(|_| file_error(FILE_READ_FAILED))?
         .map(Some)
+}
+
+/// Reads a picked file, at most `max_len` bytes: a path, or on Android a `content://` address.
+fn read_picked(path: tauri_plugin_dialog::FilePath, max_len: usize) -> CommandResult<Vec<u8>> {
+    match path {
+        tauri_plugin_dialog::FilePath::Path(path) => read_capped(&path, max_len),
+        #[cfg(target_os = "android")]
+        tauri_plugin_dialog::FilePath::Url(url) => {
+            let bytes =
+                crate::platform::android_files::read(url.as_str(), max_len).map_err(file_error)?;
+            if bytes.len() > max_len {
+                return Err(file_error(pairing::file_transfer::NOT_A_PAIRING_FILE));
+            }
+            Ok(bytes)
+        }
+        #[cfg(not(target_os = "android"))]
+        tauri_plugin_dialog::FilePath::Url(_) => Err(file_error(FILE_READ_FAILED)),
+    }
+}
+
+/// Copies the file at `source` to where the save dialog pointed.
+fn write_saved(
+    source: &std::path::Path,
+    target: tauri_plugin_dialog::FilePath,
+) -> std::io::Result<()> {
+    match target {
+        tauri_plugin_dialog::FilePath::Path(target) => std::fs::copy(source, target).map(|_| ()),
+        #[cfg(target_os = "android")]
+        tauri_plugin_dialog::FilePath::Url(url) => {
+            let bytes = std::fs::read(source)?;
+            crate::platform::android_files::write(url.as_str(), &bytes)
+                .map_err(std::io::Error::other)
+        }
+        #[cfg(not(target_os = "android"))]
+        tauri_plugin_dialog::FilePath::Url(_) => Err(std::io::Error::other("not a file path")),
+    }
 }
 
 /// Reads at most `max_len` bytes; a longer file is not a transfer file.
@@ -383,7 +425,7 @@ pub async fn pairing_file_save(
     let Some(target) = choose_save_path(&app, "Save the file", file_name).await else {
         return Ok(false);
     };
-    tauri::async_runtime::spawn_blocking(move || std::fs::copy(&source, &target))
+    tauri::async_runtime::spawn_blocking(move || write_saved(&source, target))
         .await
         .map_err(|_| file_error(FILE_SAVE_FAILED))?
         .map_err(|error| {

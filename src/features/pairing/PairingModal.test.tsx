@@ -612,8 +612,18 @@ describe("transfer by file", () => {
     expect(cancelPairing).not.toHaveBeenCalled();
   });
 
-  it("is not offered on a phone yet", async () => {
+  it("is offered on Android", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
+    render();
+    await press("Send Accounts from This Device");
+    expect(text()).toContain("Open a request file");
+    await press("Back");
+    await press("Receive Accounts on This Device");
+    expect(text()).toContain("Use a file instead");
+  });
+
+  it("is not offered on iPhone yet", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     render();
     await press("Send Accounts from This Device");
     expect(text()).not.toContain("Open a request file");

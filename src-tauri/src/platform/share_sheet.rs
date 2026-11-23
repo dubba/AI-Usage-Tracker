@@ -1,10 +1,23 @@
 //! The system share menu for a transfer file (`commands::pairing`): on macOS, AppKit's
 //! `NSSharingServicePicker` (AirDrop, Messages, Mail, …) over the middle of the window; on
 //! Windows, the share panel (`share_sheet/windows.rs`: Nearby Sharing, Quick Share when installed,
-//! Mail). Other platforms save the file instead, until they get their own menu.
+//! Mail); on Android, the share sheet (`android_files.rs`: Quick Share, Messages, Drive). Other
+//! platforms save the file instead, until they get their own menu.
 
 /// Whether this platform has a share menu for files.
-pub const AVAILABLE: bool = cfg!(any(target_os = "macos", windows));
+pub const AVAILABLE: bool = cfg!(any(target_os = "macos", windows, target_os = "android"));
+
+/// Opens Android's share sheet for the file at `path`. Returns once it is asked to open.
+#[cfg(target_os = "android")]
+pub async fn share_file(
+    _window: &tauri::WebviewWindow,
+    path: &std::path::Path,
+) -> Result<(), String> {
+    let path = path.to_string_lossy().into_owned();
+    tauri::async_runtime::spawn_blocking(move || crate::platform::android_files::share(&path))
+        .await
+        .map_err(|_| "Couldn't open the share sheet. Save the file instead.".to_string())?
+}
 
 #[cfg(any(target_os = "macos", windows))]
 const FAILED: &str = "Couldn't open the share menu. Save the file instead.";
@@ -36,7 +49,9 @@ pub async fn share_file(
             let shown = target
                 .hwnd()
                 .map_err(|error| error.to_string())
-                .and_then(|hwnd| windows_share::show(hwnd, &file).map_err(|error| error.to_string()));
+                .and_then(|hwnd| {
+                    windows_share::show(hwnd, &file).map_err(|error| error.to_string())
+                });
             let _ = sender.send(shown);
         })
         .map_err(|error| failed(error.to_string()))?;
@@ -70,7 +85,7 @@ pub async fn share_file(
         })
 }
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(not(any(target_os = "macos", windows, target_os = "android")))]
 pub async fn share_file(
     _window: &tauri::WebviewWindow,
     _path: &std::path::Path,

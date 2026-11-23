@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Only what the FileProvider hands to other apps: the downloaded update APK and
-  camera captures. Never widen these to "." - the app's files directory holds
-  the credential files and account data.
+  Only what the FileProvider hands to other apps: the downloaded update APK,
+  camera captures, and the Sync Devices transfer file being shared (a request
+  with no key, or an encrypted reply). Never widen these to "." - the app's
+  files directory holds the credential files and account data.
 -->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
   <cache-path name="update_apk_cache" path="updates/" />
+  <cache-path name="transfer_files" path="transfer-files/" />
   <files-path name="update_apk" path="updates/" />
   <external-files-path name="camera_pictures" path="Pictures/" />
 </paths>

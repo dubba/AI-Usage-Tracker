@@ -8,7 +8,7 @@ import { usePairingStatus } from "./hooks/usePairingStatus";
 import { useQrScanner } from "./hooks/useQrScanner";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 import { logIgnored } from "../../shared/lib/log";
-import { isMobileDevice } from "../../shared/lib/platform";
+import { isIOS, isMobileDevice } from "../../shared/lib/platform";
 import { flowReducer, INITIAL_FLOW } from "./lib/flow-state";
 import {
   hasOwnActionButtons as viewHasOwnActionButtons,
@@ -147,9 +147,9 @@ export function PairingModal({
     onCompleted,
   });
 
-  // Files are offered on desktop for now; phones get the share sheet in a later step.
+  // Files are offered on desktop and Android; iPhone and iPad get them in a later step.
   const fileTransfer = useFileTransfer({ context: actionContext, includeSettings, showView });
-  const filesOffered = !isMobileDevice();
+  const filesOffered = !isIOS();
 
   // Drops the camera and the state of any pairing in progress. `stopCamera` and `capture` are new
   // every render, so the open/close effect below calls this effect event instead of listing them
