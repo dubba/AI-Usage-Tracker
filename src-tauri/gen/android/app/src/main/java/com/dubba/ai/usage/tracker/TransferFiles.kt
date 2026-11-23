@@ -24,14 +24,16 @@ internal class TransferFiles(private val activity: Activity) {
    * Rust to take with [takeTapped] when Sync Devices is ready for it. Only `content://` and
    * `file://` addresses count: the sign-in link uses its own scheme. Rust checks the file's
    * header, so a generic binary file that isn't a transfer file gets an error, not an import.
+   * Returns whether a file was kept.
    */
-  fun keepTapped(intent: Intent?) {
-    if (intent?.action != Intent.ACTION_VIEW) return
-    val uri = intent.data ?: return
-    if (uri.scheme != "content" && uri.scheme != "file") return
+  fun keepTapped(intent: Intent?): Boolean {
+    if (intent?.action != Intent.ACTION_VIEW) return false
+    val uri = intent.data ?: return false
+    if (uri.scheme != "content" && uri.scheme != "file") return false
     tapped = uri
     // Handled: a later onNewIntent or recreation must not offer the same file again.
     intent.data = null
+    return true
   }
 
   fun hasTapped(): Boolean = tapped != null

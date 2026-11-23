@@ -21,6 +21,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** The logcat tag of every class in this package that logs. */
 internal const val LOG_TAG = "AIUsagePairing"
 
+/** The window event that tells the page a transfer file was tapped (useTappedTransferFile.ts). */
+internal const val TRANSFER_FILE_TAPPED_EVENT = "aiut-transfer-file-tapped"
+
 /** onPageFinished runs on the WebView client. The view's context may be the activity or a wrapper around it. */
 fun reapplyWindowInsetsFrom(view: WebView) {
   var ctx = view.context
@@ -289,7 +292,13 @@ class MainActivity : TauriActivity() {
     super.onNewIntent(intent)
     setIntent(intent)
     handleUpdateIntent(intent)
-    transferFiles.keepTapped(intent)
+    if (transferFiles.keepTapped(intent)) {
+      // The page is already running: the WebView sends it no visibilitychange or focus event when
+      // the app comes back, so tell it a file is waiting (useTappedTransferFile listens).
+      activeWebView?.evaluateJavascript(
+        "window.dispatchEvent(new Event('$TRANSFER_FILE_TAPPED_EVENT'))", null
+      )
+    }
   }
 
   override fun onResume() {

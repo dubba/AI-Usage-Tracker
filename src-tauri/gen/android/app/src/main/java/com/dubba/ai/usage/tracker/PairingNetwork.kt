@@ -42,17 +42,17 @@ internal class PairingNetwork(private val activity: Activity) {
   }
 
   /**
-   * Whether the Wi-Fi radio is on. Link-code pairing asks this first so the app can send the user
-   * to the system Wi-Fi panel. A hotspot this phone shares is not checked: with Wi-Fi off the
-   * prompt always shows, and the user closes it to carry on over the hotspot. Fail-open (true) if
-   * the check itself throws, so a broken probe cannot block pairing.
+   * Whether this phone is connected to a Wi-Fi network (including another phone's hotspot). Link
+   * codes need one, so link-code pairing asks this first and otherwise sends the user to the
+   * system Wi-Fi panel. The radio being on is not enough: on a Pixel it is often on with no
+   * network (disconnected from the Internet panel, or turned back on by "Turn on Wi-Fi
+   * automatically"), which hid the prompt. A hotspot this phone shares is not checked: the prompt
+   * shows, and the user closes it to carry on. Fail-open (true) if the check itself throws, so a
+   * broken probe cannot block pairing.
    */
-  @Suppress("DEPRECATION")
   fun isWifiEnabled(): Boolean {
     return try {
-      val wifiManager = activity.applicationContext.getSystemService(Context.WIFI_SERVICE)
-        as android.net.wifi.WifiManager
-      wifiManager.isWifiEnabled
+      wifiNetwork(connectivity()) != null
     } catch (e: Throwable) {
       android.util.Log.w(LOG_TAG, "isWifiEnabled failed: ${e.message}")
       true

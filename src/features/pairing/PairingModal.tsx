@@ -622,14 +622,14 @@ export function PairingModal({
     <ConfirmDialog
       open={wifiPrompt != null}
       kicker="Link code"
-      title="Turn on Wi-Fi"
+      title="Connect to Wi-Fi"
       body={
         // Closing carries on to the code screen, which offers a file wherever files are offered.
         filesOffered
-          ? "Link codes work over the same Wi-Fi network, or a hotspot one device shares. Turn on Wi-Fi, or close this message to carry on without it and send a file by Quick Share instead."
-          : "Link codes work over the same Wi-Fi network, or a hotspot one device shares. Turn on Wi-Fi, or close this message if this iPhone shares its hotspot."
+          ? "Link codes work over the same Wi-Fi network, or a hotspot one device shares. Connect to Wi-Fi, or close this message to carry on without it and send a file by Quick Share instead."
+          : "Link codes work over the same Wi-Fi network, or a hotspot one device shares. Connect to Wi-Fi, or close this message if this iPhone shares its hotspot."
       }
-      confirmLabel="Turn On Wi-Fi"
+      confirmLabel="Open Wi-Fi Settings"
       cancelLabel="Other Ways"
       confirmDanger={false}
       onConfirm={() => {

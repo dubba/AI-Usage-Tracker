@@ -96,6 +96,7 @@ vi.mock("../layout/ui-state", () => ({ collectUiState: () => ({ marker: true }) 
 import { click, mount, settle, typeInto, type Mounted } from "../../test-utils/react";
 import { ERROR_AUTO_DISMISS_MS } from "../../shared/hooks/useAutoDismissedError";
 import { PairingModal } from "./PairingModal";
+import { TRANSFER_FILE_TAPPED_EVENT } from "./hooks/useTappedTransferFile";
 
 const onClose = vi.fn();
 const onCompleted = vi.fn();
@@ -250,7 +251,7 @@ describe("mobile Wi-Fi prompt for link codes", () => {
     await press("Send Accounts from This Device");
     expect(api.wifiEnabled).toHaveBeenCalled();
     expect(api.startHost).toHaveBeenCalledTimes(1);
-    expect(text()).not.toContain("Turn on Wi-Fi");
+    expect(text()).not.toContain("Connect to Wi-Fi");
   });
 
   it("asks to turn Wi-Fi on instead of starting a session when it is off", async () => {
@@ -258,7 +259,7 @@ describe("mobile Wi-Fi prompt for link codes", () => {
     render();
     await press("Send Accounts from This Device");
     expect(api.startHost).not.toHaveBeenCalled();
-    expect(document.querySelector(".confirm-dialog-backdrop")?.textContent).toContain("Turn on Wi-Fi");
+    expect(document.querySelector(".confirm-dialog-backdrop")?.textContent).toContain("Connect to Wi-Fi");
     expect(title()).toBe("Send or Receive Accounts");
   });
 
@@ -283,7 +284,7 @@ describe("mobile Wi-Fi prompt for link codes", () => {
     api.wifiEnabled.mockResolvedValue(false);
     render();
     await press("Send Accounts from This Device");
-    await press("Turn On Wi-Fi");
+    await press("Open Wi-Fi Settings");
     expect(api.openWifiSettings).toHaveBeenCalledTimes(1);
     expect(api.startHost).not.toHaveBeenCalled();
   });
@@ -722,6 +723,19 @@ describe("transfer by file", () => {
       render();
       await comeBackWithTappedFile();
       expect(document.querySelector(".modal-error")?.textContent).toContain("isn't a Sync Devices file");
+    });
+
+    it("opens a file Android says was tapped while the app was running", async () => {
+      android();
+      api.openTappedFile.mockResolvedValue({ kind: "request", info: { accountCount: 3 } });
+      render();
+      await press("Send Accounts from This Device");
+      api.tappedFilePending.mockResolvedValue(true);
+      await act(async () => {
+        window.dispatchEvent(new Event(TRANSFER_FILE_TAPPED_EVENT));
+      });
+      await settle();
+      expect(text()).toContain("Send 3 accounts?");
     });
 
     it("is not looked for off Android", async () => {

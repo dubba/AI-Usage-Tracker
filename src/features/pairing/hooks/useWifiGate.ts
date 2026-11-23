@@ -3,13 +3,13 @@ import { pairingApi } from "../../../shared/lib/api";
 import { logIgnored } from "../../../shared/lib/log";
 import { isMobileDevice } from "../../../shared/lib/platform";
 
-/** How often the "turn on Wi-Fi" prompt checks whether Wi-Fi came on. */
+/** How often the "Connect to Wi-Fi" prompt checks whether the phone is on Wi-Fi now. */
 const WIFI_POLL_MS = 800;
 
 export type LinkCodeAction = "host" | "code";
 
 /**
- * Link codes work over Wi-Fi or a hotspot one device shares. Only the Wi-Fi radio is checked, so a
+ * Link codes work over Wi-Fi or a hotspot one device shares. Only a Wi-Fi connection is checked, so a
  * phone sharing its hotspot with Wi-Fi off still sees the prompt and closes it to carry on.
  * `requireWifiThen(action)` runs `onReady(action)` at once on a
  * desktop or when Wi-Fi is on; otherwise it raises `prompt` (the dialog asks to turn Wi-Fi on) and

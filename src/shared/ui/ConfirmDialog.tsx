@@ -50,7 +50,7 @@ export function ConfirmDialog({
   noteTone?: "info" | "caution";
   cancelLabel?: string;
   confirmLabel: string;
-  /** Danger-red for deletions; primary for other actions such as Turn On Wi-Fi. */
+  /** Danger-red for deletions; primary for other actions such as Open Wi-Fi Settings. */
   confirmDanger?: boolean;
   /** Shown on the confirm button while busy; defaults to the confirm label. */
   busyLabel?: string;

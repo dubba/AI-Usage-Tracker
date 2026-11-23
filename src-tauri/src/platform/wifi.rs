@@ -2,7 +2,8 @@
 //! can turn it on. Link-code pairing only works on the same local network:
 //! a Wi-Fi network, or a hotspot this phone shares.
 
-/// `true` when the Wi-Fi radio looks usable, or when this platform does not
+/// `true` when the phone is on a Wi-Fi network (Android: connected to one; iOS:
+/// its Wi-Fi interface has an address), or when this platform does not
 /// need a check (desktop). A hotspot this phone shares is not checked: with
 /// Wi-Fi off the prompt shows, and the user closes it to carry on over the
 /// hotspot. A failure to ask the OS is reported as `true` so pairing is not
