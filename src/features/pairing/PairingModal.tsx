@@ -620,7 +620,12 @@ export function PairingModal({
       open={wifiPrompt != null}
       kicker="Link code"
       title="Turn on Wi-Fi"
-      body="Link codes work over the same Wi-Fi network, or a hotspot one device shares. Turn Wi-Fi or your hotspot on, then come back to continue, or use another way to connect."
+      body={
+        // Closing carries on to the code screen, which offers a file wherever files are offered.
+        filesOffered
+          ? "Link codes work over the same Wi-Fi network, or a hotspot one device shares. Turn on Wi-Fi, or close this message to carry on without it and send a file by Quick Share instead."
+          : "Link codes work over the same Wi-Fi network, or a hotspot one device shares. Turn on Wi-Fi, or close this message if this iPhone shares its hotspot."
+      }
       confirmLabel="Turn On Wi-Fi"
       cancelLabel="Other Ways"
       confirmDanger={false}

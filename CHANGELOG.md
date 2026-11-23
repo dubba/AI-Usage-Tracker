@@ -1,17 +1,16 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (13 changes)
 
 ### Added (1)
 
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens.
 
-### Improved (9)
+### Improved (8)
 
 - On the Usage page's 90D view, the back and forward arrows on each card now have tooltips ("Show previous 30 days" and "Show next 30 days"), lined up with the forward arrow's right edge.
 - On desktop, the Compact button has moved from the top bar to the Dashboard header, beside the % Used / % Left switch, and is now labeled `Compact`.
 - On desktop and Android, Sync Devices can now move accounts between devices that aren't on the same network, using two small files you send by AirDrop, Quick Share or email. The receiving device makes a request for the link code it was given ("Not on the same network? Use a file instead"), the sending device opens it and makes a reply, and the receiving device opens the reply to add the accounts. On a Mac each file goes out through the share menu, so AirDrop is one click, on Windows through the share panel (Nearby Sharing, or Quick Share if installed), and on Android through the share sheet (Quick Share); on Linux, and anywhere if you prefer, you save it to a file. The reply only opens with that link code.
-- On a phone that shares its hotspot, Sync Devices no longer asks you to turn on Wi-Fi before showing or entering a link code. On iPhone this works once another device has joined the hotspot, because iOS does not let apps see it earlier.
 - The status bar at the top of the Dashboard has larger text, on desktop and on phones. On a phone, the "Next reset" line now always sits in its own gray row under a divider, not only when a limit is running low.
 - The Usage page's key (Measured, Estimated, No data, Reset) has larger text, matching the Dashboard's status bar, on desktop and on phones. On desktop the key box is now as tall as the status bar, and on narrow phones it stays on one line.
 - Sync Devices takes one step less: after choosing Send or Receive, the sending device shows its link code at once and the receiving device asks for it. Showing or entering a code the other way round (for a device with an older version) and the QR code are under "Other ways to connect", which also opens when you choose not to turn on Wi-Fi. A failed pairing now says "Pairing Failed" in the heading, with a green Try Again button.

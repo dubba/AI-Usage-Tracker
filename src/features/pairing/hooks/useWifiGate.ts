@@ -9,7 +9,8 @@ const WIFI_POLL_MS = 800;
 export type LinkCodeAction = "host" | "code";
 
 /**
- * Link codes work over Wi-Fi or a hotspot this phone shares (the native check counts both).
+ * Link codes work over Wi-Fi or a hotspot one device shares. Only the Wi-Fi radio is checked, so a
+ * phone sharing its hotspot with Wi-Fi off still sees the prompt and closes it to carry on.
  * `requireWifiThen(action)` runs `onReady(action)` at once on a
  * desktop or when Wi-Fi is on; otherwise it raises `prompt` (the dialog asks to turn Wi-Fi on) and
  * keeps checking, also when the app regains focus after the system settings, and runs `onReady`

@@ -258,6 +258,23 @@ describe("mobile Wi-Fi prompt for link codes", () => {
     expect(title()).toBe("Send or Receive Accounts");
   });
 
+  it("says a file by Quick Share works without Wi-Fi on Android, and only the hotspot on iPhone", async () => {
+    api.wifiEnabled.mockResolvedValue(false);
+    const prompt = () => document.querySelector(".confirm-dialog-backdrop")?.textContent ?? "";
+    render();
+    await press("Receive Accounts on This Device");
+    expect(prompt()).toContain("close this message to carry on without it and send a file by Quick Share");
+    mounted.unmount();
+    Object.defineProperty(navigator, "userAgent", {
+      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+      configurable: true,
+    });
+    render();
+    await press("Receive Accounts on This Device");
+    expect(prompt()).toContain("close this message if this iPhone shares its hotspot");
+    expect(prompt()).not.toContain("Quick Share");
+  });
+
   it("opens system Wi-Fi settings from the prompt", async () => {
     api.wifiEnabled.mockResolvedValue(false);
     render();
