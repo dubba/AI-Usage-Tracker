@@ -502,6 +502,11 @@
   color: var(--obsidian-muted);
 }
 
+/* The countdown ("within 8 seconds") stands out from the muted help text. */
+.modal-card.pairing-modal .pairing-code-help strong {
+  color: var(--text);
+}
+
 /* The way from a code screen to the other ways to connect: a text link, not a third button. */
 .pairing-other-ways {
   align-self: center;
