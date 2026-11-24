@@ -20,6 +20,7 @@ function settingsJumpIcon(id: SettingsSectionId) {
     case "updates":
       return <ArrowUpCircleIcon />;
     case "devices":
+    case "sync-options":
       return <DevicesIcon />;
     case "data":
       return <DatabaseIcon />;

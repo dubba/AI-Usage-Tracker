@@ -5,6 +5,7 @@ import { SETTINGS_DESCRIPTION } from "../../shared/lib/constants";
 import { isMobileDevice } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
 import { DataSection } from "./DataSection";
+import { SyncOptionsSection } from "./SyncOptionsSection";
 import { GeneralSection } from "./GeneralSection";
 import { LocalApiSection } from "./LocalApiSection";
 import { UpdatesSection } from "./UpdatesSection";
@@ -164,6 +165,8 @@ export function SettingsView({
             </button>
           </div>
         </section>
+
+        <SyncOptionsSection />
 
         <DataSection onAllDataDeleted={onAllDataDeleted} />
 

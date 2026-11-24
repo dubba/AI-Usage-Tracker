@@ -9,6 +9,7 @@ import { useTappedTransferFile } from "./hooks/useTappedTransferFile";
 import { usePairingStatus } from "./hooks/usePairingStatus";
 import { useQrScanner } from "./hooks/useQrScanner";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
+import { useSyncOtherWays } from "../../shared/hooks/usePreferences";
 import { logIgnored } from "../../shared/lib/log";
 import { isMobileDevice } from "../../shared/lib/platform";
 import { flowReducer, INITIAL_FLOW } from "./lib/flow-state";
@@ -84,6 +85,9 @@ export function PairingModal({
   const [includeSettings, setIncludeSettings] = useState(true);
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
+  // "Other ways to connect" (an older version's six digits, the QR codes) is hidden unless
+  // Settings > Device Sync shows it.
+  const [otherWaysShown] = useSyncOtherWays();
   /** The code shown is six digits, for a device with an older version (Other ways to connect). */
   const [legacyHost, setLegacyHost] = useState(false);
 
@@ -545,7 +549,7 @@ export function PairingModal({
             status={status}
             remainingSecs={remainingSecs}
             onRegenerate={() => void initHostSession(legacyHost)}
-            onOtherWays={() => leaveAttempt("select-mode")}
+            onOtherWays={otherWaysShown ? () => leaveAttempt("select-mode") : undefined}
             nearbyName={nearbyName}
             onOpenFile={() => void fileTransfer.openFile()}
             fileAccess={fileAccess}
@@ -626,7 +630,7 @@ export function PairingModal({
               });
             }}
             onBack={goBack}
-            onOtherWays={() => leaveAttempt("select-mode")}
+            onOtherWays={otherWaysShown ? () => leaveAttempt("select-mode") : undefined}
             nearbyName={nearbyName}
             notFound={wifiNotFound}
             onUseNearby={() => fileTransfer.send(joinCodeInput, wifiNotFound)}

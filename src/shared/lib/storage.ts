@@ -24,6 +24,8 @@ export const STORAGE_KEYS = {
   openSection: "ai-usage-tracker:open-section",
   /** "on" | "off": whether Dashboard account cards render in compact single-row mode. */
   compactDashboard: "ai-usage-tracker:compact-dashboard",
+  /** "on" | "off": whether Sync Devices shows its "Other ways to connect" link. This device only. */
+  syncOtherWays: "ai-usage-tracker:sync-other-ways",
 } as const;
 
 export const STORAGE_PREFIXES = {

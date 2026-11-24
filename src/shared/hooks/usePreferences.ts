@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { getBottomNavLabels, setBottomNavLabels, subscribeBottomNavLabels } from "../lib/bottom-nav-labels";
 import { getCompactDashboardMode, setCompactDashboardMode, subscribeCompactDashboardMode } from "../lib/compact-dashboard";
+import { getSyncOtherWays, setSyncOtherWays, subscribeSyncOtherWays } from "../lib/sync-other-ways";
 import { getThemePreference, setThemePreference, subscribeThemePreference, type ThemePreference } from "../lib/theme";
 import { getUsageDisplayMode, setUsageDisplayMode, subscribeUsageDisplayMode, type UsageDisplayMode } from "../lib/usage-display";
 
@@ -21,6 +22,12 @@ export function useUsageDisplayMode(): [UsageDisplayMode, (next: UsageDisplayMod
 export function useCompactDashboard(): [boolean, (compact: boolean) => void] {
   const mode = useStoreValue(subscribeCompactDashboardMode, getCompactDashboardMode);
   return [mode === "on", (compact) => setCompactDashboardMode(compact ? "on" : "off")];
+}
+
+/** Whether Sync Devices shows its "Other ways to connect" link. */
+export function useSyncOtherWays(): [boolean, (show: boolean) => void] {
+  const shown = useStoreValue(subscribeSyncOtherWays, getSyncOtherWays);
+  return [shown === "on", (show) => setSyncOtherWays(show ? "on" : "off")];
 }
 
 /** Whether the bottom navigation bar shows its page names. */

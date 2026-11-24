@@ -38,8 +38,8 @@ export function CodeEntryView({
   /** Connect with `code`, complete. */
   onSubmit: (code: string) => void;
   onBack: () => void;
-  /** Lists the other ways to connect (older versions, QR code). */
-  onOtherWays: () => void;
+  /** Lists the other ways to connect (older versions, QR code). Absent while Settings > Device Sync hides them. */
+  onOtherWays?: () => void;
   /** "AirDrop" or "Quick Share" where the request can go that way; absent where it can't. */
   nearbyName?: string;
   /** The Wi-Fi search for this code ended without finding the other device. */
@@ -164,7 +164,7 @@ export function CodeEntryView({
         </button>
       ) : null}
 
-      <OtherWaysLink disabled={busy && !searching} onClick={onOtherWays} />
+      {onOtherWays ? <OtherWaysLink disabled={busy && !searching} onClick={onOtherWays} /> : null}
 
       <div className="pairing-scanner-controls pairing-code-actions">
         <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>

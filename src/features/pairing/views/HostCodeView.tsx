@@ -20,8 +20,11 @@ export function HostCodeView({
   remainingSecs: number | null;
   /** The countdown hit zero; start a fresh session and code. */
   onRegenerate: () => void;
-  /** Ends this session and lists the other ways to connect (older versions, QR code). */
-  onOtherWays: () => void;
+  /**
+   * Ends this session and lists the other ways to connect (older versions, QR code). Absent while
+   * Settings > Device Sync hides them.
+   */
+  onOtherWays?: () => void;
   /** "AirDrop" or "Quick Share" where the accounts can come that way; absent where files aren't offered. */
   nearbyName?: string;
   /** Opens the file by hand, for one that wasn't picked up by itself. */
@@ -110,7 +113,7 @@ export function HostCodeView({
 
       {nearby && fileAccess?.needed ? <FileAccessNote name={nearby} onAllow={fileAccess.onAllow} /> : null}
 
-      <OtherWaysLink onClick={onOtherWays} />
+      {onOtherWays ? <OtherWaysLink onClick={onOtherWays} /> : null}
     </div>
   );
 }

@@ -98,6 +98,7 @@ import { click, mount, settle, typeInto, type Mounted } from "../../test-utils/r
 import { ERROR_AUTO_DISMISS_MS } from "../../shared/hooks/useAutoDismissedError";
 import { PairingModal } from "./PairingModal";
 import { TRANSFER_FILE_TAPPED_EVENT } from "./hooks/useTappedTransferFile";
+import { setSyncOtherWays } from "../../shared/lib/sync-other-ways";
 
 const onClose = vi.fn();
 const onCompleted = vi.fn();
@@ -168,6 +169,8 @@ beforeEach(() => {
   api.openTappedFile.mockResolvedValue(null);
   Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh)", configurable: true });
   window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+  // Most tests reach the six-digit code and the QR codes; the hidden default has its own tests.
+  setSyncOtherWays("on");
 });
 
 afterEach(() => {
@@ -232,6 +235,19 @@ describe("choosing a role and a way to connect", () => {
     await press("Show Link Code");
     expect(title()).toBe("Your Link Code");
     expect(api.startHost).toHaveBeenCalledWith(true, true);
+  });
+
+  it("hides Other ways to connect on both code screens until Settings shows it", async () => {
+    setSyncOtherWays("off");
+    render();
+    await press("Send Accounts from This Device");
+    expect(text()).not.toContain("Other ways to connect");
+    await press("Back");
+    await press("Receive Accounts on This Device");
+    expect(title()).toBe("Your Link Code");
+    expect(text()).not.toContain("Other ways to connect");
+    await act(async () => setSyncOtherWays("on"));
+    expect(text()).toContain("Other ways to connect");
   });
 
   it("goes back from the other ways to the role choice", async () => {

@@ -5,6 +5,7 @@ import { click, mount, type Mounted } from "../../test-utils/react";
 import type { AppSettings, AppUpdateStatus, BridgeStatus } from "../../types";
 import { setNarrowWindow } from "../../test-utils/media";
 import { getBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
+import { getSyncOtherWays, setSyncOtherWays } from "../../shared/lib/sync-other-ways";
 import { SettingsView } from "./SettingsView";
 import { AppSettingsContext, AppUpdateContext, type AppSettingsState, type AppUpdateState } from "./settings-context";
 
@@ -156,6 +157,22 @@ describe("General", () => {
     } finally {
       setBottomNavLabels("on");
       vi.restoreAllMocks();
+    }
+  });
+
+  it("hides Sync Devices' other ways to connect by default, with a switch under Sync Options to show them", () => {
+    try {
+      setSyncOtherWays("off");
+      app = mount(view());
+      expect(document.getElementById("settings-section-sync-options")?.textContent).toBe("Sync Options");
+      expect(document.body.textContent).toContain("Show a 6-digit code for older app versions and QR codes in Sync Devices.");
+      const toggle = toggleLabelled("setting-sync-other-ways-label");
+      expect(toggle.getAttribute("aria-checked")).toBe("false");
+      click(toggle);
+      expect(getSyncOtherWays()).toBe("on");
+      expect(toggleLabelled("setting-sync-other-ways-label").getAttribute("aria-checked")).toBe("true");
+    } finally {
+      setSyncOtherWays("off");
     }
   });
 
@@ -339,7 +356,7 @@ describe("SettingsView section layout and jump navigation (L3)", () => {
   it("labels all Settings cards directly with h2 headings", () => {
     app = mount(view());
     const headings = [...document.querySelectorAll("h2.settings-card-heading")].map((el) => el.textContent?.trim());
-    expect(headings).toEqual(["General", "Updates", "Devices", "Data & Diagnostics", "Integrations", "Keyboard Shortcuts"]);
+    expect(headings).toEqual(["General", "Updates", "Devices", "Sync Options", "Data & Diagnostics", "Integrations", "Keyboard Shortcuts"]);
   });
 
   it("scrolls the target section when jumpTarget changes", () => {
@@ -384,6 +401,7 @@ describe("SettingsView section layout and jump navigation (L3)", () => {
       "settings-section-general": 18,
       "settings-section-updates": 270,
       "settings-section-devices": 620,
+      "settings-section-sync-options": 680,
       "settings-section-data": 740,
       "settings-section-integrations": 990,
       "settings-section-shortcuts": 1170,

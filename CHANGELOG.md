@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (25 changes)
+## Unreleased (26 changes)
 
 ### Security (1)
 
-- Sync Devices link codes are now 10 letters (such as KTQMP RXDHW) instead of 6 digits, because the code also locks the file sent by AirDrop or Quick Share, and anyone who got a copy of that file could otherwise try every 6-digit code. Codes use capital letters only, without I, L or O, so a phone types them on one keyboard and nothing is mistaken for 1 or 0. A device with an older version can still pair over Wi-Fi with a 6-digit code from "Other ways to connect", which never goes into a file.
+- Sync Devices link codes are now 10 letters (such as KTQMP RXDHW) instead of 6 digits, because the code also locks the file sent by AirDrop or Quick Share, and anyone who got a copy of that file could otherwise try every 6-digit code. Codes use capital letters only, without I, L or O, so a phone types them on one keyboard and nothing is mistaken for 1 or 0. A device with an older version can still pair over Wi-Fi with a 6-digit code from "Other ways to connect" (turned on in Settings > Sync Options), which never goes into a file.
 
-### Added (1)
+### Added (2)
 
+- Settings > Sync Options (under Advanced) has an "Other Ways to Connect" switch. It is off by default, which hides the "Other ways to connect" link in Sync Devices; turn it on to reach the 6-digit code for older app versions and the QR codes. The choice is kept on each device.
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens. Its text is a soft light gray instead of bright white, so it is easier on the eyes; text on colored buttons stays white.
 
 ### Improved (18)
@@ -26,7 +27,7 @@
 - On desktop and Android, Sync Devices can now move accounts between devices that aren't on the same network, by AirDrop or Quick Share. After you choose Send or Receive and type the code, the sending device looks for the other one on the network; if it isn't there, tap "Use Quick Share" (or "Use AirDrop") and it sends the accounts as one small file, encrypted with the code, and the receiving device adds them as soon as the file arrives. All you do is choose the other device in the share menu and tap Accept on the other side, which the system always asks for. On a Mac the file goes out through the share menu (AirDrop), on Windows through the share panel (Quick Share if installed), and on Android through the share sheet (Quick Share); on Linux you save it to a file. A file that arrives in Downloads is picked up by itself; on Android this needs All files access, which Sync Devices asks for once. Only a file that arrives while the code shows is used, it opens only with that code, and it is deleted once used. A "Use AirDrop" or "Use Quick Share" button sends the file at once, and a small link opens a file by hand if it ever isn't picked up. The app isn't offered to open any other kind of file.
 - The status bar at the top of the Dashboard has larger text, on desktop and on phones. On a phone, the "Next reset" line now always sits in its own gray row under a divider, not only when a limit is running low.
 - The Usage page's key (Measured, Estimated, No data, Reset) has larger text, matching the Dashboard's status bar, on desktop and on phones. On desktop the key box is now as tall as the status bar, and on narrow phones it stays on one line.
-- Sync Devices takes fewer steps: after choosing Send or Receive, the receiving device shows its link code at once and the sending device asks for it. Typing the last letter connects without pressing Connect, and once connected the sending device sends straight away instead of asking "Send to the other device?". A 6-digit code for a device with an older version, and the QR code, are under "Other ways to connect". A failed pairing now says "Pairing Failed" in the heading, with a green Try Again button.
+- Sync Devices takes fewer steps: after choosing Send or Receive, the receiving device shows its link code at once and the sending device asks for it. Typing the last letter connects without pressing Connect, and once connected the sending device sends straight away instead of asking "Send to the other device?". A 6-digit code for a device with an older version, and the QR code, are under "Other ways to connect", which is hidden unless you turn it on in Settings. A failed pairing now says "Pairing Failed" in the heading, with a green Try Again button.
 - In Settings, the Menu Bar Labels switch description now reads "Show labels below icons in bottom bar."
 - The Sync Devices link code screens have a new look: the code shows as large letter tiles in two rows of five with a bar counting down to when it expires, the code you type fills matching tiles, a pulsing dot shows while it looks for the other device, and the file transfer screens show each step with a tick as it's done.
 - Error messages in dialogs (Sync Devices, Add Account, groups, alerts, Google AI Studio) now stay for 10 seconds instead of 6, and have an X in the top right corner to close them sooner.
