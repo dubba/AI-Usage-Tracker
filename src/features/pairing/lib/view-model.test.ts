@@ -43,7 +43,7 @@ describe("pairingHeader titles", () => {
   const cases: Array<[string, Partial<Parameters<typeof pairingHeader>[0]>, string]> = [
     ["role choice", {}, "Send or Receive Accounts"],
     ["other ways to connect", { viewMode: "select-mode" }, "Other Ways to Connect"],
-    ["showing a link code", { viewMode: "host" }, "Link Code"],
+    ["showing a link code", { viewMode: "host" }, "Your Link Code"],
     ["scanning", { viewMode: "scanner" }, "Scan QR Code"],
     ["entering a code", { viewMode: "code" }, "Enter Link Code"],
     ["showing animated QR", { viewMode: "airgap-sender" }, "Show QR Code"],

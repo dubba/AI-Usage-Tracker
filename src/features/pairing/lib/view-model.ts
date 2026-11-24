@@ -60,7 +60,7 @@ export function pairingHeader(input: {
   } else if (waiting && viewMode === "airgap-sender") {
     title = "Show QR Code";
   } else if (waiting && viewMode === "host") {
-    title = "Link Code";
+    title = "Your Link Code";
     subtitle = "Open this app on the other device, go to Settings → Sync Devices, select Receive, and enter this code.";
   } else if (waiting && viewMode === "scanner") {
     title = "Scan QR Code";

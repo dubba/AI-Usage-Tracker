@@ -189,7 +189,7 @@ describe("choosing a role and a way to connect", () => {
   it("shows a link code at once when sending", async () => {
     render();
     await press("Send Accounts from This Device");
-    expect(title()).toBe("Link Code");
+    expect(title()).toBe("Your Link Code");
     expect(api.startHost).toHaveBeenCalledTimes(1);
     expect(text()).toContain("go to Settings → Sync Devices, select Receive, and enter this code");
   });
@@ -225,7 +225,7 @@ describe("choosing a role and a way to connect", () => {
     await press("Receive Accounts on This Device");
     await press("Other ways to connect");
     await press("Show Link Code");
-    expect(title()).toBe("Link Code");
+    expect(title()).toBe("Your Link Code");
     expect(api.startHost).toHaveBeenCalledTimes(1);
   });
 
@@ -347,7 +347,7 @@ describe("showing a link code", () => {
   it("starts a host session and shows the code and a countdown", async () => {
     await openHost();
     expect(api.startHost).toHaveBeenCalledTimes(1);
-    expect(title()).toBe("Link Code");
+    expect(title()).toBe("Your Link Code");
     expect(text()).toContain("123 456");
     expect(text()).toMatch(/Expires in\s*2:0\d/);
     expect(text()).toContain("Waiting for the other device to connect…");
@@ -663,7 +663,7 @@ describe("transfer by file", () => {
     await press("Open a request file");
     cancelPairing.mockClear();
     await press("Back");
-    expect(title()).toBe("Link Code");
+    expect(title()).toBe("Your Link Code");
     expect(cancelPairing).not.toHaveBeenCalled();
   });
 
@@ -1144,7 +1144,7 @@ describe("finishing", () => {
   it("starts over each time it is reopened", async () => {
     render();
     await press("Send Accounts from This Device");
-    expect(title()).toBe("Link Code");
+    expect(title()).toBe("Your Link Code");
     mounted.rerender(<PairingModal open={false} onClose={onClose} onCompleted={onCompleted} />);
     expect(document.querySelector(".pairing-modal")).toBeNull();
     mounted.rerender(<PairingModal open onClose={onClose} onCompleted={onCompleted} />);
