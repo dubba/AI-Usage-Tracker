@@ -54,7 +54,10 @@ export function useModalA11y(
         candidates.find((el) => !el.classList.contains("ui-modal-close")) ??
         candidates[0] ??
         container;
-      initial.focus({ preventScroll: true });
+      // A touch screen has no keyboard to need the ring, and the browser draws one for focus
+      // moved by script; it showed as a box around the dialog's first button on the phones.
+      const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+      initial.focus({ preventScroll: true, focusVisible: !touch });
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
