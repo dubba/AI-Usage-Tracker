@@ -64,32 +64,17 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="aiusage-signin" />
             </intent-filter>
-            <!-- A Sync Devices transfer file (`.aiutpair`, TransferFiles.MIME_TYPE) tapped in Quick
-                 Share or Files; Sync Devices opens it (TransferFiles.keepTapped). Generic binary
-                 files are offered too, because a Pixel's Quick Share saves the file as one and its
-                 address carries no name. Rust checks the file's header before using it, so any
-                 other file only gets "This isn't a Sync Devices file". -->
+            <!-- A Sync Devices transfer file tapped in Quick Share, offered by its own type only
+                 (TransferFiles.MIME_TYPE), so the app is not listed under "Open with" for other
+                 files. Samsung's Quick Share keeps the type; a Pixel's saves the file as a generic
+                 binary, which this leaves to the in-app Open buttons. Sync Devices opens it
+                 (TransferFiles.keepTapped), and Rust checks the file's header before using it. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="application/vnd.aiut.pair" />
-                <data android:mimeType="application/octet-stream" />
-            </intent-filter>
-            <!-- The same file where the opening app passes its name in the address. Any type, but
-                 only an address ending in .aiutpair (pathPattern for older Android, pathSuffix
-                 from Android 12). -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content" />
-                <data android:scheme="file" />
-                <data android:host="*" />
-                <data android:mimeType="*/*" />
-                <data android:pathPattern=".*\\.aiutpair" />
-                <data android:pathPattern=".*\\..*\\.aiutpair" />
-                <data android:pathSuffix=".aiutpair" />
             </intent-filter>
         </activity>
 

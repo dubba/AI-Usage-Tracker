@@ -20,10 +20,10 @@ internal class TransferFiles(private val activity: Activity) {
   @Volatile private var tapped: Uri? = null
 
   /**
-   * Keeps the file a VIEW intent points at (`AndroidManifest.xml`'s transfer file filters), for
+   * Keeps the file a VIEW intent points at (`AndroidManifest.xml`'s transfer file filter), for
    * Rust to take with [takeTapped] when Sync Devices is ready for it. Only `content://` and
    * `file://` addresses count: the sign-in link uses its own scheme. Rust checks the file's
-   * header, so a generic binary file that isn't a transfer file gets an error, not an import.
+   * header, so a file that only claims the type gets an error, not an import.
    * Returns whether a file was kept.
    */
   fun keepTapped(intent: Intent?): Boolean {
@@ -115,7 +115,8 @@ internal class TransferFiles(private val activity: Activity) {
      * The files' own type (the same in `AndroidManifest.xml`'s VIEW filter). Quick Share sends it
      * with the file; if the receiving phone keeps it (Samsung), tapping the file opens this app
      * and no other. Android has no extension registry, so `.aiutpair` alone gives it no type
-     * there: a Pixel saves it as a generic binary file, which the manifest also offers to open.
+     * there: a Pixel saves it as a generic binary file, which is left to the in-app Open buttons so
+     * the app is not offered for every unknown file.
      */
     const val MIME_TYPE = "application/vnd.aiut.pair"
     private const val BUFFER_BYTES = 64 * 1024
