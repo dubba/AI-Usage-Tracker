@@ -54,10 +54,12 @@ import {
 /** Wait after a view change before moving keyboard focus into it, so the new view has rendered. */
 const FOCUS_DELAY_MS = 50;
 /**
- * How long the sender looks for the receiver on the network before the accounts go out by Quick
- * Share or AirDrop by itself. Making the file stops the search, so they go one way only.
+ * How long the sender's search for the receiver on the network lasts (`discovery::DISCOVERY_TIMEOUT`).
+ * Only when it ends with no one found do the accounts go out by Quick Share or AirDrop by themselves:
+ * making the file stops the search, so a timer of its own would cut off a phone that answers late.
+ * The countdown on the code screen shows this.
  */
-const FILE_FALLBACK_SECS = 10;
+const WIFI_SEARCH_SECS = 15;
 export function PairingModal({
   open,
   onClose,
@@ -196,22 +198,20 @@ export function PairingModal({
   // Busy on the code screen with nothing connected yet: the network search for the typed code.
   const searchingForCode =
     fileFallback && open && viewMode === "code" && busy && status.status === "idle" && isLinkCode(joinCodeInput);
-  const sendFileAutomatically = useEffectEvent(() => fileTransfer.send(joinCodeInput, true));
-  // Seconds left before the file goes out, counted down on the code screen.
-  const [fallbackSecsLeft, setFallbackSecsLeft] = useState(FILE_FALLBACK_SECS);
+  // Seconds left in the search, counted down on the code screen. The search's own end (not found)
+  // sends the file; see `onSubmit` below.
+  const [searchSecsLeft, setSearchSecsLeft] = useState(WIFI_SEARCH_SECS);
   useEffect(() => {
     if (!searchingForCode) return;
-    let left = FILE_FALLBACK_SECS;
+    let left = WIFI_SEARCH_SECS;
     const timer = setInterval(() => {
       left -= 1;
-      setFallbackSecsLeft(left);
-      if (left > 0) return;
-      clearInterval(timer);
-      sendFileAutomatically();
+      setSearchSecsLeft(left);
+      if (left <= 0) clearInterval(timer);
     }, 1000);
     return () => {
       clearInterval(timer);
-      setFallbackSecsLeft(FILE_FALLBACK_SECS);
+      setSearchSecsLeft(WIFI_SEARCH_SECS);
     };
   }, [searchingForCode]);
 
@@ -621,7 +621,7 @@ export function PairingModal({
             onOtherWays={() => leaveAttempt("select-mode")}
             nearbyName={nearbyName}
             onUseNearby={() => fileTransfer.send(joinCodeInput)}
-            fallback={searchingForCode ? { secsLeft: fallbackSecsLeft, totalSecs: FILE_FALLBACK_SECS } : undefined}
+            fallback={searchingForCode ? { secsLeft: searchSecsLeft, totalSecs: WIFI_SEARCH_SECS } : undefined}
             setKeyboardOpen={setIsKeyboardOpen}
           />
         )}

@@ -811,18 +811,29 @@ describe("transfer by file", () => {
 
 describe("AirDrop or Quick Share when the code finds no one on the network", () => {
   const codeInput = () => document.getElementById("pairing-join-code-input") as HTMLInputElement;
+  const NOT_FOUND = "No device is showing a link code on this Wi-Fi network.";
   const searchSeconds = async (seconds: number) => {
     await act(async () => {
       vi.advanceTimersByTime(seconds * 1000);
     });
     await settle();
   };
+  /** Ends the network search: it found no one. */
+  let notFound: () => Promise<void>;
 
   beforeEach(() => {
     vi.useFakeTimers();
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
-    // The network search for the code is still running.
-    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
+    // The network search runs until the test ends it.
+    api.startClientByCode.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          notFound = async () => {
+            await act(async () => reject(new Error(NOT_FOUND)));
+            await settle();
+          };
+        }),
+    );
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -836,78 +847,66 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await settle();
   }
 
-  it("counts down the search, then sends the accounts by Quick Share by itself after 10 s", async () => {
+  it("counts down the search, and sends by Quick Share by itself once it finds no one", async () => {
     await searchForCode();
     expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
     expect(text()).toContain("Looking for the other device on Wi-Fi…");
-    expect(text()).toContain("Not found within 10 seconds? Quick Share takes over by itself.");
+    expect(text()).toContain("Not found within 15 seconds? Quick Share takes over by itself.");
     await searchSeconds(3);
-    expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("7 seconds");
-    await searchSeconds(6);
-    expect(text()).toContain("within 1 second?");
+    expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("12 seconds");
+    await searchSeconds(12);
+    // The countdown is only shown: the search's own end decides.
+    expect(text()).toContain("Finishing the search on Wi-Fi…");
     expect(api.sendFile).not.toHaveBeenCalled();
-    await searchSeconds(1);
+    await notFound();
     expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(api.shareFile).toHaveBeenCalledTimes(1);
+    expect(document.querySelector(".modal-error")).toBeNull();
     expect(title()).toBe("Sending by Quick Share");
     expect(text()).toContain("isn't on this network, so the accounts go by Quick Share");
     expect(text()).toContain("Send again by Quick Share");
   });
 
-  it("sends the file at once when the search ends finding no one", async () => {
-    api.startClientByCode.mockRejectedValue(new Error("No device is showing a link code on this Wi-Fi network."));
+  it("still connects over Wi-Fi to a device found late in the search", async () => {
     await searchForCode();
-    expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
-    expect(document.querySelector(".modal-error")).toBeNull();
-    expect(title()).toBe("Sending by Quick Share");
-  });
-
-  it("drops the search's late not-found error once the file went out", async () => {
-    let fail: (cause: unknown) => void = () => {};
-    api.startClientByCode.mockImplementation(() => new Promise((_resolve, reject) => (fail = reject)));
-    await searchForCode();
+    await searchSeconds(13);
+    await emit({ status: "clientConnecting", data: { sessionId: "s1" } } as PairingStatus);
     await searchSeconds(10);
-    await act(async () => fail(new Error("No device is showing a link code on this Wi-Fi network.")));
-    await settle();
-    expect(document.querySelector(".modal-error")).toBeNull();
-    expect(title()).toBe("Sending by Quick Share");
-    expect(api.sendFile).toHaveBeenCalledTimes(1);
+    expect(api.sendFile).not.toHaveBeenCalled();
+    expect(text()).not.toContain("Sending by");
   });
 
-  it("lets the user skip the wait with Use Quick Share now", async () => {
+  it("lets the user skip the wait with Use Quick Share now, and drops the search's late error", async () => {
     await searchForCode();
     await press("Use Quick Share now");
     expect(api.sendFile).toHaveBeenCalledTimes(1);
     expect(text()).toContain("Choose the other device in Quick Share");
-    await searchSeconds(10);
+    await searchSeconds(20);
+    await notFound();
     expect(api.sendFile).toHaveBeenCalledTimes(1);
-  });
-
-  it("sends no file once the other device is found", async () => {
-    await searchForCode();
-    await emit({ status: "clientConnecting", data: { sessionId: "s1" } } as PairingStatus);
-    await searchSeconds(10);
-    expect(api.sendFile).not.toHaveBeenCalled();
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(title()).toBe("Sending by Quick Share");
   });
 
   it("sends no file after going back from the search", async () => {
     await searchForCode();
     await searchSeconds(4);
     await press("Back");
-    await searchSeconds(10);
+    await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
-    // A new search counts from 10 again.
+    // A new search counts from the start again.
     await press("Send Accounts from This Device");
     typeInto(codeInput(), CODE);
     await settle();
-    expect(text()).toContain("within 10 seconds?");
+    expect(text()).toContain("within 15 seconds?");
   });
 
   it("keeps an older version's six digits to Wi-Fi", async () => {
     await searchForCode("123456");
     expect(text()).not.toContain("takes over by itself");
-    await searchSeconds(10);
+    await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
+    expect(text()).toContain(NOT_FOUND);
   });
 
   it("names AirDrop on iPhone", async () => {
@@ -915,7 +914,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await searchForCode();
     expect(text()).toContain("AirDrop takes over by itself");
     expect(text()).toContain("Use AirDrop now");
-    await searchSeconds(10);
+    await notFound();
     expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(text()).toContain("Choose the other device in AirDrop");
   });
@@ -925,7 +924,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
       Object.defineProperty(navigator, "userAgent", { value: userAgent, configurable: true });
       api.sendFile.mockClear();
       await searchForCode();
-      await searchSeconds(10);
+      await notFound();
       expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
       mounted.unmount();
     }
@@ -934,9 +933,10 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
   it("keeps to Wi-Fi where there is neither", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (X11; Linux x86_64)", configurable: true });
     await searchForCode();
-    await searchSeconds(10);
+    await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
     expect(text()).not.toContain("Use Quick Share");
+    expect(text()).toContain(NOT_FOUND);
   });
 });
 

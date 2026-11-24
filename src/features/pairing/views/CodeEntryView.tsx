@@ -43,7 +43,7 @@ export function CodeEntryView({
   nearbyName?: string;
   /** Sends the accounts for the typed code by AirDrop or Quick Share now. */
   onUseNearby?: () => void;
-  /** While the Wi-Fi search runs: the seconds left before AirDrop or Quick Share takes over. */
+  /** While the Wi-Fi search runs: the seconds left in it, after which AirDrop or Quick Share takes over. */
   fallback?: { secsLeft: number; totalSecs: number };
   /** Lets the field flag the on-screen keyboard before the viewport has resized. */
   setKeyboardOpen: (open: boolean) => void;
@@ -129,7 +129,7 @@ export function CodeEntryView({
               </p>
             </>
           ) : (
-            <SearchingRow>Not on this network. Opening {nearby}…</SearchingRow>
+            <SearchingRow>Finishing the search on Wi-Fi…</SearchingRow>
           )
         ) : busy ? (
           <SearchingRow>Looking for the other device on Wi-Fi…</SearchingRow>

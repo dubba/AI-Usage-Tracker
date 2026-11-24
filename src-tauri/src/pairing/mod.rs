@@ -625,16 +625,26 @@ impl PairingSessionManager {
         }
         let epoch = self.next_epoch();
 
+        // How long the search took goes in the log: a device found late is the one the file
+        // route must not cut off.
+        let started = std::time::Instant::now();
         let hosts = match discovery::discover().await {
             Ok(hosts) => hosts,
             Err(error) => {
-                sync_log::failed_text("link code: looking for the other device", &error);
+                sync_log::failed_text(
+                    &format!(
+                        "link code: looking for the other device for {:.1} s",
+                        started.elapsed().as_secs_f32()
+                    ),
+                    &error,
+                );
                 return Err(error);
             }
         };
         sync_log::note(&format!(
-            "link code: entered a code, found {} device(s) showing a code on the network",
-            hosts.len()
+            "link code: entered a code, found {} device(s) showing a code on the network in {:.1} s",
+            hosts.len(),
+            started.elapsed().as_secs_f32()
         ));
         self.start_client(state, hosts, code, epoch).await
     }
