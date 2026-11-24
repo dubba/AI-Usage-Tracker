@@ -205,11 +205,30 @@ pub struct ActiveSession {
     /// Installed when the transfer confirmation starts. Absent until then, so an earlier answer is refused.
     pub transfer_confirm_tx: Option<oneshot::Sender<bool>>,
     pub advertisement: Option<discovery::MdnsAdvertisement>,
-    /// The link code a host shows, until it answers a request by file
-    /// (`file_transfer::answer_request`): one answer per code. `None` on a joiner.
-    pub file_reply_code: Option<String>,
-    /// The request file the host opened, waiting for its user to agree to answer it.
-    pub file_request: Option<Vec<u8>>,
+    /// Whether a transfer file can be opened with this session's code (`file_transfer::open`).
+    pub file_code: FileCode,
+}
+
+/// What a session's code can do for a transfer file.
+pub enum FileCode {
+    /// A joiner: it shows no code.
+    NotShown,
+    /// A six-digit code for an older version, too short to key a file.
+    WifiOnly,
+    /// A link code that has not opened a file yet.
+    Ready(zeroize::Zeroizing<String>),
+    /// A file opened with the code: one file per code.
+    Used,
+}
+
+impl FileCode {
+    fn for_code(code: &str) -> Self {
+        if discovery::is_link_code(code) {
+            Self::Ready(zeroize::Zeroizing::new(code.to_string()))
+        } else {
+            Self::WifiOnly
+        }
+    }
 }
 
 pub struct PairingSessionManager {
@@ -312,44 +331,44 @@ impl PairingSessionManager {
         Ok(())
     }
 
-    /// The host session that can still answer a request by file: one showing its code, waiting
-    /// for the other device (not once a Wi-Fi transfer has started), whose code is unused.
-    async fn file_reply_session<'a>(
-        &self,
-        active: &'a mut Option<ActiveSession>,
-    ) -> Result<&'a mut ActiveSession, String> {
-        let Some(session) = active.as_mut() else {
+    /// The code of the session showing it, for opening a transfer file: while it waits for the
+    /// other device (not once a Wi-Fi transfer has started), if it is a link code not used yet.
+    pub(crate) async fn file_code(&self) -> Result<zeroize::Zeroizing<String>, String> {
+        let active = self.active.read().await;
+        let Some(session) = active.as_ref() else {
             return Err(file_transfer::NO_CODE_SHOWN.into());
         };
         if !matches!(*self.status.read().await, PairingStatus::HostWaiting { .. }) {
             return Err(file_transfer::NO_CODE_SHOWN.into());
         }
-        if session.file_reply_code.is_none() {
-            return Err(file_transfer::CODE_ALREADY_USED.into());
+        match &session.file_code {
+            FileCode::Ready(code) => Ok(code.clone()),
+            FileCode::NotShown => Err(file_transfer::NO_CODE_SHOWN.into()),
+            FileCode::WifiOnly => Err(file_transfer::WIFI_ONLY_CODE.into()),
+            FileCode::Used => Err(file_transfer::CODE_ALREADY_USED.into()),
         }
-        Ok(session)
     }
 
-    /// Keeps a checked request file with the session showing the code, until its user agrees.
-    pub(crate) async fn hold_file_request(&self, request: Vec<u8>) -> Result<(), String> {
-        let mut active = self.active.write().await;
-        self.file_reply_session(&mut active).await?.file_request = Some(request);
+    /// A file opened with `code`: uses the code up and ends the session, so the other device
+    /// cannot also connect with it over Wi-Fi. Fails if the session moved on meanwhile.
+    pub(crate) async fn use_file_code(&self, code: &str) -> Result<(), String> {
+        {
+            let mut active = self.active.write().await;
+            let session = active
+                .as_mut()
+                .ok_or_else(|| file_transfer::NO_CODE_SHOWN.to_string())?;
+            match &session.file_code {
+                FileCode::Ready(shown) if shown.as_str() == code => {}
+                FileCode::Ready(_) | FileCode::NotShown => {
+                    return Err(file_transfer::NO_CODE_SHOWN.into())
+                }
+                FileCode::WifiOnly => return Err(file_transfer::WIFI_ONLY_CODE.into()),
+                FileCode::Used => return Err(file_transfer::CODE_ALREADY_USED.into()),
+            }
+            session.file_code = FileCode::Used;
+        }
+        self.cancel().await;
         Ok(())
-    }
-
-    /// The code and the held request, for answering it. Uses the code up: one answer per code.
-    pub(crate) async fn take_file_reply_inputs(&self) -> Result<(String, Vec<u8>), String> {
-        let mut active = self.active.write().await;
-        let session = self.file_reply_session(&mut active).await?;
-        let request = session
-            .file_request
-            .take()
-            .ok_or_else(|| file_transfer::NO_REQUEST_OPENED.to_string())?;
-        let code = session
-            .file_reply_code
-            .take()
-            .ok_or_else(|| file_transfer::CODE_ALREADY_USED.to_string())?;
-        Ok((code, request))
     }
 
     /// Publish the role answer channel once that phase is reached.
@@ -379,13 +398,15 @@ impl PairingSessionManager {
         drop(tx);
     }
 
-    /// Starts hosting: shows a link code and waits for the device that types it.
-    /// `accept_settings` is this device's "Also Sync Settings and Layout" choice, used if it
-    /// turns out to be the receiver.
+    /// Starts hosting: shows a link code and waits for the device that types it, on the network
+    /// or (a link code only) in a transfer file. `accept_settings` is this device's "Also Sync
+    /// Settings and Layout" choice, used if it turns out to be the receiver. `legacy_code` shows
+    /// six digits instead, for a device with an older version: Wi-Fi only.
     pub async fn start_host(
         &self,
         state: Arc<AppState>,
         accept_settings: bool,
+        legacy_code: bool,
     ) -> Result<PairingHostInit, String> {
         self.cancel().await;
         // Reset per-transfer flags for the new session, so one transfer's
@@ -411,12 +432,16 @@ impl PairingSessionManager {
         sync_log::note(if on_network {
             "link code: showing a code, listening on the local network"
         } else {
-            "link code: showing a code, but this device has no local network address (Wi-Fi off or not connected); only a request file can use it"
+            "link code: showing a code, but this device has no local network address (Wi-Fi off or not connected); only a transfer file can use it"
         });
 
         // The link code is the pairing secret: it is shown on this screen and
         // typed on the other device, and never sent or announced.
-        let join_code = discovery::generate_join_code();
+        let join_code = if legacy_code {
+            discovery::generate_legacy_code()
+        } else {
+            discovery::generate_link_code()
+        };
 
         let expires_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -456,8 +481,7 @@ impl PairingSessionManager {
                 role_select_tx: None,
                 transfer_confirm_tx: None,
                 advertisement: None,
-                file_reply_code: Some(join_code.clone()),
-                file_request: None,
+                file_code: FileCode::for_code(&join_code),
             });
         }
 
@@ -588,9 +612,9 @@ impl PairingSessionManager {
         code: String,
         accept_settings: bool,
     ) -> Result<(), String> {
-        let code = code.trim().to_string();
+        let code = discovery::normalize_code(&code);
         if !discovery::is_valid_join_code(&code) {
-            return Err("Enter the 6-digit code shown on the other device.".into());
+            return Err(discovery::INVALID_CODE.into());
         }
 
         self.cancel().await;
@@ -647,8 +671,7 @@ impl PairingSessionManager {
                 role_select_tx: None,
                 transfer_confirm_tx: None,
                 advertisement: None,
-                file_reply_code: None,
-                file_request: None,
+                file_code: FileCode::NotShown,
             });
         }
 
@@ -745,8 +768,7 @@ impl PairingSessionManager {
             role_select_tx: None,
             transfer_confirm_tx: None,
             advertisement: None,
-            file_reply_code: None,
-            file_request: None,
+            file_code: FileCode::NotShown,
         });
     }
 
@@ -765,8 +787,7 @@ impl PairingSessionManager {
             role_select_tx: None,
             transfer_confirm_tx: None,
             advertisement: None,
-            file_reply_code: Some(code.to_string()),
-            file_request: None,
+            file_code: FileCode::for_code(code),
         });
     }
 }
@@ -781,7 +802,7 @@ impl PairingSessionManager {
 /// The host's listener and the address it is on; `false` when this device has no local-network
 /// address (Wi-Fi off, on a carrier that gives no private address). The session then listens on
 /// loopback, which no other device can reach, and is not announced: the link code still works
-/// for a request file (`file_transfer`), and the expiry, cancel and wrong-code limit run as usual.
+/// for a transfer file (`file_transfer`), and the expiry, cancel and wrong-code limit run as usual.
 pub(crate) async fn bind_host_listener(ip: String) -> std::io::Result<(String, TcpListener, bool)> {
     match bind_pairing_listener(&ip).await {
         Ok(listener) => Ok((ip, listener, true)),

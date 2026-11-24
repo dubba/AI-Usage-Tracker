@@ -2,8 +2,9 @@ import { CameraIcon, KeypadIcon, QrIcon } from "../../../shared/ui/icons";
 import type { IntendedRole } from "../lib/view-model";
 
 /**
- * Other ways to connect, reached from the code screens: show or enter a link code against the role
- * (for a device with an older version, which lets either side show it), or the animated QR code.
+ * Other ways to connect, reached from the code screens: show an older version's six-digit code or
+ * enter a code against the role (an older version lets either side show it), or the animated QR
+ * code.
  */
 export function ModeSelectView({
   intendedRole,
@@ -31,7 +32,7 @@ export function ModeSelectView({
               <span className="pairing-mode-badge wifi">On same Wi-Fi</span>
             </div>
             <p className="pairing-mode-card-desc">
-              Display code to enter on other device. Use if devices are on the same Wi-Fi.
+              Shows a 6-digit code for a device with an older version of the app. Both must be on the same Wi-Fi.
             </p>
           </div>
         </button>
@@ -46,7 +47,7 @@ export function ModeSelectView({
               <span className="pairing-mode-badge enter">On same Wi-Fi</span>
             </div>
             <p className="pairing-mode-card-desc">
-              Type Link code shown on other device.
+              Type the code shown on the other device: 10 letters, or 6 digits from an older version.
             </p>
           </div>
         </button>

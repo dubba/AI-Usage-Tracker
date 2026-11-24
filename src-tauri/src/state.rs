@@ -194,13 +194,13 @@ pub struct AppState {
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
     /// The ticket the latest air-gap preview handed out (L-104).
     pub airgap_import_ticket: Mutex<Option<crate::pairing::airgap::AirgapImportTicket>>,
-    /// The receiving side of a transfer by file: the request that is out, or the reply that was
-    /// opened and counted (`pairing::file_transfer`). Memory only.
-    pub pairing_file_receiver: Mutex<Option<crate::pairing::file_transfer::ReceiverState>>,
-    /// The transfer file this device made last (a request or a reply) and its suggested name, in
-    /// the app's cache folder until it is shared or saved; either can be repeated.
-    pub pairing_file_outgoing: Mutex<Option<(std::path::PathBuf, &'static str)>>,
-    /// While this device waits for a transfer file, what it watches Downloads for.
+    /// The receiving side of a transfer by file: the file that opened, its accounts not imported
+    /// yet (`pairing::file_transfer`). Memory only.
+    pub pairing_file_received: Mutex<Option<crate::pairing::file_transfer::OpenedFile>>,
+    /// The transfer file this device made last, in the app's cache folder until it is shared or
+    /// saved; either can be repeated.
+    pub pairing_file_outgoing: Mutex<Option<std::path::PathBuf>>,
+    /// While this device waits for a transfer file, what it watches Downloads with.
     pub pairing_incoming: Mutex<Option<crate::pairing::incoming_files::IncomingWatch>>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
     in_flight_refreshes: Mutex<HashMap<String, InFlightRefreshReceiver>>,
@@ -265,7 +265,7 @@ impl AppState {
             app_handle: RwLock::new(None),
             pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
             airgap_import_ticket: Mutex::new(None),
-            pairing_file_receiver: Mutex::new(None),
+            pairing_file_received: Mutex::new(None),
             pairing_file_outgoing: Mutex::new(None),
             pairing_incoming: Mutex::new(None),
             account_locks: Mutex::new(HashMap::new()),

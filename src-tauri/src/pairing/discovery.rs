@@ -4,8 +4,8 @@
 //! with its session id and nonce in TXT records. A joiner browses for those
 //! hosts and tries the code its user typed against them.
 //!
-//! The six-digit link code is never announced: it is the shared secret of the
-//! key exchange that follows the TCP connection (`crypto::PakeExchange`), so
+//! The link code is never announced: it is the shared secret of the key
+//! exchange that follows the TCP connection (`crypto::PakeExchange`), so
 //! nothing here is trusted or secret. A device that only pretends to be a
 //! pairing host fails that exchange.
 //!
@@ -30,8 +30,16 @@ pub const SERVICE_TYPE: &str = "_aiut-pair._tcp.local.";
 #[cfg_attr(not(any(target_os = "ios", test)), allow(dead_code))]
 pub(crate) const DNSSD_REGTYPE: &str = "_aiut-pair._tcp";
 pub const NOT_FOUND: &str = "No device is showing a link code on this Wi-Fi network. Check that both devices are on the same Wi-Fi and that the other device is showing its code.";
+pub const INVALID_CODE: &str = "Enter the code shown on the other device: 10 letters, or 6 digits from an older version of the app.";
 pub const OLDER_VERSION: &str = "The other device has an older version of AI Usage Tracker that can't pair with this one. Update the app on both devices and try again.";
-const CODE_DIGITS: usize = 6;
+/// The digits of the link code kept for devices with an older version: Wi-Fi only.
+const LEGACY_CODE_DIGITS: usize = 6;
+/// The letters of a link code. It also keys a transfer file (`file_transfer`), which can be
+/// tested offline, so it is long: 23^10, about 2^45 codes.
+pub const LINK_CODE_LEN: usize = 10;
+/// Capital letters without I, L and O, which are read as 1 and 0. Letters only, so a phone types
+/// the code on one keyboard.
+pub const LINK_CODE_ALPHABET: &[u8; 23] = b"ABCDEFGHJKMNPQRSTUVWXYZ";
 /// How long a joiner looks for a host before giving up.
 #[cfg(not(test))]
 pub(crate) const DISCOVERY_TIMEOUT: Duration = Duration::from_millis(15_000);
@@ -52,14 +60,35 @@ pub(crate) fn generate_instance_name() -> String {
     format!("AIUT-{hex}")
 }
 
+/// A code this app shows: a link code ([`is_link_code`]) or, for an older version, six digits.
 pub fn is_valid_join_code(code: &str) -> bool {
-    code.len() == CODE_DIGITS && code.bytes().all(|b| b.is_ascii_digit())
+    is_link_code(code) || is_legacy_code(code)
 }
 
-/// Rejects the codes a guesser would try first (all identical digits or
-/// strictly sequential).
-pub fn is_weak_join_code(code: &str) -> bool {
-    if !is_valid_join_code(code) {
+/// A ten-letter link code, as [`normalize_code`] leaves it.
+pub fn is_link_code(code: &str) -> bool {
+    code.len() == LINK_CODE_LEN && code.bytes().all(|b| LINK_CODE_ALPHABET.contains(&b))
+}
+
+/// A six-digit code, the kind an older version shows and types.
+pub fn is_legacy_code(code: &str) -> bool {
+    code.len() == LEGACY_CODE_DIGITS && code.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// A typed code as the key exchange uses it: capitals, without the spaces and dashes it may be
+/// shown or typed with.
+pub fn normalize_code(typed: &str) -> String {
+    typed
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '-')
+        .map(|c| c.to_ascii_uppercase())
+        .collect()
+}
+
+/// Rejects the six-digit codes a guesser would try first (all identical digits or strictly
+/// sequential).
+pub fn is_weak_legacy_code(code: &str) -> bool {
+    if !is_legacy_code(code) {
         return true;
     }
     let digits: Vec<u8> = code.bytes().map(|b| b - b'0').collect();
@@ -71,17 +100,25 @@ pub fn is_weak_join_code(code: &str) -> bool {
     ascending || descending
 }
 
-/// Generates a random 6-digit numeric link code (leading zeros allowed) from
-/// the operating system's random source: the code is the pairing secret.
-pub fn generate_join_code() -> String {
+/// A random six-digit code (leading zeros allowed) for a device with an older version, from the
+/// operating system's random source: the code is the pairing secret.
+pub fn generate_legacy_code() -> String {
     let mut rng = rand::rngs::OsRng;
     loop {
         let value = rng.gen_range(0..1_000_000u32);
         let code = format!("{value:06}");
-        if !is_weak_join_code(&code) {
+        if !is_weak_legacy_code(&code) {
             return code;
         }
     }
+}
+
+/// A random ten-letter link code from the operating system's random source.
+pub fn generate_link_code() -> String {
+    let mut rng = rand::rngs::OsRng;
+    (0..LINK_CODE_LEN)
+        .map(|_| char::from(LINK_CODE_ALPHABET[rng.gen_range(0..LINK_CODE_ALPHABET.len())]))
+        .collect()
 }
 
 pub struct MdnsAdvertisement {
@@ -405,36 +442,69 @@ mod tests {
     use super::*;
 
     #[test]
-    fn join_code_is_six_digits() {
+    fn link_code_is_ten_unambiguous_letters() {
         for _ in 0..100 {
-            let code = generate_join_code();
-            assert_eq!(code.len(), 6);
-            assert!(code.bytes().all(|b| b.is_ascii_digit()));
-            assert!(!is_weak_join_code(&code));
+            let code = generate_link_code();
+            assert!(is_link_code(&code), "{code}");
+            assert!(is_valid_join_code(&code));
+            assert!(!code.contains(['I', 'L', 'O']), "{code}");
         }
     }
 
     #[test]
-    fn join_code_allows_leading_zeros() {
-        assert_eq!(format!("{:06}", 42u32), "000042");
+    fn link_codes_differ() {
+        let codes: std::collections::HashSet<_> = (0..50).map(|_| generate_link_code()).collect();
+        assert_eq!(codes.len(), 50);
+    }
+
+    #[test]
+    fn legacy_code_is_six_digits() {
+        for _ in 0..100 {
+            let code = generate_legacy_code();
+            assert!(is_legacy_code(&code));
+            assert!(!is_weak_legacy_code(&code));
+            assert!(is_valid_join_code(&code));
+        }
+    }
+
+    #[test]
+    fn legacy_code_allows_leading_zeros() {
         assert!(is_valid_join_code("000042"));
-        assert!(!is_weak_join_code("000042"));
+        assert!(!is_weak_legacy_code("000042"));
     }
 
     #[test]
-    fn rejects_simple_and_sequential_codes() {
+    fn rejects_simple_and_sequential_legacy_codes() {
         for code in ["000000", "111111", "123456", "234567", "654321", "987654"] {
-            assert!(is_weak_join_code(code), "{code}");
+            assert!(is_weak_legacy_code(code), "{code}");
         }
-        assert!(!is_weak_join_code("482019"));
-        assert!(!is_weak_join_code("102938"));
+        assert!(!is_weak_legacy_code("482019"));
+        assert!(!is_weak_legacy_code("102938"));
     }
 
     #[test]
     fn rejects_invalid_codes() {
-        for code in ["", "12345", "1234567", "abcdef", "12345x"] {
+        for code in [
+            "",
+            "12345",
+            "1234567",
+            "abcdef",
+            "12345x",
+            "KTQMPRXDH",
+            "KTQMPRXDHWA",
+            "KTQMPRXDHO",
+            "ktqmprxdhw",
+            "KTQMP RXDHW",
+        ] {
             assert!(!is_valid_join_code(code), "{code}");
         }
+    }
+
+    #[test]
+    fn a_typed_code_is_normalized() {
+        assert_eq!(normalize_code(" ktqmp-rxdhw "), "KTQMPRXDHW");
+        assert_eq!(normalize_code("482 913"), "482913");
+        assert!(is_link_code(&normalize_code("ktqmp rxdhw")));
     }
 
     /// The announcement must never carry the link code or a key: the code is
@@ -445,14 +515,15 @@ mod tests {
         let keys: Vec<&str> = properties.iter().map(|(key, _)| *key).collect();
         assert_eq!(keys, ["sid", "nonce", "v"]);
 
-        let code = generate_join_code();
+        let code = generate_link_code();
+        let legacy = generate_legacy_code();
         for _ in 0..50 {
             let name = generate_instance_name();
             assert!(name.starts_with("AIUT-") && name.len() == 13, "{name}");
-            assert!(!name.contains(&code), "{name}");
+            assert!(!name.contains(&code) && !name.contains(&legacy), "{name}");
             assert!(
                 !name["AIUT-".len()..].bytes().all(|b| b.is_ascii_digit())
-                    || name.len() != "AIUT-".len() + CODE_DIGITS,
+                    || name.len() != "AIUT-".len() + LEGACY_CODE_DIGITS,
                 "an instance name must not look like a link code: {name}"
             );
         }

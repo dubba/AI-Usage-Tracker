@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useState } from "react";
 import { pairingApi } from "../../../shared/lib/api";
 import { logIgnored } from "../../../shared/lib/log";
-import type { TappedFile } from "../../../types";
+import type { FilePreview } from "../../../types";
 
 /** How often Downloads is checked for the file while waiting. */
 const POLL_MS = 1000;
@@ -9,10 +9,9 @@ const POLL_MS = 1000;
 const ACCESS_POLL_MS = 1500;
 
 /**
- * Waits for the transfer file this device expects, with nothing to tap: `expect` is the request on
- * the sender (showing its code) or the reply on the receiver (its request sent), null while
- * neither. Rust watches Downloads, where AirDrop on a Mac and Quick Share on Windows and Android
- * save what they receive, and opens the file that arrives; `onOpened` gets it. On iPhone AirDrop
+ * Waits for the transfer file while `active` (the receiver showing its link code), with nothing to
+ * tap. Rust watches Downloads, where AirDrop on a Mac and Quick Share on Windows and Android save
+ * what they receive, and opens the file that arrives with the code; `onOpened` gets it. On iPhone AirDrop
  * opens the file in the app itself (`useTappedTransferFile`), so nothing is watched.
  *
  * Android needs All files access to see Quick Share's files: `needsAccess` is then true until the
@@ -20,12 +19,12 @@ const ACCESS_POLL_MS = 1500;
  * WebView is not told when the app comes back from Settings.
  */
 export function useIncomingFile({
-  expect,
+  active,
   onOpened,
   onError,
 }: {
-  expect: "request" | "reply" | null;
-  onOpened: (opened: TappedFile) => void;
+  active: boolean;
+  onOpened: (opened: FilePreview) => void;
   onError: (cause: unknown) => void;
 }) {
   const [needsAccess, setNeedsAccess] = useState(false);
@@ -33,7 +32,7 @@ export function useIncomingFile({
   const handleError = useEffectEvent(onError);
 
   useEffect(() => {
-    if (!expect) {
+    if (!active) {
       setNeedsAccess(false);
       return;
     }
@@ -56,7 +55,7 @@ export function useIncomingFile({
 
     const start = async () => {
       try {
-        const info = await pairingApi.watchForFile(expect);
+        const info = await pairingApi.watchForFile();
         if (cancelled) return;
         setNeedsAccess(info.needsAccess);
         if (info.watching) {
@@ -77,7 +76,7 @@ export function useIncomingFile({
       window.clearTimeout(timer);
       void pairingApi.stopWatchingForFile().catch((cause) => logIgnored("pairing.stopWatchingForFile", cause));
     };
-  }, [expect]);
+  }, [active]);
 
   const requestAccess = () => {
     void pairingApi.requestFileAccess().catch(onError);

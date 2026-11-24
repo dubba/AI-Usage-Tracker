@@ -22,9 +22,9 @@ export type ViewMode =
   | "scanner"
   | "code"
   | "airgap-sender"
-  /** The sender answering a request file. */
+  /** The sender making and sending the file of accounts. */
   | "file-send"
-  /** The receiver waiting for, then adding, the reply file. */
+  /** The receiver adding the accounts of the file that arrived. */
   | "file-receive";
 export type IntendedRole = "send" | "receive";
 export type ActiveFlow = "wifi" | "airgap" | null;
@@ -76,7 +76,7 @@ export function pairingHeader(input: {
     title = "Show QR Code";
   } else if (waiting && viewMode === "host") {
     title = "Your Link Code";
-    subtitle = "Open this app on the other device, go to Settings → Sync Devices, select Receive, and enter this code.";
+    subtitle = "Open this app on the other device, go to Settings → Sync Devices, select Send, and enter this code.";
   } else if (waiting && viewMode === "scanner") {
     title = "Scan QR Code";
     subtitle =
@@ -85,13 +85,13 @@ export function pairingHeader(input: {
         : "Point the camera at the QR code on the other device.";
   } else if (waiting && viewMode === "file-send") {
     title = `Sending by ${nearbyShareName()}`;
-    subtitle = "The other device asked for the accounts. The reply goes back by itself.";
+    subtitle = "The accounts go as a small file, encrypted with the code.";
   } else if (waiting && viewMode === "file-receive") {
     title = `Receiving by ${nearbyShareName()}`;
-    subtitle = `The accounts come as a small encrypted file by ${nearbyShareName()}.`;
+    subtitle = "The accounts arrived as a small file, encrypted with the code.";
   } else if (waiting && viewMode === "code") {
     title = "Enter Link Code";
-    subtitle = "Type the 6-digit link code shown on the sending device.";
+    subtitle = "Type the 10-letter link code shown on the receiving device.";
   } else if (status === "roleSelection") {
     title = intendedRole ? "Connecting" : "Send or Receive Accounts";
     subtitle = intendedRole ? "Applying send or receive on this device." : "Choose what this device should do.";
@@ -183,14 +183,58 @@ export function confirmFields(status: PairingStatus): {
   };
 }
 
-/** The join code one device shows and the other types (`discovery::is_valid_join_code` on the backend). */
-export const PAIRING_CODE_LENGTH = 6;
+/**
+ * A link code: ten capital letters without I, L and O, which read as 1 and 0
+ * (`discovery::LINK_CODE_ALPHABET` on the backend). It also keys the file sent by AirDrop or
+ * Quick Share, so it is long.
+ */
+export const LINK_CODE_LENGTH = 10;
+export const LINK_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ";
+/** The six digits a device with an older version shows and types: Wi-Fi only. */
+export const LEGACY_CODE_LENGTH = 6;
 
-/** "123456" -> "123 456"; anything that is not a digit is dropped, at most six digits are kept. */
+/** Whether `code` is an older version's six digits rather than a link code: it starts with a digit. */
+export function isLegacyCode(code: string): boolean {
+  return /^\d/.test(code);
+}
+
+/**
+ * What was typed, as a code: a link code's letters (capitalized; anything else dropped) or, when it
+ * starts with a digit, an older version's digits. Never longer than the code.
+ */
+export function cleanCode(typed: string): string {
+  const compact = typed.toUpperCase().replace(/[\s-]/g, "");
+  if (isLegacyCode(compact)) return compact.replace(/\D/g, "").slice(0, LEGACY_CODE_LENGTH);
+  return Array.from(compact)
+    .filter((char) => LINK_CODE_ALPHABET.includes(char))
+    .join("")
+    .slice(0, LINK_CODE_LENGTH);
+}
+
+/** How many characters the code being typed has when complete. */
+export function codeLength(code: string): number {
+  return isLegacyCode(code) ? LEGACY_CODE_LENGTH : LINK_CODE_LENGTH;
+}
+
+/** Characters per group as the code is shown: "KTQMP RXDHW", "123 456". */
+export function codeGroupSize(code: string): number {
+  return isLegacyCode(code) ? 3 : 5;
+}
+
+export function isCompleteCode(code: string): boolean {
+  return code.length === codeLength(code);
+}
+
+/** A complete link code (not six digits): the kind that can also go by file. */
+export function isLinkCode(code: string): boolean {
+  return !isLegacyCode(code) && code.length === LINK_CODE_LENGTH;
+}
+
+/** "KTQMPRXDHW" -> "KTQMP RXDHW", "123456" -> "123 456", after `cleanCode`. */
 export function formatJoinCode(code: string): string {
-  const digits = code.replace(/\D/g, "").slice(0, PAIRING_CODE_LENGTH);
-  if (digits.length <= 3) return digits;
-  return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  const clean = cleanCode(code);
+  const group = codeGroupSize(clean);
+  return clean.length > group ? `${clean.slice(0, group)} ${clean.slice(group)}` : clean;
 }
 
 /** 125 -> "2:05". */

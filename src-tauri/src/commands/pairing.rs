@@ -8,12 +8,13 @@ pub async fn pairing_start_host(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
     accept_settings: bool,
+    legacy_code: bool,
 ) -> CommandResult<crate::pairing::PairingHostInit> {
     crate::platform::capture_protection::release(&app);
     crate::platform::lan_binding::configure_pairing_network(true);
     state
         .pairing
-        .start_host(state.inner().clone(), accept_settings)
+        .start_host(state.inner().clone(), accept_settings, legacy_code)
         .await
         .map_err(Into::into)
 }
@@ -219,10 +220,9 @@ pub async fn pairing_import_airgap(
 // The page never names a path: Rust shows the native open and save dialogs and reads and writes
 // the files itself, so the page only ever sees counts and a ticket.
 
-/// The extension of both transfer files; which one a file is, is inside it.
+/// The transfer file's extension.
 const TRANSFER_FILE_EXTENSION: &str = "aiutpair";
-const REQUEST_FILE_NAME: &str = "AI Usage Tracker request.aiutpair";
-const REPLY_FILE_NAME: &str = "AI Usage Tracker reply.aiutpair";
+const TRANSFER_FILE_NAME: &str = "AI Usage Tracker accounts.aiutpair";
 const FILE_READ_FAILED: &str = "Couldn't read that file. Choose it again.";
 const FILE_SAVE_FAILED: &str = "Couldn't save the file. Choose another place and try again.";
 const NOTHING_TO_SEND: &str = "There's no transfer file to send. Start again.";
@@ -351,27 +351,17 @@ fn read_capped(path: &std::path::Path, max_len: usize) -> CommandResult<Vec<u8>>
 
 /// Puts `bytes` in the app's cache folder as the file to share or save next, replacing the last
 /// one. Returns whether this platform has a share menu (otherwise the page offers Save only).
-async fn keep_outgoing(
-    app: &AppHandle,
-    state: &AppState,
-    file_name: &'static str,
-    bytes: Vec<u8>,
-) -> CommandResult<bool> {
+async fn keep_outgoing(app: &AppHandle, state: &AppState, bytes: Vec<u8>) -> CommandResult<bool> {
     use tauri::Manager;
     let dir = app
         .path()
         .app_cache_dir()
         .map_err(|_| file_error(FILE_SAVE_FAILED))?
         .join("transfer-files");
-    let path = dir.join(file_name);
-    let kind = if file_name == REQUEST_FILE_NAME {
-        "request"
-    } else {
-        "reply"
-    };
+    let path = dir.join(TRANSFER_FILE_NAME);
     let len = bytes.len();
     let written = tauri::async_runtime::spawn_blocking(move || {
-        // Only the newest file is kept: older ones (encrypted, or holding no key) go.
+        // Only the newest file is kept.
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir)?;
         std::fs::write(&path, bytes).map(|()| path)
@@ -385,65 +375,52 @@ async fn keep_outgoing(
         ));
         file_error(FILE_SAVE_FAILED)
     })?;
-    *state.pairing_file_outgoing.lock() = Some((written, file_name));
+    *state.pairing_file_outgoing.lock() = Some(written);
     sync_log::note(&format!(
-        "file: made the {kind} file ({}), ready to share or save",
+        "file: made the transfer file ({}), ready to share or save",
         sync_log::size(len)
     ));
     Ok(crate::platform::share_sheet::AVAILABLE)
 }
 
-/// Receiver: makes the request for the device showing `code`, ready to share or save. Returns
-/// whether a share menu is available.
+/// Sender: makes the transfer file for the device showing `code`, ready to share or save, and
+/// stops looking for that device on the network (one way per code). `include_settings` and
+/// `ui_state` are this transfer's extras, as for the QR export. Returns whether a share menu is
+/// available.
 #[tauri::command]
-pub async fn pairing_file_make_request(
+pub async fn pairing_file_send(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
     code: String,
-) -> CommandResult<bool> {
-    let request =
-        pairing::file_transfer::create_request(state.inner(), &code).map_err(|error| {
-            sync_log::failed_text("file: making the request file", &error);
-            file_error(error)
-        })?;
-    keep_outgoing(&app, state.inner(), REQUEST_FILE_NAME, request).await
-}
-
-/// Sender, after its user agreed: answers the opened request (this uses the code up), ready to
-/// share or save. `include_settings` and `ui_state` are this transfer's extras, as for the QR
-/// export. Returns whether a share menu is available.
-#[tauri::command]
-pub async fn pairing_file_make_reply(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
     include_settings: bool,
     ui_state: Option<serde_json::Value>,
 ) -> CommandResult<bool> {
     if let Some(ui) = ui_state.as_ref() {
         limits::check_ui_state_size(ui)?;
     }
+    state.pairing.cancel().await;
     {
         let mut options = state.pairing_options.write();
-        options.unfreeze();
+        options.reset();
         options.include_settings = include_settings;
         options.pending_ui_state = if include_settings { ui_state } else { None };
     }
-    let reply = pairing::file_transfer::answer_request(state.inner())
+    let file = pairing::file_transfer::seal(state.inner(), &code)
         .await
         .map_err(|error| {
-            sync_log::failed_text("file: making the reply file", &error);
+            sync_log::failed_text("file: making the transfer file", &error);
             file_error(error)
         })?;
-    keep_outgoing(&app, state.inner(), REPLY_FILE_NAME, reply).await
+    keep_outgoing(&app, state.inner(), file).await
 }
 
-/// Opens the system share menu (AirDrop, Messages, Mail, …) for the file made last.
+/// Opens the system share menu (AirDrop, Quick Share, Messages, …) for the file made last.
 #[tauri::command]
 pub async fn pairing_file_share(
     window: tauri::WebviewWindow,
     state: State<'_, Arc<AppState>>,
 ) -> CommandResult<()> {
-    let Some((path, _)) = state.pairing_file_outgoing.lock().clone() else {
+    let Some(path) = state.pairing_file_outgoing.lock().clone() else {
         return Err(file_error(NOTHING_TO_SEND));
     };
     let shared = crate::platform::share_sheet::share_file(&window, &path).await;
@@ -461,10 +438,10 @@ pub async fn pairing_file_save(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
 ) -> CommandResult<bool> {
-    let Some((source, file_name)) = state.pairing_file_outgoing.lock().clone() else {
+    let Some(source) = state.pairing_file_outgoing.lock().clone() else {
         return Err(file_error(NOTHING_TO_SEND));
     };
-    let Some(target) = choose_save_path(&app, "Save the file", file_name).await else {
+    let Some(target) = choose_save_path(&app, "Save the file", TRANSFER_FILE_NAME).await else {
         sync_log::note("file: save cancelled");
         return Ok(false);
     };
@@ -482,66 +459,22 @@ pub async fn pairing_file_save(
     Ok(true)
 }
 
-/// Sender: opens a request file for the code this device shows, and says how many accounts it
-/// would send. `None` when the open dialog was cancelled.
+/// Receiver: opens a transfer file chosen in the open dialog with the code this device shows,
+/// and says how many accounts it holds, importing nothing. `None` when the dialog was cancelled.
 #[tauri::command]
-pub async fn pairing_file_open_request(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-) -> CommandResult<Option<pairing::file_transfer::FileRequestInfo>> {
-    let Some(request) = pick_transfer_file(
-        &app,
-        "Open the request",
-        pairing::file_transfer::REQUEST_LEN,
-    )
-    .await
-    .inspect_err(|error| sync_log::failed("file: reading the chosen request file", error))?
-    else {
-        sync_log::note("file: choosing a request file cancelled");
-        return Ok(None);
-    };
-    let len = request.len();
-    let opened = pairing::file_transfer::open_request(state.inner(), request).await;
-    match &opened {
-        Ok(info) => sync_log::note(&format!(
-            "file: opened a chosen request file ({}), would send {}",
-            sync_log::size(len),
-            sync_log::accounts(info.account_count)
-        )),
-        Err(error) => sync_log::failed_text("file: opening a chosen request file", error),
-    }
-    opened.map(Some).map_err(file_error)
-}
-
-/// Receiver: opens the reply file and says how many accounts it holds, importing nothing.
-/// `None` when the open dialog was cancelled.
-#[tauri::command]
-pub async fn pairing_file_open_reply(
+pub async fn pairing_file_open(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
 ) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
-    let Some(reply) = pick_transfer_file(
-        &app,
-        "Open the reply",
-        pairing::file_transfer::MAX_REPLY_LEN,
-    )
-    .await
-    .inspect_err(|error| sync_log::failed("file: reading the chosen reply file", error))?
+    let Some(file) =
+        pick_transfer_file(&app, "Open the file", pairing::file_transfer::MAX_FILE_LEN)
+            .await
+            .inspect_err(|error| sync_log::failed("file: reading the chosen file", error))?
     else {
-        sync_log::note("file: choosing a reply file cancelled");
+        sync_log::note("file: choosing a file cancelled");
         return Ok(None);
     };
-    let len = reply.len();
-    let preview = pairing::file_transfer::preview_reply(state.inner(), reply);
-    match &preview {
-        Ok(preview) => sync_log::note(&format!(
-            "file: opened a chosen reply file ({}), holding {}",
-            sync_log::size(len),
-            sync_log::accounts(preview.account_count)
-        )),
-        Err(error) => sync_log::failed_text("file: opening a chosen reply file", error),
-    }
-    preview.map(Some).map_err(file_error)
+    open_received(state.inner(), file, CHOSEN).await.map(Some)
 }
 
 /// Android and iOS: whether a transfer file was opened from another app (Quick Share's
@@ -561,14 +494,13 @@ pub async fn pairing_file_tapped_pending() -> CommandResult<bool> {
     Ok(pending)
 }
 
-/// Android and iOS: opens the file opened from another app as a request or a reply, whichever it
-/// is, as `pairing_file_open_request` and `pairing_file_open_reply` do for a chosen file. `None`
-/// when no file is waiting. On Android a request, once opened, is deleted at once and a reply after
-/// its import; iOS's own copy is deleted once read. Always `None` elsewhere.
+/// Android and iOS: opens the file opened from another app, as `pairing_file_open` does for a
+/// chosen file. `None` when no file is waiting. On Android the file is deleted once it opened;
+/// iOS's own copy is deleted once read. Always `None` elsewhere.
 #[tauri::command]
 pub async fn pairing_file_open_tapped(
     state: State<'_, Arc<AppState>>,
-) -> CommandResult<Option<pairing::file_transfer::TappedFile>> {
+) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
     #[cfg(target_os = "android")]
     let opened = open_tapped_on_android(state.inner()).await?;
     #[cfg(target_os = "ios")]
@@ -584,10 +516,10 @@ pub async fn pairing_file_open_tapped(
 #[cfg(target_os = "ios")]
 async fn open_tapped_on_ios(
     state: &AppState,
-) -> CommandResult<Option<pairing::file_transfer::TappedFile>> {
-    use pairing::file_transfer::MAX_TAPPED_LEN;
+) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
+    use pairing::file_transfer::MAX_FILE_LEN;
     let read = tauri::async_runtime::spawn_blocking(|| {
-        crate::platform::ios_files::take_tapped(MAX_TAPPED_LEN)
+        crate::platform::ios_files::take_tapped(MAX_FILE_LEN)
     })
     .await
     .map_err(|_| file_error(FILE_READ_FAILED))
@@ -605,47 +537,76 @@ async fn open_tapped_on_ios(
     let Some(bytes) = read else {
         return Ok(None);
     };
-    if bytes.len() > MAX_TAPPED_LEN {
+    if bytes.len() > MAX_FILE_LEN {
         let error = file_error(pairing::file_transfer::NOT_A_PAIRING_FILE);
         sync_log::failed("file: opening a file opened from another app", &error);
         return Err(error);
     }
-    open_tapped_bytes(state, bytes, TAPPED).await.map(Some)
+    open_received(state, bytes, TAPPED).await.map(Some)
 }
 
-/// Where a file that was not chosen in the open dialog came from, for the sync log.
+#[cfg(target_os = "android")]
+async fn open_tapped_on_android(
+    state: &AppState,
+) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
+    use crate::platform::android_files;
+    use pairing::file_transfer::MAX_FILE_LEN;
+    let read =
+        tauri::async_runtime::spawn_blocking(|| -> CommandResult<Option<(String, Vec<u8>)>> {
+            let Some(uri) = android_files::take_tapped().map_err(file_error)? else {
+                return Ok(None);
+            };
+            let bytes = android_files::read(&uri, MAX_FILE_LEN).map_err(file_error)?;
+            if bytes.len() > MAX_FILE_LEN {
+                return Err(file_error(pairing::file_transfer::NOT_A_PAIRING_FILE));
+            }
+            Ok(Some((uri, bytes)))
+        })
+        .await
+        .map_err(|_| file_error(FILE_READ_FAILED))
+        .and_then(|read| read)
+        .inspect_err(|error| {
+            sync_log::failed("file: reading a file tapped in another app", error)
+        })?;
+    // The page can ask twice at once (Android's event and the page coming back into view): the
+    // one that finds nothing logs nothing.
+    let Some((uri, bytes)) = read else {
+        return Ok(None);
+    };
+    let opened = open_received(state, bytes, TAPPED).await?;
+    // The accounts are in memory now and the code is used up: the file is spent.
+    tauri::async_runtime::spawn_blocking(move || android_files::delete(&uri));
+    Ok(Some(opened))
+}
+
+/// Where a received file came from, for the sync log.
+const CHOSEN: &str = "chosen in the open dialog";
 #[cfg(any(target_os = "android", target_os = "ios"))]
 const TAPPED: &str = "tapped in another app";
 const PICKED_UP: &str = "picked up from Downloads";
 
-/// Opens a file from another app or from Downloads, already read, as a request or a reply,
-/// logging how it went. `source` is [`TAPPED`] or [`PICKED_UP`].
-async fn open_tapped_bytes(
+/// Opens a transfer file, already read, with the code this device shows, logging how it went.
+/// `source` is [`CHOSEN`], [`TAPPED`] or [`PICKED_UP`].
+async fn open_received(
     state: &AppState,
     bytes: Vec<u8>,
     source: &str,
-) -> CommandResult<pairing::file_transfer::TappedFile> {
-    use pairing::file_transfer::{open_tapped, TappedFile};
+) -> CommandResult<pairing::file_transfer::FilePreview> {
     let len = bytes.len();
-    let opened = open_tapped(state, bytes).await.map_err(|error| {
-        sync_log::failed_text(
-            &format!("file: opening a file {source} ({})", sync_log::size(len)),
-            &error,
-        );
-        file_error(error)
-    })?;
-    sync_log::note(&match &opened {
-        TappedFile::Request { info } => format!(
-            "file: opened a request file {source} ({}), would send {}",
-            sync_log::size(len),
-            sync_log::accounts(info.account_count)
-        ),
-        TappedFile::Reply { preview } => format!(
-            "file: opened a reply file {source} ({}), holding {}",
-            sync_log::size(len),
-            sync_log::accounts(preview.account_count)
-        ),
-    });
+    let opened = pairing::file_transfer::open(state, bytes)
+        .await
+        .map_err(|error| {
+            sync_log::failed_text(
+                &format!("file: opening a file {source} ({})", sync_log::size(len)),
+                &error,
+            );
+            file_error(error)
+        })?;
+    sync_log::note(&format!(
+        "file: opened a file {source} ({}), holding {}",
+        sync_log::size(len),
+        sync_log::accounts(opened.account_count)
+    ));
     Ok(opened)
 }
 
@@ -661,15 +622,13 @@ pub struct IncomingWatchInfo {
     pub needs_access: bool,
 }
 
-/// Starts (or restarts) looking in Downloads for the transfer file this device waits for:
-/// `expect` is a request on the sender, a reply on the receiver. Files already there are left
-/// alone. On iPhone nothing is watched (AirDrop opens the file in the app itself), and on Android
-/// only once the user has allowed file access.
+/// Receiver: starts (or restarts) looking in Downloads for the transfer file. Files already there
+/// are left alone. On iPhone nothing is watched (AirDrop opens the file in the app itself), and
+/// on Android only once the user has allowed file access.
 #[tauri::command]
 pub async fn pairing_file_watch(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
-    expect: pairing::incoming_files::Expect,
 ) -> CommandResult<IncomingWatchInfo> {
     use pairing::incoming_files::{watched_dirs, IncomingWatch};
     #[cfg(target_os = "android")]
@@ -688,20 +647,14 @@ pub async fn pairing_file_watch(
     }
     let watch = tauri::async_runtime::spawn_blocking(move || {
         let dirs = watched_dirs(&app);
-        (!dirs.is_empty()).then(|| IncomingWatch::start(expect, dirs))
+        (!dirs.is_empty()).then(|| IncomingWatch::start(dirs))
     })
     .await
     .map_err(|_| file_error(FILE_READ_FAILED))?;
     let watching = watch.is_some();
     *state.pairing_incoming.lock() = watch;
     if watching {
-        sync_log::note(&format!(
-            "file: watching Downloads for the {}",
-            match expect {
-                pairing::incoming_files::Expect::Request => "request",
-                pairing::incoming_files::Expect::Reply => "reply",
-            }
-        ));
+        sync_log::note("file: watching Downloads for the transfer file");
     }
     Ok(IncomingWatchInfo {
         watching,
@@ -728,37 +681,26 @@ pub async fn pairing_file_request_access() -> CommandResult<()> {
     Ok(())
 }
 
-/// A reply picked up from Downloads that opened, deleted once it is imported.
-static PICKED_REPLY: parking_lot::Mutex<Option<std::path::PathBuf>> = parking_lot::Mutex::new(None);
-
-/// The transfer file that arrived in Downloads since [`pairing_file_watch`], opened as the request
-/// or reply it is, as a file tapped in another app is. `None` while nothing new has arrived; a
-/// file of the other kind, someone else's reply, or one that is not a transfer file is skipped
-/// (and logged), so the watch goes on. A request is deleted once opened, a reply once imported.
+/// The transfer file that arrived in Downloads since [`pairing_file_watch`], opened as a file
+/// tapped in another app is. `None` while nothing new has arrived; a file that is not a transfer
+/// file is skipped (and logged), so the watch goes on. One that opened is deleted.
 #[tauri::command]
 pub async fn pairing_file_poll(
     state: State<'_, Arc<AppState>>,
-) -> CommandResult<Option<pairing::file_transfer::TappedFile>> {
-    use pairing::file_transfer::{
-        is_request, TappedFile, MAX_TAPPED_LEN, REPLY_FOR_ANOTHER_REQUEST,
-    };
-    use pairing::incoming_files::Expect;
+) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
+    use pairing::file_transfer::{check, MAX_FILE_LEN, NOT_A_PAIRING_FILE};
     let shared = state.inner().clone();
     let found = tauri::async_runtime::spawn_blocking(move || {
-        let mut slot = shared.pairing_incoming.lock();
-        let watch = slot.as_mut()?;
-        let expect = watch.expect;
-        let path = watch.next_ready()?;
-        Some((expect, path))
+        shared.pairing_incoming.lock().as_mut()?.next_ready()
     })
     .await
     .map_err(|_| file_error(FILE_READ_FAILED))?;
-    let Some((expect, path)) = found else {
+    let Some(path) = found else {
         return Ok(None);
     };
     let read_path = path.clone();
     let bytes =
-        match tauri::async_runtime::spawn_blocking(move || read_capped(&read_path, MAX_TAPPED_LEN))
+        match tauri::async_runtime::spawn_blocking(move || read_capped(&read_path, MAX_FILE_LEN))
             .await
             .map_err(|_| file_error(FILE_READ_FAILED))?
         {
@@ -768,102 +710,42 @@ pub async fn pairing_file_poll(
                 return Ok(None);
             }
         };
-    let wanted = match is_request(&bytes) {
-        Ok(request) => request == (expect == Expect::Request),
-        Err(error) => {
+    match check(&bytes) {
+        Ok(()) => {}
+        Err(error) if error == NOT_A_PAIRING_FILE => {
             sync_log::failed_text("file: a file that arrived in Downloads", &error);
             return Ok(None);
         }
-    };
-    if !wanted {
-        sync_log::note("file: skipped a transfer file of the other kind in Downloads");
-        return Ok(None);
-    }
-    let opened = match open_tapped_bytes(state.inner(), bytes, PICKED_UP).await {
-        Ok(opened) => opened,
-        // A reply to an earlier request: this one still waits.
-        Err(error) if error.message == REPLY_FOR_ANOTHER_REQUEST => return Ok(None),
-        Err(error) => return Err(error),
-    };
-    match &opened {
-        // The request is held in memory now; the file is used up.
-        TappedFile::Request { .. } => {
-            tauri::async_runtime::spawn_blocking(move || std::fs::remove_file(path));
+        // An older or newer version's file: say so, it won't open here.
+        Err(error) => {
+            sync_log::failed_text("file: a file that arrived in Downloads", &error);
+            return Err(file_error(error));
         }
-        TappedFile::Reply { .. } => *PICKED_REPLY.lock() = Some(path),
     }
+    let opened = open_received(state.inner(), bytes, PICKED_UP).await?;
+    // The accounts are in memory now and the code is used up: the file is spent.
+    tauri::async_runtime::spawn_blocking(move || std::fs::remove_file(path));
     Ok(Some(opened))
 }
 
-/// Deletes the reply picked up from Downloads, now that it is imported. Best effort.
-fn delete_picked_reply() {
-    if let Some(path) = PICKED_REPLY.lock().take() {
-        let _ = std::fs::remove_file(path);
-    }
-}
-
-#[cfg(target_os = "android")]
-async fn open_tapped_on_android(
-    state: &AppState,
-) -> CommandResult<Option<pairing::file_transfer::TappedFile>> {
-    use crate::platform::android_files;
-    use pairing::file_transfer::{TappedFile, MAX_TAPPED_LEN};
-    let read =
-        tauri::async_runtime::spawn_blocking(|| -> CommandResult<Option<(String, Vec<u8>)>> {
-            let Some(uri) = android_files::take_tapped().map_err(file_error)? else {
-                return Ok(None);
-            };
-            let bytes = android_files::read(&uri, MAX_TAPPED_LEN).map_err(file_error)?;
-            if bytes.len() > MAX_TAPPED_LEN {
-                return Err(file_error(pairing::file_transfer::NOT_A_PAIRING_FILE));
-            }
-            Ok(Some((uri, bytes)))
-        })
-        .await
-        .map_err(|_| file_error(FILE_READ_FAILED))
-        .and_then(|read| read)
-        .inspect_err(|error| {
-            sync_log::failed("file: reading a file tapped in another app", error)
-        })?;
-    // The page can ask twice at once (Android's event and the page coming back into view): the
-    // one that finds nothing logs nothing.
-    let Some((uri, bytes)) = read else {
-        return Ok(None);
-    };
-    let opened = open_tapped_bytes(state, bytes, TAPPED).await?;
-    match opened {
-        // The request is held in memory now; the file is used up.
-        TappedFile::Request { .. } => {
-            tauri::async_runtime::spawn_blocking(move || android_files::delete(&uri));
-        }
-        TappedFile::Reply { .. } => android_files::remember_opened_reply(uri),
-    }
-    Ok(Some(opened))
-}
-
-/// Receiver, after its user agreed: imports the reply the preview opened. `ticket` is the
-/// preview's; `accept_settings` is this device's own choice.
+/// Receiver: imports the file that opened. `ticket` is the one opening it gave;
+/// `accept_settings` is this device's own choice.
 #[tauri::command]
-pub async fn pairing_file_import_reply(
+pub async fn pairing_file_import(
     state: State<'_, Arc<AppState>>,
     ticket: String,
     accept_settings: bool,
 ) -> CommandResult<pairing::payload::SyncSummary> {
-    let summary = pairing::file_transfer::import_reply(state.inner(), &ticket, accept_settings)
+    let summary = pairing::file_transfer::import(state.inner(), &ticket, accept_settings)
         .await
         .map_err(|error| {
-            sync_log::failed_text("file: importing the reply", &error);
+            sync_log::failed_text("file: importing the accounts", &error);
             file_error(error)
         })?;
     sync_log::note(&format!(
-        "file: imported the reply, {}",
+        "file: imported the accounts, {}",
         sync_log::describe_summary(&summary)
     ));
-    // A reply tapped in Quick Share or picked up from Downloads is used up now (a chosen one
-    // leaves nothing to delete).
-    #[cfg(target_os = "android")]
-    tauri::async_runtime::spawn_blocking(crate::platform::android_files::delete_imported_reply);
-    tauri::async_runtime::spawn_blocking(delete_picked_reply);
     Ok(summary)
 }
 

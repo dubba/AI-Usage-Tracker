@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import type { PairingStatus } from "../../../types";
 import { NearbyShareIcon } from "../../../shared/ui/icons";
-import { formatCountdown, formatJoinCode, hostWaitingFields } from "../lib/view-model";
+import { codeGroupSize, formatCountdown, formatJoinCode, hostWaitingFields, isLegacyCode } from "../lib/view-model";
 
 /** How long a link code lasts (`transport::SESSION_TIMEOUT_SECS`), for the bar under it. */
 const CODE_LIFETIME_SECS = 300;
@@ -13,7 +13,7 @@ export function HostCodeView({
   onRegenerate,
   onOtherWays,
   nearbyName,
-  onOpenRequest,
+  onOpenFile,
   fileAccess,
 }: {
   status: PairingStatus;
@@ -22,10 +22,10 @@ export function HostCodeView({
   onRegenerate: () => void;
   /** Ends this session and lists the other ways to connect (older versions, QR code). */
   onOtherWays: () => void;
-  /** "AirDrop" or "Quick Share" where the request can come that way; absent where files aren't offered. */
+  /** "AirDrop" or "Quick Share" where the accounts can come that way; absent where files aren't offered. */
   nearbyName?: string;
-  /** Opens a request file by hand, for one that wasn't picked up by itself. */
-  onOpenRequest?: () => void;
+  /** Opens the file by hand, for one that wasn't picked up by itself. */
+  onOpenFile?: () => void;
   /** Android, until the app may read Downloads: the way to allow it. */
   fileAccess?: { needed: boolean; onAllow: () => void };
 }) {
@@ -55,6 +55,8 @@ export function HostCodeView({
   }
 
   const formatted = formatJoinCode(joinCode);
+  // Six digits for an older version go over Wi-Fi only.
+  const nearby = isLegacyCode(joinCode) ? undefined : nearbyName;
   const left = remainingSecs == null ? 1 : Math.max(0, Math.min(1, remainingSecs / CODE_LIFETIME_SECS));
   const chooseNearby = () => {
     setNearbyChosen(true);
@@ -79,23 +81,21 @@ export function HostCodeView({
       </div>
 
       <SearchingRow>
-        {nearbyName
-          ? `Waiting for the other device on Wi-Fi or ${nearbyName}…`
-          : "Waiting for the other device to connect…"}
+        {nearby ? `Waiting for the other device on Wi-Fi or ${nearby}…` : "Waiting for the other device to connect…"}
       </SearchingRow>
 
-      {nearbyName ? (
+      {nearby ? (
         nearbyChosen ? (
           <div className="pairing-nearby-note">
             <NearbyShareIcon />
             <div>
               <p>
-                On the other device, enter this code and tap <strong>Use {nearbyName}</strong>. Accept the request
-                when it arrives here; this device sends the accounts back by itself.
+                On the other device, enter this code and tap <strong>Use {nearby}</strong>. Accept the file when it
+                arrives here, and the accounts are added by themselves.
               </p>
-              {onOpenRequest ? (
-                <button type="button" className="pairing-other-ways" onClick={onOpenRequest}>
-                  Received it but nothing happened? Open the request
+              {onOpenFile ? (
+                <button type="button" className="pairing-other-ways" onClick={onOpenFile}>
+                  Received it but nothing happened? Open the file
                 </button>
               ) : null}
             </div>
@@ -103,26 +103,27 @@ export function HostCodeView({
         ) : (
           <button type="button" className="button pairing-nearby-btn" onClick={chooseNearby}>
             <NearbyShareIcon />
-            <span>Use {nearbyName}</span>
+            <span>Use {nearby}</span>
           </button>
         )
       ) : null}
 
-      {fileAccess?.needed ? <FileAccessNote name={nearbyName} onAllow={fileAccess.onAllow} /> : null}
+      {nearby && fileAccess?.needed ? <FileAccessNote name={nearby} onAllow={fileAccess.onAllow} /> : null}
 
       <OtherWaysLink onClick={onOtherWays} />
     </div>
   );
 }
 
-/** The code as six tiles in two groups of three. */
+/** The code as tiles in two groups: ten letters in fives, or an older version's six digits in threes. */
 function CodeDigits({ code }: { code: string }) {
-  const digits = code.replace(/\D/g, "").slice(0, 6).split("");
+  const characters = formatJoinCode(code).replace(" ", "").split("");
+  const group = codeGroupSize(code);
   return (
-    <div className="pairing-code-digits" aria-hidden="true">
-      {digits.map((digit, index) => (
-        <span key={index} className={`pairing-code-digit${index === 3 ? " group-start" : ""}`}>
-          {digit}
+    <div className={`pairing-code-digits${isLegacyCode(code) ? "" : " is-long"}`} aria-hidden="true">
+      {characters.map((character, index) => (
+        <span key={index} className={`pairing-code-digit${index === group ? " group-start" : ""}`}>
+          {character}
         </span>
       ))}
     </div>

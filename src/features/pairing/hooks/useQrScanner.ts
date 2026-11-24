@@ -107,7 +107,7 @@ export function useQrScanner({ active, restartKey, onDecoded, onError }: UseQrSc
             );
           } else {
             setCameraError(
-              "Camera access is not supported on this device or webview. You can enter the 6-digit Link Code instead."
+              "Camera access is not supported on this device or webview. You can enter the Link Code instead."
             );
           }
           return;

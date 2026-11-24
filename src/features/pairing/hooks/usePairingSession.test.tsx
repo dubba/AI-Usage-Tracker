@@ -103,10 +103,17 @@ describe("usePairingSession: showing a link code", () => {
     api.startHost.mockResolvedValue(hostInit);
     render({ includeSettings: true });
     await act(() => session.initHostSession());
-    expect(api.startHost).toHaveBeenLastCalledWith(true);
+    expect(api.startHost).toHaveBeenLastCalledWith(true, false);
     mounted?.rerender(<Harness includeSettings={false} />);
     await act(() => session.initHostSession());
-    expect(api.startHost).toHaveBeenLastCalledWith(false);
+    expect(api.startHost).toHaveBeenLastCalledWith(false, false);
+  });
+
+  it("asks for six digits for a device with an older version", async () => {
+    api.startHost.mockResolvedValue(hostInit);
+    render({ includeSettings: true });
+    await act(() => session.initHostSession(true));
+    expect(api.startHost).toHaveBeenLastCalledWith(true, true);
   });
 
   it("shows why the session could not start", async () => {
@@ -151,11 +158,17 @@ describe("usePairingSession: showing a link code", () => {
 });
 
 describe("usePairingSession: joining with a typed code", () => {
-  it("sends only the digits", async () => {
+  it("sends a link code's letters only, capitalized", async () => {
+    render();
+    await act(() => session.handleConnectByCode("ktqmp-rxdhw"));
+    expect(api.startClientByCode).toHaveBeenCalledWith("KTQMPRXDHW", false);
+    expect(spies.setBusy.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("sends only the digits of an older version's code", async () => {
     render();
     await act(() => session.handleConnectByCode("12 34-56"));
     expect(api.startClientByCode).toHaveBeenCalledWith("123456", false);
-    expect(spies.setBusy.mock.calls).toEqual([[true], [false]]);
   });
 
   it("tells the backend whether this device accepts the other one's settings", async () => {
@@ -167,6 +180,7 @@ describe("usePairingSession: joining with a typed code", () => {
   it("ignores a code that is too short, and any code while busy", async () => {
     render();
     await act(() => session.handleConnectByCode("12345"));
+    await act(() => session.handleConnectByCode("KTQMPRXDH"));
     mounted?.rerender(<Harness busy />);
     await act(() => session.handleConnectByCode("123456"));
     expect(api.startClientByCode).not.toHaveBeenCalled();
@@ -180,6 +194,18 @@ describe("usePairingSession: joining with a typed code", () => {
     await act(() => session.handleConnectByCode("123456"));
     expect(spies.showError).toHaveBeenCalledWith("Couldn't connect with that code", cause);
     expect(spies.setBusy).toHaveBeenLastCalledWith(false);
+  });
+
+  it("leaves a failure to find the device to onUnreachable when it takes over", async () => {
+    api.startClientByCode.mockRejectedValue(new Error("not found"));
+    render();
+    const takeOver = vi.fn(() => true);
+    await act(() => session.handleConnectByCode("KTQMPRXDHW", takeOver));
+    expect(takeOver).toHaveBeenCalledTimes(1);
+    expect(spies.showError).not.toHaveBeenCalled();
+    const decline = vi.fn(() => false);
+    await act(() => session.handleConnectByCode("KTQMPRXDHW", decline));
+    expect(spies.showError).toHaveBeenCalledTimes(1);
   });
 });
 

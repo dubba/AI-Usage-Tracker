@@ -7,8 +7,8 @@
 //! land in the same inbox while the app runs (`commands::pairing` deletes each once read).
 //!
 //! A file is read once and then deleted, with every other one noted: the bytes stay in memory for
-//! the sync, and a used or stale file would otherwise come back. Nothing here is secret (a request
-//! holds no key; a reply opens only for its own sync). Pure Rust, so it also compiles for the
+//! the sync, and a used or stale file would otherwise come back. Nothing here is secret (a file
+//! opens only with its link code, which never passes through here). Pure Rust, so it also compiles for the
 //! host's tests.
 #![cfg_attr(not(target_os = "ios"), allow(dead_code))]
 
@@ -165,7 +165,7 @@ mod tests {
     fn only_transfer_files_count() {
         let dir = tempfile::tempdir().unwrap();
         write(dir.path(), "photo.jpg", b"x");
-        let file = write(dir.path(), "AI Usage Tracker reply.AIUTPAIR", b"x");
+        let file = write(dir.path(), "AI Usage Tracker accounts.AIUTPAIR", b"x");
         let mut waiting = fresh();
         waiting.scan_once(|| vec![dir.path().to_path_buf()]);
         assert_eq!(waiting.newest(), Some(&file));
@@ -200,11 +200,14 @@ mod tests {
     #[test]
     fn a_file_named_but_already_gone_falls_back_to_an_older_one() {
         let inbox = tempfile::tempdir().unwrap();
-        write(inbox.path(), "request.aiutpair", b"request");
+        write(inbox.path(), "accounts.aiutpair", b"accounts");
         let mut waiting = fresh();
         waiting.files.push(inbox.path().join("deleted.aiutpair"));
         waiting.scan_once(|| vec![inbox.path().to_path_buf()]);
-        assert_eq!(waiting.take(100).unwrap().as_deref(), Some(&b"request"[..]));
+        assert_eq!(
+            waiting.take(100).unwrap().as_deref(),
+            Some(&b"accounts"[..])
+        );
     }
 
     #[test]

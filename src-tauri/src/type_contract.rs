@@ -28,7 +28,7 @@ use crate::{
     },
     pairing::{
         airgap::{AirgapExport, AirgapExportFrame, AirgapPreview},
-        file_transfer::{FilePreview, FileRequestInfo, TappedFile},
+        file_transfer::FilePreview,
         payload::SyncSummary,
         transport::QrMatrix,
         PairingHostInit, PairingStatus,
@@ -101,9 +101,7 @@ fn generated_bindings() -> String {
         AirgapExportFrame,
         AirgapExport,
         AirgapPreview,
-        FileRequestInfo,
         FilePreview,
-        TappedFile,
         IncomingWatchInfo,
         ErrorCode,
         CommandError,

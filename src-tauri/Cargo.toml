@@ -23,6 +23,9 @@ serde_json = "1"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# Derives the key of a Sync Devices transfer file from its link code (pairing/file_transfer.rs):
+# the file can be tested offline, so each guess must be slow and memory-hard.
+argon2 = { version = "0.5", default-features = false, features = ["alloc", "zeroize"] }
 axum = "0.8"
 base64 = "0.22"
 chacha20poly1305 = "0.10"

@@ -17,6 +17,8 @@ import {
   isWaitingStatus,
   confirmFields,
   hasNearbyShare,
+  hostWaitingFields,
+  isLinkCode,
   nearbyShareName,
   pairingHeader,
   type ActiveFlow,
@@ -29,6 +31,7 @@ import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError"
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { describeError } from "../../shared/lib/errors";
+import type { SyncSummary } from "../../types";
 import { DialogError } from "../../shared/ui/DialogError";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { AirgapSenderView } from "./views/AirgapSenderView";
@@ -51,9 +54,8 @@ import {
 /** Wait after a view change before moving keyboard focus into it, so the new view has rendered. */
 const FOCUS_DELAY_MS = 50;
 /**
- * How long the receiver looks for the sender on the network before the request goes out by Quick
- * Share or AirDrop by itself. The search goes on (it gives up at 15 s), so a late find still
- * connects over Wi-Fi.
+ * How long the sender looks for the receiver on the network before the accounts go out by Quick
+ * Share or AirDrop by itself. Making the file stops the search, so they go one way only.
  */
 const FILE_FALLBACK_SECS = 10;
 export function PairingModal({
@@ -79,6 +81,8 @@ export function PairingModal({
   const [includeSettings, setIncludeSettings] = useState(true);
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
+  /** The code shown is six digits, for a device with an older version (Other ways to connect). */
+  const [legacyHost, setLegacyHost] = useState(false);
 
   // Every start of a session, join or export is a request; a newer one (or leaving the view) makes
   // an older one's answer moot.
@@ -158,33 +162,42 @@ export function PairingModal({
     onCompleted,
   });
 
-  const fileTransfer = useFileTransfer({ context: actionContext, includeSettings, showView });
-  // A file opened from Quick Share, AirDrop or Files: open it as the request or reply it is.
+  /** The receiver added the accounts of a file. */
+  const completeWithFile = (summary: SyncSummary) => {
+    hasCompletedRef.current = true;
+    setStatus({ status: "completed", data: { summary } });
+    onCompleted();
+  };
+  const fileTransfer = useFileTransfer({
+    context: actionContext,
+    includeSettings,
+    showView,
+    onImported: completeWithFile,
+  });
+  // A file opened from Quick Share, AirDrop or Files: open it with the code shown.
   useTappedTransferFile(open, () => void fileTransfer.openTapped());
-  // Where AirDrop or Quick Share can carry the files, a receiver whose code finds no sender on the
-  // network sends a request that way by itself, and both sides pick up the file that comes back.
+  // Where AirDrop or Quick Share can carry the file, a sender whose code finds no receiver on the
+  // network sends the accounts that way by itself, and the receiver picks up the file that comes.
   const fileFallback = hasNearbyShare();
   const nearbyName = fileFallback ? nearbyShareName() : undefined;
-  // The sender waits for a request while it shows its code; the receiver for the reply once its
-  // request is out (until a reply opened).
-  const expectFile =
-    !open || !fileFallback || !isWaitingStatus(status.status)
-      ? null
-      : viewMode === "host" && status.status === "hostWaiting"
-        ? "request"
-        : viewMode === "file-receive" && !fileTransfer.preview
-          ? "reply"
-          : null;
+  // The receiver waits for the file while it shows a ten-letter code (six digits are Wi-Fi only).
+  const watchingForFile =
+    open &&
+    fileFallback &&
+    viewMode === "host" &&
+    status.status === "hostWaiting" &&
+    isLinkCode(hostWaitingFields(status)?.joinCode ?? "");
   const incoming = useIncomingFile({
-    expect: expectFile,
+    active: watchingForFile,
     onOpened: fileTransfer.handleOpened,
     onError: (cause) => showError("Couldn't open the file that arrived", cause),
   });
   const fileAccess = incoming.needsAccess ? { needed: true, onAllow: incoming.requestAccess } : undefined;
   // Busy on the code screen with nothing connected yet: the network search for the typed code.
-  const searchingForCode = fileFallback && open && viewMode === "code" && busy && status.status === "idle";
-  const sendRequestAutomatically = useEffectEvent(() => void fileTransfer.startRequest(joinCodeInput, true));
-  // Seconds left before the request goes out, counted down on the code screen.
+  const searchingForCode =
+    fileFallback && open && viewMode === "code" && busy && status.status === "idle" && isLinkCode(joinCodeInput);
+  const sendFileAutomatically = useEffectEvent(() => fileTransfer.send(joinCodeInput, true));
+  // Seconds left before the file goes out, counted down on the code screen.
   const [fallbackSecsLeft, setFallbackSecsLeft] = useState(FILE_FALLBACK_SECS);
   useEffect(() => {
     if (!searchingForCode) return;
@@ -194,7 +207,7 @@ export function PairingModal({
       setFallbackSecsLeft(left);
       if (left > 0) return;
       clearInterval(timer);
-      sendRequestAutomatically();
+      sendFileAutomatically();
     }, 1000);
     return () => {
       clearInterval(timer);
@@ -267,12 +280,12 @@ export function PairingModal({
         leaveAttempt("select-mode");
         return true;
       case "file-send":
-        // Back to the code: the session and the opened request stay.
-        showView("host");
+        // Back to the code entry, with the code still typed.
+        showView("code", "wifi");
         return true;
       case "file-receive":
-        // Back to the code entry; the request stays out until a new one replaces it.
-        showView("code");
+        // The file used the code up: start over.
+        leaveAttempt("select-role");
         return true;
       case "select-role":
         return false;
@@ -385,8 +398,8 @@ export function PairingModal({
     setConfirmed: setConfirmedTransfer,
   });
 
-  // The sender sends as soon as the devices are connected: typing its code was the other side's
-  // consent, and choosing Send was this side's.
+  // The sender sends as soon as the devices are connected: showing the code was the other side's
+  // consent, and choosing Send and typing it this side's.
   const autoConfirmedRef = useRef<string | null>(null);
   const confirmSessionId = status.status === "confirmTransfer" ? confirmFields(status)?.sessionId : undefined;
   const confirmAsSender = status.status === "confirmTransfer" && confirmFields(status)?.isSender === true;
@@ -398,13 +411,15 @@ export function PairingModal({
     confirmAutomatically(confirmSessionId);
   }, [open, confirmAsSender, confirmSessionId]);
 
-  // Start showing a link code. A newer start (or leaving the view) makes an older one's result moot.
-  const startLinkCode = (action: "host" | "code") => {
+  // Start showing a link code (six digits for an older version when `legacy`), or entering one. A
+  // newer start (or leaving the view) makes an older one's result moot.
+  const startLinkCode = (action: "host" | "code", legacy = false) => {
     // For the diagnostics log only: whether the phone was on Wi-Fi when the code screen opened.
     if (isMobileDevice()) void pairingApi.wifiEnabled().catch((cause) => logIgnored("pairing.wifiEnabled", cause));
     if (action === "host") {
+      setLegacyHost(legacy);
       showView("host", "wifi");
-      void initHostSession();
+      void initHostSession(legacy);
       return;
     }
     showView("code", "wifi");
@@ -422,6 +437,7 @@ export function PairingModal({
     setBusy(false);
     setConfirmedTransfer(false);
     setIncludeSettings(true);
+    setLegacyHost(false);
     clearExport();
     autoConfirmedRef.current = null;
     request.cancel();
@@ -445,7 +461,7 @@ export function PairingModal({
     if (activeFlow === "airgap") {
       void startAirgapSender();
     } else if (viewMode === "host") {
-      void initHostSession();
+      void initHostSession(legacyHost);
     } else if (viewMode === "code") {
       // The other device may still show the same code: keep what was typed.
       leaveAttempt("code", "wifi");
@@ -495,10 +511,10 @@ export function PairingModal({
             includeSettings={includeSettings}
             onIncludeSettingsChange={setIncludeSettings}
             onChoose={(role) => {
-              // The sender shows the link code and the receiver types it.
-              // No Wi-Fi check: the code screens fall back to AirDrop or Quick Share by themselves.
+              // The receiver shows the link code and the sender types it, so the device that
+              // types it is the one that sends the file if the other isn't on the network.
               dispatchFlow({ type: "choose-role", role });
-              startLinkCode(role === "send" ? "host" : "code");
+              startLinkCode(role === "send" ? "code" : "host");
             }}
           />
         )}
@@ -506,7 +522,7 @@ export function PairingModal({
         {isWaitingState && viewMode === "select-mode" && (
           <ModeSelectView
             intendedRole={intendedRole}
-            onShowCode={() => startLinkCode("host")}
+            onShowCode={() => startLinkCode("host", true)}
             onEnterCode={() => startLinkCode("code")}
             onShowQr={() => {
               dispatchFlow({ type: "set-flow", flow: "airgap" });
@@ -525,10 +541,10 @@ export function PairingModal({
           <HostCodeView
             status={status}
             remainingSecs={remainingSecs}
-            onRegenerate={() => void initHostSession()}
+            onRegenerate={() => void initHostSession(legacyHost)}
             onOtherWays={() => leaveAttempt("select-mode")}
             nearbyName={nearbyName}
-            onOpenRequest={() => void fileTransfer.openRequest()}
+            onOpenFile={() => void fileTransfer.openFile()}
             fileAccess={fileAccess}
           />
         )}
@@ -539,7 +555,7 @@ export function PairingModal({
             nearbyName={nearbyShareName()}
             canShare={fileTransfer.canShare}
             busy={busy}
-            onSendReply={() => void fileTransfer.sendReply()}
+            onSendAgain={fileTransfer.sendAgain}
             onShare={fileTransfer.share}
             onSave={fileTransfer.save}
             onBack={goBack}
@@ -551,14 +567,7 @@ export function PairingModal({
           <FileReceiveView
             preview={fileTransfer.preview}
             nearbyName={nearbyShareName()}
-            automatic={fileTransfer.requestedAutomatically}
-            openingReply={fileTransfer.openingReply}
-            canShare={fileTransfer.canShare}
             busy={busy}
-            fileAccess={fileAccess}
-            onOpenReply={() => void fileTransfer.openReply()}
-            onShare={fileTransfer.share}
-            onSave={fileTransfer.save}
             onBack={goBack}
           />
         )}
@@ -600,13 +609,19 @@ export function PairingModal({
             value={joinCodeInput}
             busy={busy}
             onChange={setJoinCodeInput}
-            onSubmit={(code) => void handleConnectByCode(code)}
+            onSubmit={(code) =>
+              void handleConnectByCode(code, () => {
+                // Not found on the network (or no network): the file goes by itself.
+                if (!fileFallback || !isLinkCode(code)) return false;
+                fileTransfer.send(code, true);
+                return true;
+              })
+            }
             onBack={goBack}
             onOtherWays={() => leaveAttempt("select-mode")}
             nearbyName={nearbyName}
-            onUseNearby={() => void fileTransfer.startRequest(joinCodeInput)}
+            onUseNearby={() => fileTransfer.send(joinCodeInput)}
             fallback={searchingForCode ? { secsLeft: fallbackSecsLeft, totalSecs: FILE_FALLBACK_SECS } : undefined}
-            fileAccess={fileAccess}
             setKeyboardOpen={setIsKeyboardOpen}
           />
         )}

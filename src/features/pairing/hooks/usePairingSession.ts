@@ -4,7 +4,7 @@ import { logIgnored } from "../../../shared/lib/log";
 import type { useLatestRequest } from "../../../shared/hooks/useLatestRequest";
 import type { PairingStatus } from "../../../types";
 import { collectUiState } from "../../layout/ui-state";
-import { PAIRING_CODE_LENGTH, type IntendedRole } from "../lib/view-model";
+import { cleanCode, isCompleteCode, type IntendedRole } from "../lib/view-model";
 
 /** What the session actions share with the dialog around them. */
 export interface PairingActionContext {
@@ -36,13 +36,13 @@ export function usePairingSession({
 }) {
   const { request, busy, setBusy, setStatus, setErrorMessage, showError } = context;
 
-  /** Start showing a link code for the other device to type. */
-  const initHostSession = async () => {
+  /** Start showing a link code for the other device to type; six digits for an older version when `legacy`. */
+  const initHostSession = async (legacy = false) => {
     const ticket = request.begin();
     setBusy(true);
     setErrorMessage(null);
     try {
-      const init = await pairingApi.startHost(includeSettings);
+      const init = await pairingApi.startHost(includeSettings, legacy);
       if (!request.isLatest(ticket)) return;
       setStatus({
         status: "hostWaiting",
@@ -60,17 +60,21 @@ export function usePairingSession({
     }
   };
 
-  /** Join the session whose six-digit link code was typed. */
-  const handleConnectByCode = async (code: string) => {
-    const digits = code.replace(/\D/g, "").slice(0, PAIRING_CODE_LENGTH);
-    if (digits.length !== PAIRING_CODE_LENGTH || busy) return;
+  /**
+   * Join the session whose link code was typed. `onUnreachable`, if it handles a failure to find
+   * or reach the other device (returns true), replaces the error message.
+   */
+  const handleConnectByCode = async (typed: string, onUnreachable?: () => boolean) => {
+    const code = cleanCode(typed);
+    if (!isCompleteCode(code) || busy) return;
     const ticket = request.begin();
     setBusy(true);
     setErrorMessage(null);
     try {
-      await pairingApi.startClientByCode(digits, includeSettings);
+      await pairingApi.startClientByCode(code, includeSettings);
     } catch (err) {
       if (!request.isLatest(ticket)) return;
+      if (onUnreachable?.()) return;
       showError("Couldn't connect with that code", err);
     } finally {
       if (request.isLatest(ticket)) {

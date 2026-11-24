@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { PairingStatus } from "../../../types";
 import {
+  cleanCode,
+  codeLength,
   confirmFields,
   formatCountdown,
   formatJoinCode,
+  isCompleteCode,
+  isLinkCode,
   hasOwnActionButtons,
   hostWaitingFields,
   isWaitingStatus,
@@ -171,12 +175,33 @@ describe("confirmFields", () => {
 });
 
 describe("formatting", () => {
-  it("groups a link code in threes and ignores non-digits", () => {
+  it("groups a link code in fives, capitalized, keeping only the letters a code has", () => {
+    expect(formatJoinCode("KTQMPRXDHW")).toBe("KTQMP RXDHW");
+    expect(formatJoinCode("ktqmp-rxdhw")).toBe("KTQMP RXDHW");
+    expect(formatJoinCode("KTQ")).toBe("KTQ");
+    expect(formatJoinCode("KTQMPRXDHWZZ")).toBe("KTQMP RXDHW");
+  });
+
+  it("groups an older version's code in threes and ignores non-digits", () => {
     expect(formatJoinCode("123456")).toBe("123 456");
     expect(formatJoinCode("12")).toBe("12");
     expect(formatJoinCode("123")).toBe("123");
     expect(formatJoinCode("1a2b3c4d5e6f7")).toBe("123 456");
     expect(formatJoinCode("")).toBe("");
+  });
+
+  it("tells a link code from an older version's six digits by its first character", () => {
+    expect(cleanCode(" kt-1qmILOp ")).toBe("KTQMP");
+    expect(cleanCode("1a2 3")).toBe("123");
+    expect(codeLength("")).toBe(10);
+    expect(codeLength("K")).toBe(10);
+    expect(codeLength("4")).toBe(6);
+    expect(isCompleteCode("KTQMPRXDHW")).toBe(true);
+    expect(isCompleteCode("KTQMPRXDH")).toBe(false);
+    expect(isCompleteCode("123456")).toBe(true);
+    expect(isLinkCode("KTQMPRXDHW")).toBe(true);
+    expect(isLinkCode("123456")).toBe(false);
+    expect(isLinkCode("KTQMP")).toBe(false);
   });
 
   it("formats a countdown as minutes and zero-padded seconds", () => {

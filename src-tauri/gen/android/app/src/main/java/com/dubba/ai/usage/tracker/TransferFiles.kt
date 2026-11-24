@@ -20,8 +20,8 @@ import java.io.IOException
 /**
  * The Sync Devices transfer files (commands/pairing.rs, platform/android_files.rs): sharing the
  * one the app made through Android's share sheet (Quick Share, Messages, Drive, …), and reading
- * or writing the `content://` files the system open and save dialogs hand back. The files are a
- * request (no key) or an encrypted reply, so nothing here is secret.
+ * or writing the `content://` files the system open and save dialogs hand back. A file holds the
+ * accounts encrypted with the link code, which never passes through here.
  */
 internal class TransferFiles(private val activity: Activity) {
   /** A file tapped in another app (Quick Share's notification) that the app has not opened yet. */
@@ -56,8 +56,7 @@ internal class TransferFiles(private val activity: Activity) {
   /**
    * Deletes a tapped file that is used up (Rust passes back the address [takeTapped] gave). Best
    * effort: Quick Share saves into Downloads as itself, so most phones refuse an app that only got
-   * read access, and the file stays (a request holds no key, and a used reply cannot be opened
-   * again).
+   * read access, and the file stays (it opens only with its link code, which is used up).
    */
   fun delete(address: String) {
     val uri = Uri.parse(address)

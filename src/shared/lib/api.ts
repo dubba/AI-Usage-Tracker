@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logIgnored } from "./log";
 import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
-import type { Account, AccountBucket, AirgapExport, AirgapPreview, AppSettings, FilePreview, FileRequestInfo, TappedFile, IncomingWatchInfo, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
+import type { Account, AccountBucket, AirgapExport, AirgapPreview, AppSettings, FilePreview, IncomingWatchInfo, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
 
 export function rememberLoginAttempt(attemptId: string) {
   storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
@@ -105,9 +105,13 @@ export const pairingApi = {
   ensureCameraPermission: () => invoke<void>("ensure_camera_permission"),
   /** Whether the phone is on Wi-Fi; Rust records it in the Sync Devices log. */
   wifiEnabled: () => invoke<boolean>("pairing_wifi_enabled"),
-  /** `acceptSettings`: this device's "Also Sync Settings and Layout" choice, used if it receives. */
-  startHost: (acceptSettings: boolean) =>
-    invoke<PairingHostInit>("pairing_start_host", { acceptSettings }),
+  /**
+   * Shows a ten-letter link code, or six digits for a device with an older version (`legacyCode`,
+   * Wi-Fi only). `acceptSettings`: this device's "Also Sync Settings and Layout" choice, used if
+   * it receives.
+   */
+  startHost: (acceptSettings: boolean, legacyCode = false) =>
+    invoke<PairingHostInit>("pairing_start_host", { acceptSettings, legacyCode }),
   startClientByCode: (code: string, acceptSettings: boolean) =>
     invoke<void>("pairing_start_client_by_code", { code, acceptSettings }),
   selectRole: (role: "send" | "receive") => invoke<void>("pairing_select_role", { role }),
@@ -133,36 +137,35 @@ export const pairingApi = {
     invoke<SyncSummary>("pairing_import_airgap", { chunks, ticket, acceptSettings }),
   // Transfer by file. Rust shows the native menus and dialogs and reads and writes the files; an
   // open or save resolves to null or false when the user cancels its dialog.
-  /** Receiver: makes the request for the device showing `code`. Resolves to whether a share menu exists. */
-  makeFileRequest: (code: string) => invoke<boolean>("pairing_file_make_request", { code }),
-  /** Sender, after its user agreed: answers the opened request (uses the code up). Resolves to whether a share menu exists. */
-  makeFileReply: (includeSettings: boolean, uiState?: Record<string, unknown>) =>
-    invoke<boolean>("pairing_file_make_reply", { includeSettings, uiState: uiState ?? null }),
+  /**
+   * Sender: makes the file of accounts for the device showing `code` and stops looking for it on
+   * the network. Resolves to whether a share menu exists.
+   */
+  sendFile: (code: string, includeSettings: boolean, uiState?: Record<string, unknown>) =>
+    invoke<boolean>("pairing_file_send", { code, includeSettings, uiState: uiState ?? null }),
   /** Opens the system share menu for the file made last. */
   shareFile: () => invoke<void>("pairing_file_share"),
   /** Saves a copy of the file made last where the user chooses. */
   saveFile: () => invoke<boolean>("pairing_file_save"),
-  /** Sender: opens a request file for the code this device shows. */
-  openFileRequest: () => invoke<FileRequestInfo | null>("pairing_file_open_request"),
-  /** Receiver: opens the reply file and counts its accounts; imports nothing. */
-  openFileReply: () => invoke<FilePreview | null>("pairing_file_open_reply"),
-  /** Android: whether a transfer file was tapped in another app (Quick Share) and not opened yet. */
+  /** Receiver: opens a file with the code this device shows and counts its accounts; imports nothing. */
+  openFile: () => invoke<FilePreview | null>("pairing_file_open"),
+  /** Android and iPhone: whether a transfer file was opened from another app and not opened here yet. */
   tappedFilePending: () => invoke<boolean>("pairing_file_tapped_pending"),
-  /** Android: opens that file as a request or a reply, whichever it is; null when none waits. */
-  openTappedFile: () => invoke<TappedFile | null>("pairing_file_open_tapped"),
+  /** Android and iPhone: opens that file as `openFile` does; null when none waits. */
+  openTappedFile: () => invoke<FilePreview | null>("pairing_file_open_tapped"),
   /**
-   * Starts looking in Downloads for the file this device waits for (where AirDrop and Quick Share
-   * save it); files already there are left alone. Android needs file access first.
+   * Receiver: starts looking in Downloads for the file (where AirDrop and Quick Share save it);
+   * files already there are left alone. Android needs file access first.
    */
-  watchForFile: (expect: "request" | "reply") => invoke<IncomingWatchInfo>("pairing_file_watch", { expect }),
+  watchForFile: () => invoke<IncomingWatchInfo>("pairing_file_watch"),
   stopWatchingForFile: () => invoke<void>("pairing_file_watch_stop"),
-  /** The file that arrived since `watchForFile`, opened as a request or reply; null while none has. */
-  pollForFile: () => invoke<TappedFile | null>("pairing_file_poll"),
+  /** The file that arrived since `watchForFile`, opened; null while none has. */
+  pollForFile: () => invoke<FilePreview | null>("pairing_file_poll"),
   /** Android: opens the system page that allows file access, for `watchForFile`. */
   requestFileAccess: () => invoke<void>("pairing_file_request_access"),
-  /** Receiver: imports the opened reply, with its preview's ticket. */
-  importFileReply: (ticket: string, acceptSettings: boolean) =>
-    invoke<SyncSummary>("pairing_file_import_reply", { ticket, acceptSettings }),
+  /** Receiver: imports the opened file, with the ticket opening it gave. */
+  importFile: (ticket: string, acceptSettings: boolean) =>
+    invoke<SyncSummary>("pairing_file_import", { ticket, acceptSettings }),
 };
 
 /** Best-effort cancel: the user is already leaving the flow, so a failure is logged rather than shown. */

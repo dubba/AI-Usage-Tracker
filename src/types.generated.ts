@@ -419,38 +419,14 @@ export type AirgapPreview = {
 };
 
 /**
- * A request the sender opened, shown before its user agrees to answer it.
- */
-export type FileRequestInfo = {
-  /**
-   * The accounts this device would send. An account with no saved sign-in is left out of the
-   * export, so the reply may hold fewer.
-   */
-  accountCount: number,
-};
-
-/**
- * What an opened reply holds, shown before the user agrees to add it.
+ * What an opened file holds.
  */
 export type FilePreview = {
   accountCount: number,
   /**
-   * One-time ticket for importing exactly this reply.
+   * One-time ticket for importing exactly this file.
    */
   ticket: string,
-};
-
-/**
- * A transfer file tapped in another app (Android's Quick Share notification, AirDrop) or picked
- * up from Downloads, opened as what its header says it is: a request on the sending device, a
- * reply on the receiving one.
- */
-export type TappedFile = {
-  "kind": "request",
-  info: FileRequestInfo,
-} | {
-  "kind": "reply",
-  preview: FilePreview,
 };
 
 /**

@@ -1198,7 +1198,7 @@ async fn starting_a_host_session_resets_the_transfer_options() {
     }
     // A host session needs a local network address; where there is none it fails after the
     // reset, which is the part under test.
-    let _ = state.pairing.start_host(state.clone(), false).await;
+    let _ = state.pairing.start_host(state.clone(), false, false).await;
     state.pairing.cancel().await;
     let options = state.pairing_options.read();
     assert!(!options.include_settings);
@@ -2204,16 +2204,16 @@ async fn starting_a_session_records_whether_this_device_accepts_settings() {
     let state = state_in(&dir, "tok-accept").await;
     // Hosting needs a local network address; without one it fails after the
     // options are set, which is the part under test.
-    let _ = state.pairing.start_host(state.clone(), true).await;
+    let _ = state.pairing.start_host(state.clone(), true, false).await;
     assert!(state.pairing_options.read().accept_incoming_settings);
     state.pairing.cancel().await;
-    let _ = state.pairing.start_host(state.clone(), false).await;
+    let _ = state.pairing.start_host(state.clone(), false, false).await;
     assert!(!state.pairing_options.read().accept_incoming_settings);
     state.pairing.cancel().await;
 }
 
 #[tokio::test]
-async fn joining_without_a_host_on_the_network_says_so() {
+async fn joining_with_a_malformed_code_says_what_a_code_looks_like() {
     let dir = tempfile::tempdir().unwrap();
     let state = state_in(&dir, "tok-nohost").await;
     let error = state
@@ -2221,7 +2221,7 @@ async fn joining_without_a_host_on_the_network_says_so() {
         .start_client_by_code(state.clone(), "12345".into(), false)
         .await
         .unwrap_err();
-    assert!(error.contains("6-digit"), "{error}");
+    assert_eq!(error, super::discovery::INVALID_CODE);
 }
 
 // Discovery between Bonjour (iOS) and mdns-sd (every other platform), in

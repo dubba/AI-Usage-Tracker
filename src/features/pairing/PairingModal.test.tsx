@@ -18,13 +18,11 @@ const api = vi.hoisted(() => ({
   importAirgapFrames: vi.fn(),
   ensureCameraPermission: vi.fn(),
   wifiEnabled: vi.fn(),
-  makeFileRequest: vi.fn(),
-  makeFileReply: vi.fn(),
+  sendFile: vi.fn(),
   shareFile: vi.fn(),
   saveFile: vi.fn(),
-  openFileRequest: vi.fn(),
-  openFileReply: vi.fn(),
-  importFileReply: vi.fn(),
+  openFile: vi.fn(),
+  importFile: vi.fn(),
   tappedFilePending: vi.fn(),
   openTappedFile: vi.fn(),
   watchForFile: vi.fn(),
@@ -133,7 +131,9 @@ async function emit(status: PairingStatus) {
   });
 }
 
-const HOST_INIT = { sessionId: "s1", joinCode: "123456", expiresAt: Math.floor(Date.now() / 1000) + 125 };
+const CODE = "KTQMPRXDHW";
+const HOST_INIT = { sessionId: "s1", joinCode: CODE, expiresAt: Math.floor(Date.now() / 1000) + 125 };
+const PREVIEW = { accountCount: 2, ticket: "ticket-1" };
 const CONFIRM = (role: "sender" | "receiver", extra: object = {}) =>
   ({ status: "confirmTransfer", data: { sessionId: "s1", role, accountCount: 3, ...extra } }) as PairingStatus;
 
@@ -158,14 +158,12 @@ beforeEach(() => {
   api.stopWatchingForFile.mockResolvedValue(undefined);
   api.pollForFile.mockResolvedValue(null);
   api.requestFileAccess.mockResolvedValue(undefined);
-  // A Mac: the files go out through the share menu.
-  api.makeFileRequest.mockResolvedValue(true);
-  api.makeFileReply.mockResolvedValue(true);
+  // A Mac: the file goes out through the share menu.
+  api.sendFile.mockResolvedValue(true);
   api.shareFile.mockResolvedValue(undefined);
   api.saveFile.mockResolvedValue(true);
-  api.openFileRequest.mockResolvedValue({ accountCount: 3 });
-  api.openFileReply.mockResolvedValue({ accountCount: 2, ticket: "ticket-1" });
-  api.importFileReply.mockResolvedValue({ added: 2, updated: 0, skipped: 0, warnings: [] });
+  api.openFile.mockResolvedValue(PREVIEW);
+  api.importFile.mockResolvedValue({ added: 2, updated: 0, skipped: 0, warnings: [] });
   api.tappedFilePending.mockResolvedValue(false);
   api.openTappedFile.mockResolvedValue(null);
   Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh)", configurable: true });
@@ -193,20 +191,20 @@ describe("choosing a role and a way to connect", () => {
     );
   });
 
-  it("shows a link code at once when sending", async () => {
-    render();
-    await press("Send Accounts from This Device");
-    expect(title()).toBe("Your Link Code");
-    expect(api.startHost).toHaveBeenCalledTimes(1);
-    expect(text()).toContain("go to Settings → Sync Devices, select Receive, and enter this code");
-  });
-
-  it("asks for the link code at once when receiving", async () => {
+  it("shows a link code at once when receiving", async () => {
     render();
     await press("Receive Accounts on This Device");
+    expect(title()).toBe("Your Link Code");
+    expect(api.startHost).toHaveBeenCalledWith(true, false);
+    expect(text()).toContain("go to Settings → Sync Devices, select Send, and enter this code");
+  });
+
+  it("asks for the link code at once when sending", async () => {
+    render();
+    await press("Send Accounts from This Device");
     expect(title()).toBe("Enter Link Code");
     expect(api.startHost).not.toHaveBeenCalled();
-    expect(text()).toContain("shown on the sending device");
+    expect(text()).toContain("Type the 10-letter link code shown on the receiving device.");
   });
 
   it("lists every way to connect under the other ways when sending, ending the code session", async () => {
@@ -227,13 +225,13 @@ describe("choosing a role and a way to connect", () => {
     expect(text()).not.toContain("Show QR Code");
   });
 
-  it("lets a receiver show the code instead, for an older sender", async () => {
+  it("lets a sender show six digits instead, for an older receiver", async () => {
     render();
-    await press("Receive Accounts on This Device");
+    await press("Send Accounts from This Device");
     await press("Other ways to connect");
     await press("Show Link Code");
     expect(title()).toBe("Your Link Code");
-    expect(api.startHost).toHaveBeenCalledTimes(1);
+    expect(api.startHost).toHaveBeenCalledWith(true, true);
   });
 
   it("goes back from the other ways to the role choice", async () => {
@@ -253,17 +251,17 @@ describe("no Wi-Fi check before a link code", () => {
     });
   });
 
-  it("shows the code at once when sending, whatever the Wi-Fi", async () => {
+  it("shows the code at once when receiving, whatever the Wi-Fi", async () => {
     render();
-    await press("Send Accounts from This Device");
+    await press("Receive Accounts on This Device");
     expect(api.startHost).toHaveBeenCalledTimes(1);
     expect(title()).toBe("Your Link Code");
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
   });
 
-  it("asks for the code at once when receiving, whatever the Wi-Fi", async () => {
+  it("asks for the code at once when sending, whatever the Wi-Fi", async () => {
     render();
-    await press("Receive Accounts on This Device");
+    await press("Send Accounts from This Device");
     expect(title()).toBe("Enter Link Code");
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
     // Asked only so the diagnostics log can say whether the phone was on Wi-Fi.
@@ -274,15 +272,15 @@ describe("no Wi-Fi check before a link code", () => {
 describe("showing a link code", () => {
   async function openHost() {
     render();
-    await press("Send Accounts from This Device");
+    await press("Receive Accounts on This Device");
   }
 
   it("starts a host session and shows the code and a countdown", async () => {
     await openHost();
     expect(api.startHost).toHaveBeenCalledTimes(1);
     expect(title()).toBe("Your Link Code");
-    expect(document.querySelector(".pairing-code-hero")?.getAttribute("aria-label")).toBe("Link code 123 456");
-    expect(Array.from(document.querySelectorAll(".pairing-code-digit"), (d) => d.textContent).join("")).toBe("123456");
+    expect(document.querySelector(".pairing-code-hero")?.getAttribute("aria-label")).toBe("Link code KTQMP RXDHW");
+    expect(Array.from(document.querySelectorAll(".pairing-code-digit"), (d) => d.textContent).join("")).toBe(CODE);
     expect(text()).toMatch(/Expires in\s*2:0\d/);
     expect(text()).toContain("Waiting for the other device on Wi-Fi or AirDrop…");
   });
@@ -290,7 +288,7 @@ describe("showing a link code", () => {
   it("shows a progress message until the code arrives", async () => {
     api.startHost.mockReturnValue(new Promise(() => {}));
     render();
-    await press("Send Accounts from This Device");
+    await press("Receive Accounts on This Device");
     expect(text()).toContain("Starting pairing session…");
   });
 
@@ -305,6 +303,16 @@ describe("showing a link code", () => {
     await press("Back");
     expect(cancelPairing).toHaveBeenCalled();
     expect(title()).toBe("Send or Receive Accounts");
+  });
+
+  it("shows an older version's six digits in two groups of three", async () => {
+    api.startHost.mockResolvedValue({ ...HOST_INIT, joinCode: "123456" });
+    render();
+    await press("Send Accounts from This Device");
+    await press("Other ways to connect");
+    await press("Show Link Code");
+    expect(document.querySelector(".pairing-code-hero")?.getAttribute("aria-label")).toBe("Link code 123 456");
+    expect(document.querySelectorAll(".pairing-code-digit")).toHaveLength(6);
   });
 
   it("offers a new code when the countdown expires", async () => {
@@ -324,14 +332,31 @@ describe("showing a link code", () => {
 describe("entering a link code", () => {
   async function openCodeEntry() {
     render();
-    await press("Receive Accounts on This Device");
+    await press("Send Accounts from This Device");
   }
   const input = () => document.getElementById("pairing-join-code-input") as HTMLInputElement;
 
-  it("keeps only digits, at most six, shown in two groups of three, and connects by itself at six", async () => {
+  it("keeps a code's letters, capitalized, in two groups of five, and connects by itself at ten", async () => {
     await openCodeEntry();
     expect(title()).toBe("Enter Link Code");
     expect(button("Connect").disabled).toBe(true);
+    expect(document.querySelectorAll(".pairing-code-tile")).toHaveLength(10);
+    typeInto(input(), "kt1");
+    expect(input().value).toBe("KT");
+    // I, L and O are never in a code: they read as 1 and 0.
+    typeInto(input(), "ktq-mp rxILO");
+    expect(input().value).toBe("KTQMP RX");
+    expect(button("Connect").disabled).toBe(true);
+    expect(api.startClientByCode).not.toHaveBeenCalled();
+    typeInto(input(), "ktqmprxdhwab");
+    expect(input().value).toBe("KTQMP RXDHW");
+    await settle();
+    expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
+    expect(Array.from(document.querySelectorAll(".pairing-code-tile"), (t) => t.textContent).join("")).toBe(CODE);
+  });
+
+  it("takes an older version's six digits, in two groups of three, and connects by itself at six", async () => {
+    await openCodeEntry();
     typeInto(input(), "12a");
     expect(input().value).toBe("12");
     typeInto(input(), "12ab34c");
@@ -345,12 +370,12 @@ describe("entering a link code", () => {
     expect(Array.from(document.querySelectorAll(".pairing-code-tile"), (t) => t.textContent).join("")).toBe("123456");
   });
 
-  it("sends only the digits of a code typed or pasted with its space", async () => {
+  it("sends a code pasted with its space as its letters only", async () => {
     await openCodeEntry();
-    typeInto(input(), "123 456");
-    expect(input().value).toBe("123 456");
-    await press("Connect");
-    expect(api.startClientByCode).toHaveBeenCalledWith("123456", true);
+    typeInto(input(), "KTQMP RXDHW");
+    expect(input().value).toBe("KTQMP RXDHW");
+    await settle();
+    expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
   });
 
   it("provides an accessible name for the code input", async () => {
@@ -489,11 +514,12 @@ describe("entering a link code", () => {
 describe("transfer by file", () => {
   const codeInput = () => document.getElementById("pairing-join-code-input") as HTMLInputElement;
 
-  /** Receive, type the code (which connects by itself and, here, finds no one at once). */
-  async function receiveWithCode() {
+  /** Send and type the code, which connects by itself; here the search never ends. */
+  async function sendWithCode() {
+    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
     render();
-    await press("Receive Accounts on This Device");
-    typeInto(codeInput(), "123456");
+    await press("Send Accounts from This Device");
+    typeInto(codeInput(), CODE);
     await settle();
   }
 
@@ -506,186 +532,193 @@ describe("transfer by file", () => {
     await settle();
   }
 
-  it("names AirDrop on a Mac, sends the request, then adds the reply that arrives with no tap", async () => {
+  it("names AirDrop on a Mac and sends the accounts as one file", async () => {
+    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
     render();
-    await press("Receive Accounts on This Device");
+    await press("Send Accounts from This Device");
     expect(button("Use AirDrop").disabled).toBe(true);
-    typeInto(codeInput(), "123456");
+    typeInto(codeInput(), CODE);
     await settle();
     await press("Use AirDrop");
-    expect(api.makeFileRequest).toHaveBeenCalledWith("123456");
+    expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(api.shareFile).toHaveBeenCalledTimes(1);
     expect(api.saveFile).not.toHaveBeenCalled();
-    expect(title()).toBe("Receiving by AirDrop");
-    expect(api.watchForFile).toHaveBeenLastCalledWith("reply");
-
-    await arrives({ kind: "reply", preview: { accountCount: 2, ticket: "ticket-1" } });
-    expect(api.importFileReply).toHaveBeenCalledWith("ticket-1", true);
-    expect(onCompleted).toHaveBeenCalledTimes(1);
-    expect(title()).toBe("Devices linked");
-  }, 10_000);
-
-  it("adds a reply opened by hand at once", async () => {
-    await receiveWithCode();
-    await press("Use AirDrop");
-    await press("Received the reply but nothing happened? Open it");
-    expect(api.importFileReply).toHaveBeenCalledWith("ticket-1", true);
-    expect(onCompleted).toHaveBeenCalledTimes(1);
-  });
-
-  it("says Opening only while the reply's open dialog is up, not while saving", async () => {
-    let finishSave: (saved: boolean) => void = () => {};
-    api.saveFile.mockImplementation(() => new Promise((resolve) => (finishSave = resolve)));
-    await receiveWithCode();
-    await press("Use AirDrop");
-    click(button("Save the request to a file instead"));
-    await settle();
-    expect(text()).not.toContain("Opening…");
-    await act(async () => finishSave(true));
-    let finishOpen: (preview: null) => void = () => {};
-    api.openFileReply.mockImplementation(() => new Promise((resolve) => (finishOpen = resolve)));
-    click(button("nothing happened? Open it"));
-    await settle();
-    expect(text()).toContain("Opening…");
-    await act(async () => finishOpen(null));
-    expect(text()).toContain("nothing happened? Open it");
-  });
-
-  it("sends the request again or saves a copy", async () => {
-    await receiveWithCode();
-    await press("Use AirDrop");
-    await press("Send the request again by AirDrop");
-    expect(api.shareFile).toHaveBeenCalledTimes(2);
-    await press("Save the request to a file instead");
-    expect(api.saveFile).toHaveBeenCalledTimes(1);
-  });
-
-  it("saves the request where there is no share menu", async () => {
-    api.makeFileRequest.mockResolvedValue(false);
-    await receiveWithCode();
-    await press("Use AirDrop");
-    expect(api.saveFile).toHaveBeenCalledTimes(1);
-    expect(api.shareFile).not.toHaveBeenCalled();
-    expect(text()).not.toContain("Send the request again");
-    expect(text()).toContain("Save the request to a file instead");
-  });
-
-  it("stays on the code when the request can't be made", async () => {
-    api.makeFileRequest.mockRejectedValue({ code: "pairing", message: "Enter the 6-digit code shown on the other device." });
-    await receiveWithCode();
-    await press("Use AirDrop");
-    expect(title()).toBe("Enter Link Code");
-    expect(document.querySelector(".modal-error")?.textContent).toContain("Enter the 6-digit code");
-  });
-
-  it("keeps waiting when the open dialog is cancelled, and goes back to the code", async () => {
-    api.openFileReply.mockResolvedValue(null);
-    await receiveWithCode();
-    await press("Use AirDrop");
-    await press("nothing happened? Open it");
-    expect(text()).toContain("Waiting for the other device's reply");
-    await press("Back");
-    expect(title()).toBe("Enter Link Code");
-  });
-
-  it("shows why a reply did not open", async () => {
-    api.openFileReply.mockRejectedValue({
-      code: "pairing",
-      message: "This reply doesn't match the code you entered, or the file is damaged. Start again on both devices.",
-    });
-    await receiveWithCode();
-    await press("Use AirDrop");
-    await press("nothing happened? Open it");
-    expect(document.querySelector(".modal-error")?.textContent).toContain("doesn't match the code you entered");
-  });
-
-  it("shows why a file that arrived did not open", async () => {
-    await receiveWithCode();
-    await press("Use AirDrop");
-    api.pollForFile.mockRejectedValueOnce({ code: "pairing", message: "This reply doesn't match the code you entered." });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1100));
-    });
-    await settle();
-    expect(document.querySelector(".modal-error")?.textContent).toContain("doesn't match the code you entered");
-  });
-
-  it("answers a request that arrives while showing the code, and sends the reply with no tap", async () => {
-    render();
-    await press("Send Accounts from This Device");
-    expect(api.watchForFile).toHaveBeenLastCalledWith("request");
-    await arrives({ kind: "request", info: { accountCount: 3 } });
     expect(title()).toBe("Sending by AirDrop");
-    expect(api.makeFileReply).toHaveBeenCalledWith(true, { marker: true });
-    expect(api.shareFile).toHaveBeenCalledTimes(1);
-    expect(text()).toContain("Accept on the other device");
-    await press("Save the reply to a file instead");
-    expect(api.saveFile).toHaveBeenCalledTimes(1);
-    expect(api.makeFileReply).toHaveBeenCalledTimes(1);
+    expect(text()).toContain("Choose the other device in AirDrop");
+    expect(text()).toContain("Once the other device accepts the file, the accounts are added there by themselves.");
+    // Nothing comes back: the sender waits for no file.
+    expect(api.watchForFile).not.toHaveBeenCalled();
     await press("Done");
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("answers a request opened by hand at once", async () => {
-    render();
-    await press("Send Accounts from This Device");
-    await press("Use AirDrop");
-    expect(text()).toContain("tap Use AirDrop");
-    await press("Open the request");
-    expect(api.makeFileReply).toHaveBeenCalledTimes(1);
-    expect(api.shareFile).toHaveBeenCalledTimes(1);
-  });
-
-  it("sends no layout when settings are left out", async () => {
+  it("sends no settings or layout when they are left out", async () => {
+    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
     render();
     click(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!);
     await settle();
     await press("Send Accounts from This Device");
+    typeInto(codeInput(), CODE);
+    await settle();
     await press("Use AirDrop");
-    await press("Open the request");
-    expect(api.makeFileReply).toHaveBeenCalledWith(false, undefined);
+    expect(api.sendFile).toHaveBeenCalledWith(CODE, false, undefined);
   });
 
-  it("offers Try Again when the reply can't be made", async () => {
-    api.makeFileReply.mockRejectedValueOnce(new Error("disk full"));
-    render();
-    await press("Send Accounts from This Device");
+  it("sends the file again or saves a copy", async () => {
+    await sendWithCode();
     await press("Use AirDrop");
-    await press("Open the request");
+    await press("Send again by AirDrop");
+    expect(api.shareFile).toHaveBeenCalledTimes(2);
+    await press("Save to a file instead");
+    expect(api.saveFile).toHaveBeenCalledTimes(1);
+    expect(api.sendFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves the file where there is no share menu", async () => {
+    api.sendFile.mockResolvedValue(false);
+    await sendWithCode();
+    await press("Use AirDrop");
+    expect(api.saveFile).toHaveBeenCalledTimes(1);
+    expect(api.shareFile).not.toHaveBeenCalled();
+    expect(text()).not.toContain("Send again by");
+    expect(text()).toContain("Save to a file instead");
+  });
+
+  it("offers Try Again when the file can't be made", async () => {
+    api.sendFile.mockRejectedValueOnce(new Error("disk full"));
+    await sendWithCode();
+    await press("Use AirDrop");
     expect(text()).toContain("disk full");
+    expect(title()).toBe("Sending by AirDrop");
+    expect(api.shareFile).not.toHaveBeenCalled();
     await press("Try Again");
-    expect(api.makeFileReply).toHaveBeenCalledTimes(2);
-    expect(text()).toContain("Accept on the other device");
+    expect(api.sendFile).toHaveBeenCalledTimes(2);
+    expect(api.shareFile).toHaveBeenCalledTimes(1);
   });
 
-  it("stops watching once the code screen is left", async () => {
+  it("goes back to the code, still typed, from a file that couldn't be made", async () => {
+    api.sendFile.mockRejectedValueOnce(new Error("disk full"));
+    await sendWithCode();
+    await press("Use AirDrop");
+    await press("Back");
+    expect(title()).toBe("Enter Link Code");
+    expect(codeInput().value).toBe("KTQMP RXDHW");
+  });
+
+  it("adds the accounts of a file that arrives while showing the code, with no tap", async () => {
     render();
-    await press("Send Accounts from This Device");
+    await press("Receive Accounts on This Device");
+    expect(api.watchForFile).toHaveBeenCalledTimes(1);
+    await arrives(PREVIEW);
+    expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
+    expect(onCompleted).toHaveBeenCalledTimes(1);
+    expect(title()).toBe("Devices linked");
+  }, 10_000);
+
+  it("adds a file opened by hand at once", async () => {
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Use AirDrop");
+    expect(text()).toContain("On the other device, enter this code and tap Use AirDrop.");
+    await press("Received it but nothing happened? Open the file");
+    expect(api.openFile).toHaveBeenCalledTimes(1);
+    expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
+    expect(onCompleted).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps showing the code when the open dialog is cancelled", async () => {
+    api.openFile.mockResolvedValue(null);
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Use AirDrop");
+    await press("Received it but nothing happened? Open the file");
+    expect(api.importFile).not.toHaveBeenCalled();
+    expect(title()).toBe("Your Link Code");
+  });
+
+  it("shows why a file that arrived did not open, and keeps waiting", async () => {
+    render();
+    await press("Receive Accounts on This Device");
+    api.pollForFile.mockRejectedValueOnce({
+      code: "pairing",
+      message: "This file doesn't match the code shown here, or it is damaged.",
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    });
+    await settle();
+    expect(document.querySelector(".modal-error")?.textContent).toContain("doesn't match the code shown here");
+    expect(title()).toBe("Your Link Code");
+    expect(api.importFile).not.toHaveBeenCalled();
+  }, 10_000);
+
+  it("says why the accounts couldn't be added, with Back to start over", async () => {
+    api.openFile.mockResolvedValue(PREVIEW);
+    api.importFile.mockRejectedValue(new Error("store locked"));
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Use AirDrop");
+    await press("Received it but nothing happened? Open the file");
+    expect(text()).toContain("store locked");
+    expect(title()).toBe("Receiving by AirDrop");
+    await press("Back");
+    expect(title()).toBe("Send or Receive Accounts");
+  });
+
+  it("watches Downloads only while a ten-letter code is shown", async () => {
+    render();
+    await press("Receive Accounts on This Device");
     expect(api.watchForFile).toHaveBeenCalledTimes(1);
     await press("Back");
     expect(api.stopWatchingForFile).toHaveBeenCalled();
+
+    // Six digits for an older version go over Wi-Fi only.
+    api.startHost.mockResolvedValue({ ...HOST_INIT, joinCode: "123456" });
+    await press("Receive Accounts on This Device");
+    await press("Other ways to connect");
+    await press("Show Link Code");
+    expect(api.startHost).toHaveBeenLastCalledWith(true, true);
+    expect(text()).toContain("Waiting for the other device to connect…");
+    expect(text()).not.toContain("Use AirDrop");
+    expect(api.watchForFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("never sends an older version's six digits by file", async () => {
+    api.startClientByCode.mockRejectedValue(new Error("No device is showing a link code on this Wi-Fi network."));
+    render();
+    await press("Send Accounts from This Device");
+    typeInto(codeInput(), "123456");
+    await settle();
+    expect(text()).toContain("No device is showing a link code");
+    expect(text()).not.toContain("Use AirDrop");
+    expect(api.sendFile).not.toHaveBeenCalled();
   });
 
   it("names Quick Share on Android and asks once for file access so files open by themselves", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
     api.watchForFile.mockResolvedValue({ watching: false, needsAccess: true });
     render();
-    await press("Send Accounts from This Device");
+    await press("Receive Accounts on This Device");
     expect(text()).toContain("Use Quick Share");
     expect(text()).toContain("Allow file access once");
     await press("Allow");
     expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
     await press("Back");
-    await press("Receive Accounts on This Device");
+    // The sender sends: it needs no access.
+    await press("Send Accounts from This Device");
     expect(text()).toContain("Use Quick Share");
+    expect(text()).not.toContain("Allow file access");
   });
 
   it("offers no AirDrop or Quick Share where there is none", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (X11; Linux x86_64)", configurable: true });
     render();
-    await press("Send Accounts from This Device");
+    await press("Receive Accounts on This Device");
     expect(text()).not.toContain("Use Quick Share");
     expect(api.watchForFile).not.toHaveBeenCalled();
+    await press("Back");
+    await press("Send Accounts from This Device");
+    expect(text()).not.toContain("Use Quick Share");
   });
 
   describe("a file tapped in Quick Share", () => {
@@ -700,26 +733,16 @@ describe("transfer by file", () => {
       await settle();
     };
 
-    it("answers a tapped request on the device showing the code", async () => {
+    it("adds a tapped file on the device showing the code", async () => {
       android();
-      api.openTappedFile.mockResolvedValue({ kind: "request", info: { accountCount: 3 } });
+      api.openTappedFile.mockResolvedValue(PREVIEW);
       render();
-      await press("Send Accounts from This Device");
+      await press("Receive Accounts on This Device");
       expect(api.openTappedFile).not.toHaveBeenCalled();
       await comeBackWithTappedFile();
       expect(api.openTappedFile).toHaveBeenCalledTimes(1);
-      expect(title()).toBe("Sending by Quick Share");
-      expect(api.makeFileReply).toHaveBeenCalledTimes(1);
-    });
-
-    it("adds a tapped reply on the device that made the request", async () => {
-      android();
-      api.startClientByCode.mockImplementation(() => new Promise(() => {}));
-      api.openTappedFile.mockResolvedValue({ kind: "reply", preview: { accountCount: 2, ticket: "ticket-t" } });
-      await receiveWithCode();
-      await press("Use Quick Share now");
-      await comeBackWithTappedFile();
-      expect(api.importFileReply).toHaveBeenCalledWith("ticket-t", true);
+      expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
+      expect(title()).toBe("Devices linked");
     });
 
     it("says why a tapped file did not open", async () => {
@@ -735,28 +758,28 @@ describe("transfer by file", () => {
 
     it("opens a file Android says was tapped while the app was running", async () => {
       android();
-      api.openTappedFile.mockResolvedValue({ kind: "request", info: { accountCount: 3 } });
+      api.openTappedFile.mockResolvedValue(PREVIEW);
       render();
-      await press("Send Accounts from This Device");
+      await press("Receive Accounts on This Device");
       api.tappedFilePending.mockResolvedValue(true);
       await act(async () => {
         window.dispatchEvent(new Event(TRANSFER_FILE_TAPPED_EVENT));
       });
       await settle();
-      expect(api.makeFileReply).toHaveBeenCalledTimes(1);
+      expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
     });
 
-    it("adds a reply AirDropped to an iPhone while the app was running", async () => {
+    it("adds a file AirDropped to an iPhone while the app was running", async () => {
       Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
-      api.openTappedFile.mockResolvedValue({ kind: "reply", preview: { accountCount: 2, ticket: "ticket-1" } });
+      api.openTappedFile.mockResolvedValue(PREVIEW);
       render();
-      await settle();
+      await press("Receive Accounts on This Device");
       api.tappedFilePending.mockResolvedValue(true);
       await act(async () => {
         window.dispatchEvent(new Event(TRANSFER_FILE_TAPPED_EVENT));
       });
       await settle();
-      expect(api.importFileReply).toHaveBeenCalledWith("ticket-1", true);
+      expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
     });
 
     it("is not looked for on desktop", async () => {
@@ -770,17 +793,19 @@ describe("transfer by file", () => {
   it("is offered on iPhone, which shares by AirDrop and saves from the share sheet", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     render();
-    await press("Send Accounts from This Device");
-    expect(text()).toContain("Use AirDrop");
-    await press("Back");
     await press("Receive Accounts on This Device");
-    typeInto(codeInput(), "123456");
+    expect(text()).toContain("Use AirDrop");
+    // AirDrop opens the file in the app itself: there is no folder to watch.
+    await press("Back");
+    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
+    await press("Send Accounts from This Device");
+    typeInto(codeInput(), CODE);
     await settle();
     await press("Use AirDrop");
     expect(api.shareFile).toHaveBeenCalledTimes(1);
-    expect(text()).toContain("Send the request again by AirDrop");
+    expect(text()).toContain("Send again by AirDrop");
     // Save to Files is in the share sheet.
-    expect(text()).not.toContain("Save the request to a file");
+    expect(text()).not.toContain("Save to a file");
   });
 });
 
@@ -803,33 +828,41 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     vi.useRealTimers();
   });
 
-  /** Receive and type the code, which starts the search by itself. */
-  async function searchForCode() {
+  /** Send and type the code, which starts the search by itself. */
+  async function searchForCode(code = CODE) {
     render();
-    await press("Receive Accounts on This Device");
-    typeInto(codeInput(), "123456");
+    await press("Send Accounts from This Device");
+    typeInto(codeInput(), code);
     await settle();
   }
 
-  it("counts down the search, then sends the request by Quick Share by itself after 10 s", async () => {
+  it("counts down the search, then sends the accounts by Quick Share by itself after 10 s", async () => {
     await searchForCode();
-    expect(api.startClientByCode).toHaveBeenCalledWith("123456", true);
+    expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
     expect(text()).toContain("Looking for the other device on Wi-Fi…");
     expect(text()).toContain("Not found within 10 seconds? Quick Share takes over by itself.");
     await searchSeconds(3);
     expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("7 seconds");
     await searchSeconds(6);
     expect(text()).toContain("within 1 second?");
-    expect(api.makeFileRequest).not.toHaveBeenCalled();
+    expect(api.sendFile).not.toHaveBeenCalled();
     await searchSeconds(1);
-    expect(api.makeFileRequest).toHaveBeenCalledWith("123456");
+    expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(api.shareFile).toHaveBeenCalledTimes(1);
-    expect(title()).toBe("Receiving by Quick Share");
-    expect(text()).toContain("isn't on this network, so the request went by Quick Share");
-    expect(text()).toContain("Send the request again by Quick Share");
+    expect(title()).toBe("Sending by Quick Share");
+    expect(text()).toContain("isn't on this network, so the accounts go by Quick Share");
+    expect(text()).toContain("Send again by Quick Share");
   });
 
-  it("drops the search's late not-found error once the request went out", async () => {
+  it("sends the file at once when the search ends finding no one", async () => {
+    api.startClientByCode.mockRejectedValue(new Error("No device is showing a link code on this Wi-Fi network."));
+    await searchForCode();
+    expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(title()).toBe("Sending by Quick Share");
+  });
+
+  it("drops the search's late not-found error once the file went out", async () => {
     let fail: (cause: unknown) => void = () => {};
     api.startClientByCode.mockImplementation(() => new Promise((_resolve, reject) => (fail = reject)));
     await searchForCode();
@@ -837,36 +870,44 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await act(async () => fail(new Error("No device is showing a link code on this Wi-Fi network.")));
     await settle();
     expect(document.querySelector(".modal-error")).toBeNull();
-    expect(title()).toBe("Receiving by Quick Share");
+    expect(title()).toBe("Sending by Quick Share");
+    expect(api.sendFile).toHaveBeenCalledTimes(1);
   });
 
   it("lets the user skip the wait with Use Quick Share now", async () => {
     await searchForCode();
     await press("Use Quick Share now");
-    expect(api.makeFileRequest).toHaveBeenCalledTimes(1);
-    expect(text()).toContain("Waiting for the other device's reply");
+    expect(api.sendFile).toHaveBeenCalledTimes(1);
+    expect(text()).toContain("Choose the other device in Quick Share");
     await searchSeconds(10);
-    expect(api.makeFileRequest).toHaveBeenCalledTimes(1);
+    expect(api.sendFile).toHaveBeenCalledTimes(1);
   });
 
-  it("sends no request once the other device is found", async () => {
+  it("sends no file once the other device is found", async () => {
     await searchForCode();
     await emit({ status: "clientConnecting", data: { sessionId: "s1" } } as PairingStatus);
     await searchSeconds(10);
-    expect(api.makeFileRequest).not.toHaveBeenCalled();
+    expect(api.sendFile).not.toHaveBeenCalled();
   });
 
-  it("sends no request after going back from the search", async () => {
+  it("sends no file after going back from the search", async () => {
     await searchForCode();
     await searchSeconds(4);
     await press("Back");
     await searchSeconds(10);
-    expect(api.makeFileRequest).not.toHaveBeenCalled();
+    expect(api.sendFile).not.toHaveBeenCalled();
     // A new search counts from 10 again.
-    await press("Receive Accounts on This Device");
-    typeInto(codeInput(), "123456");
+    await press("Send Accounts from This Device");
+    typeInto(codeInput(), CODE);
     await settle();
     expect(text()).toContain("within 10 seconds?");
+  });
+
+  it("keeps an older version's six digits to Wi-Fi", async () => {
+    await searchForCode("123456");
+    expect(text()).not.toContain("takes over by itself");
+    await searchSeconds(10);
+    expect(api.sendFile).not.toHaveBeenCalled();
   });
 
   it("names AirDrop on iPhone", async () => {
@@ -875,17 +916,17 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     expect(text()).toContain("AirDrop takes over by itself");
     expect(text()).toContain("Use AirDrop now");
     await searchSeconds(10);
-    expect(api.makeFileRequest).toHaveBeenCalledWith("123456");
+    expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(text()).toContain("Choose the other device in AirDrop");
   });
 
   it("falls back by itself on a Mac and on Windows too", async () => {
     for (const userAgent of ["Mozilla/5.0 (Macintosh)", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"]) {
       Object.defineProperty(navigator, "userAgent", { value: userAgent, configurable: true });
-      api.makeFileRequest.mockClear();
+      api.sendFile.mockClear();
       await searchForCode();
       await searchSeconds(10);
-      expect(api.makeFileRequest).toHaveBeenCalledWith("123456");
+      expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
       mounted.unmount();
     }
   });
@@ -894,7 +935,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (X11; Linux x86_64)", configurable: true });
     await searchForCode();
     await searchSeconds(10);
-    expect(api.makeFileRequest).not.toHaveBeenCalled();
+    expect(api.sendFile).not.toHaveBeenCalled();
     expect(text()).not.toContain("Use Quick Share");
   });
 });
@@ -1054,9 +1095,7 @@ describe("accepting the other device's settings", () => {
   it("tells the backend this device's choice when it shows a link code", async () => {
     render();
     await press("Receive Accounts on This Device");
-    await press("Other ways to connect");
-    await press("Show Link Code");
-    expect(api.startHost).toHaveBeenLastCalledWith(true);
+    expect(api.startHost).toHaveBeenLastCalledWith(true, false);
   });
 
   it("passes an unticked choice when it shows or enters a code", async () => {
@@ -1064,9 +1103,7 @@ describe("accepting the other device's settings", () => {
     click(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!);
     await settle();
     await press("Receive Accounts on This Device");
-    await press("Other ways to connect");
-    await press("Show Link Code");
-    expect(api.startHost).toHaveBeenLastCalledWith(false);
+    expect(api.startHost).toHaveBeenLastCalledWith(false, false);
   });
 });
 
@@ -1167,7 +1204,7 @@ describe("finishing", () => {
 
   it("restarts the host session from Try Again when showing a code", async () => {
     render();
-    await press("Send Accounts from This Device");
+    await press("Receive Accounts on This Device");
     await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "timed out" } } });
     await press("Try Again");
     expect(api.startHost).toHaveBeenCalledTimes(2);
@@ -1192,7 +1229,7 @@ describe("finishing", () => {
 
   it("starts over each time it is reopened", async () => {
     render();
-    await press("Send Accounts from This Device");
+    await press("Receive Accounts on This Device");
     expect(title()).toBe("Your Link Code");
     mounted.rerender(<PairingModal open={false} onClose={onClose} onCompleted={onCompleted} />);
     expect(document.querySelector(".pairing-modal")).toBeNull();
