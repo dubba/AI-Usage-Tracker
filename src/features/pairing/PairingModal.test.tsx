@@ -127,6 +127,16 @@ const press = async (label: string) => {
   click(button(label));
   await settle();
 };
+/** The popup over the dialog (a ConfirmDialog), if one is open. */
+const popup = () => document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
+const popupTitle = () => popup()?.querySelector("h2")?.textContent;
+/** Presses a button in the popup. */
+const pressIn = async (label: string) => {
+  const found = Array.from(popup()?.querySelectorAll("button") ?? []).find((b) => b.textContent === label);
+  if (!found) throw new Error(`no popup button "${label}"`);
+  click(found);
+  await settle();
+};
 async function emit(status: PairingStatus) {
   await act(async () => {
     events.handler?.({ payload: status });
@@ -276,7 +286,7 @@ describe("no Wi-Fi check before a link code", () => {
     await press("Receive Accounts on This Device");
     expect(api.startHost).toHaveBeenCalledTimes(1);
     expect(title()).toBe("Your Link Code");
-    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(popup()).toBeNull();
   });
 
   it("asks for the code at once when sending, whatever the Wi-Fi", async () => {
@@ -664,8 +674,7 @@ describe("transfer by file", () => {
   it("adds nothing when Cancel is pressed, and closes Sync Devices", async () => {
     render();
     await press("Receive Accounts on This Device");
-    await press("Use AirDrop");
-    await press("Received it but nothing happened? Open the file");
+    await press("Received a file but nothing happened? Open it");
     expect(text()).toContain("Are you sure you want to add these 2 accounts");
     await press("Cancel");
     expect(api.importFile).not.toHaveBeenCalled();
@@ -677,17 +686,14 @@ describe("transfer by file", () => {
     api.openFile.mockResolvedValue({ accountCount: 1, ticket: "ticket-1" });
     render();
     await press("Receive Accounts on This Device");
-    await press("Use AirDrop");
-    await press("Received it but nothing happened? Open the file");
+    await press("Received a file but nothing happened? Open it");
     expect(text()).toContain("Are you sure you want to add this account from the other device?");
   });
 
   it("adds a file opened by hand once confirmed", async () => {
     render();
     await press("Receive Accounts on This Device");
-    await press("Use AirDrop");
-    expect(text()).toContain("On the other device, enter this code and tap Use AirDrop.");
-    await press("Received it but nothing happened? Open the file");
+    await press("Received a file but nothing happened? Open it");
     expect(api.openFile).toHaveBeenCalledTimes(1);
     await press("Add Accounts");
     expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
@@ -698,8 +704,7 @@ describe("transfer by file", () => {
     api.openFile.mockResolvedValue(null);
     render();
     await press("Receive Accounts on This Device");
-    await press("Use AirDrop");
-    await press("Received it but nothing happened? Open the file");
+    await press("Received a file but nothing happened? Open it");
     expect(api.importFile).not.toHaveBeenCalled();
     expect(title()).toBe("Your Link Code");
   });
@@ -725,8 +730,7 @@ describe("transfer by file", () => {
     api.importFile.mockRejectedValue(new Error("store locked"));
     render();
     await press("Receive Accounts on This Device");
-    await press("Use AirDrop");
-    await press("Received it but nothing happened? Open the file");
+    await press("Received a file but nothing happened? Open it");
     await press("Add Accounts");
     expect(text()).toContain("store locked");
     expect(title()).toBe("Receiving by AirDrop");
@@ -763,90 +767,50 @@ describe("transfer by file", () => {
     expect(api.sendFile).not.toHaveBeenCalled();
   });
 
-  it("names Quick Share on Android and asks for file access in a popup", async () => {
+  it("asks an Android receiver for file access in a popup, and nothing about being discoverable", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
     api.watchForFile.mockResolvedValue({ watching: false, needsAccess: true });
     render();
     await press("Receive Accounts on This Device");
-    expect(text()).toContain("Use Quick Share");
-    const popup = () => document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
-    expect(popup()?.textContent).toContain("Allow file access");
+    // No Use Quick Share button on the receiving screen: the popup comes by itself.
+    expect(buttons().some((b) => b.textContent?.includes("Use Quick Share"))).toBe(false);
+    expect(popupTitle()).toBe("Allow file access");
     expect(popup()?.textContent).toContain(
       "Allow AI Usage Tracker to access files saved by Quick Share in Downloads so synced accounts are added automatically. Only Sync Devices files are opened.",
     );
-    click(Array.from(popup()!.querySelectorAll("button")).find((b) => b.textContent === "Allow")!);
-    await settle();
+    await pressIn("Allow");
     expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
-    // Asked once: it does not come back while access is still missing.
+    // Asked once. No app can reach Quick Share's visibility setting on Android, so that isn't asked.
     expect(popup()).toBeNull();
-    await press("Back");
-    // The sender sends: it needs no access.
-    await press("Send Accounts from This Device");
-    expect(text()).toContain("Quick Share takes over by itself");
-    expect(popup()).toBeNull();
-  });
-
-  it("leaves file access to Use Quick Share after Not Now", async () => {
-    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
-    api.watchForFile.mockResolvedValue({ watching: false, needsAccess: true });
-    render();
-    await press("Receive Accounts on This Device");
-    await press("Not Now");
-    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
-    expect(api.requestFileAccess).not.toHaveBeenCalled();
-    await press("Use Quick Share");
-    expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
-  });
-
-  it("asks an Android receiver choosing Quick Share to let everyone nearby share, and opens its settings", async () => {
-    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
-    render();
-    await press("Receive Accounts on This Device");
-    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
-    await press("Use Quick Share");
-    const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
-    expect(popup?.textContent).toContain("Allow This Device to Be Discovered");
-    expect(popup?.querySelector(".confirm-dialog-body")?.textContent).toBe(
-      "Unless both devices use the same Google Account, set Quick Share to Everyone for 10 Minutes.",
-    );
-    // The steps sit together in the box.
-    const box = popup?.querySelector(".confirm-dialog-note")?.textContent;
-    expect(box).toContain("Tap Open Quick Share Settings, select Everyone for 10 minutes, then return here.");
-    expect(box).toContain("If Settings opens instead, search for Quick Share.");
-    await press("Open Quick Share Settings");
-    expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
-    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
     expect(title()).toBe("Your Link Code");
   });
 
-  it("asks for file access before Quick Share's visibility, and closes from Not Now", async () => {
+  it("closes the file access popup from Not Now", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
     api.watchForFile.mockResolvedValue({ watching: false, needsAccess: true });
     render();
     await press("Receive Accounts on This Device");
-    await press("Not Now");
-    await press("Use Quick Share");
-    // File access first: the visibility comes on the next tap, once access is allowed.
-    expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
-    expect(text()).not.toContain("Allow This Device to Be Discovered");
-    api.watchForFile.mockResolvedValue({ watching: true, needsAccess: false });
-    mounted.unmount();
+    await pressIn("Not Now");
+    expect(api.requestFileAccess).not.toHaveBeenCalled();
+    expect(popup()).toBeNull();
+  });
+
+  it("asks nothing once file access is allowed, nor on the sending phone", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
     render();
     await press("Receive Accounts on This Device");
-    await press("Use Quick Share");
-    await press("Not Now");
-    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
-    expect(api.openReceiveSettings).not.toHaveBeenCalled();
+    expect(popup()).toBeNull();
+    await press("Back");
+    await press("Send Accounts from This Device");
+    expect(popup()).toBeNull();
   });
 
   it("asks a Mac receiving by AirDrop to be discoverable, and opens AirDrop", async () => {
     render();
     await press("Receive Accounts on This Device");
-    await press("Use AirDrop");
-    const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
-    expect(popup?.textContent).toContain("AirDrop must allow everyone to share with this Mac.");
-    expect(popup?.textContent).toContain("If System Settings opens instead, go to General → AirDrop & Handoff.");
-    await press("Open AirDrop");
+    expect(popup()?.textContent).toContain("AirDrop must allow everyone to share with this Mac.");
+    expect(popup()?.textContent).toContain("If System Settings opens instead, go to General → AirDrop & Handoff.");
+    await pressIn("Open AirDrop");
     expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
   });
 
@@ -854,38 +818,37 @@ describe("transfer by file", () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     render();
     await press("Receive Accounts on This Device");
-    await press("Use AirDrop");
-    const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
-    expect(popup?.querySelector(".confirm-dialog-body")?.textContent).toBe(
+    expect(popup()?.querySelector(".confirm-dialog-body")?.textContent).toBe(
       "Unless both devices use the same Apple Account, set AirDrop to Everyone for 10 Minutes.",
     );
-    const box = popup?.querySelector(".confirm-dialog-note")?.textContent;
+    const box = popup()?.querySelector(".confirm-dialog-note")?.textContent;
     expect(box).toContain("Go to Settings → General → AirDrop, then return here.");
     expect(box).toContain("If Settings opens instead, search for AirDrop.");
-    await press("Done");
+    await pressIn("Done");
     expect(api.openReceiveSettings).not.toHaveBeenCalled();
-    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(popup()).toBeNull();
   });
 
   it("points Windows to Quick Share's Receiving setting and opens Nearby sharing", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", configurable: true });
     render();
     await press("Receive Accounts on This Device");
-    await press("Use Quick Share");
-    expect(text()).toContain("In the Quick Share app, set Receiving to Everyone, then return here.");
-    await press("Open Nearby Sharing Settings");
+    expect(popup()?.textContent).toContain("In the Quick Share app, set Receiving to Everyone, then return here.");
+    await pressIn("Open Nearby Sharing Settings");
     expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks nothing about being discoverable for an older version's six digits", async () => {
+    api.startHost.mockResolvedValue({ ...HOST_INIT, joinCode: "123456" });
+    render();
+    await press("Send Accounts from This Device");
+    await press("Other ways to connect");
+    await press("Show Link Code");
+    expect(popup()).toBeNull();
   });
 
   it("asks nothing about visibility where there is no AirDrop or Quick Share", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (X11; Linux x86_64)", configurable: true });
-    render();
-    await press("Receive Accounts on This Device");
-    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
-  });
-
-  it("does not ask for file access once it is allowed", async () => {
-    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
     render();
     await press("Receive Accounts on This Device");
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
@@ -978,8 +941,8 @@ describe("transfer by file", () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     render();
     await press("Receive Accounts on This Device");
-    expect(text()).toContain("Use AirDrop");
-    // AirDrop opens the file in the app itself: there is no folder to watch.
+    expect(text()).toContain("Waiting for the other device on Wi-Fi or AirDrop");
+    await pressIn("Not Now");
     await press("Back");
     api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     await press("Send Accounts from This Device");

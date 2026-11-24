@@ -164,8 +164,8 @@ export const pairingApi = {
   /** Android: opens the system page that allows file access, for `watchForFile`. */
   requestFileAccess: () => invoke<void>("pairing_file_request_access"),
   /**
-   * Opens who may send this device files by AirDrop or Quick Share: Quick Share's settings on
-   * Android, the AirDrop window on a Mac, Nearby sharing on Windows. Does nothing on iPhone.
+   * Opens who may send this device files by AirDrop or Quick Share: the AirDrop window on a Mac,
+   * Nearby sharing on Windows. Does nothing elsewhere.
    */
   openReceiveSettings: () => invoke<void>("pairing_open_receive_settings"),
   /** Receiver: imports the opened file, with the ticket opening it gave. */

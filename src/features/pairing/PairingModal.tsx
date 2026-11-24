@@ -202,13 +202,20 @@ export function PairingModal({
   });
   const fileAccess = incoming.needsAccess ? { needed: true, onAllow: incoming.requestAccess } : undefined;
   // Android asks for file access in a popup while the code shows, once per opening of Sync Devices:
-  // Allow opens the system page, Not Now leaves it to Use Quick Share, which asks again.
+  // Allow opens the system page; after Not Now a file still opens from Quick Share's Open button.
   const [fileAccessAsked, setFileAccessAsked] = useState(false);
-  /** The receiver chose AirDrop or Quick Share: ask them to let everyone nearby send. */
-  const [askReceiveVisibility, setAskReceiveVisibility] = useState(false);
+  // Then, by itself, who may share with this device, so one on another account can send here:
+  // once per opening of Sync Devices, after the file-access popup.
   const visibilityHelp = receiveVisibilityHelp();
+  const [receiveVisibilityAsked, setReceiveVisibilityAsked] = useState(false);
   const askFileAccess =
     open && viewMode === "host" && status.status === "hostWaiting" && Boolean(fileAccess?.needed) && !fileAccessAsked;
+  const askReceiveVisibility =
+    watchingForFile &&
+    Boolean(visibilityHelp) &&
+    !receiveVisibilityAsked &&
+    incoming.checked &&
+    !askFileAccess;
   // Busy on the code screen with nothing connected yet: the network search for the typed code.
   const searchingForCode =
     fileFallback && open && viewMode === "code" && busy && status.status === "idle" && isLinkCode(joinCodeInput);
@@ -453,7 +460,7 @@ export function PairingModal({
     setIncludeSettings(true);
     setLegacyHost(false);
     setFileAccessAsked(false);
-    setAskReceiveVisibility(false);
+    setReceiveVisibilityAsked(false);
     clearExport();
     autoConfirmedRef.current = null;
     request.cancel();
@@ -563,12 +570,6 @@ export function PairingModal({
             onOtherWays={otherWaysShown ? () => leaveAttempt("select-mode") : undefined}
             nearbyName={nearbyName}
             onOpenFile={() => void fileTransfer.openFile()}
-            onUseNearby={() => {
-              // File access first (Android), so the file opens by itself; then who may share with
-              // this device, so one on another account can send here.
-              if (fileAccess?.needed) fileAccess.onAllow();
-              else if (visibilityHelp) setAskReceiveVisibility(true);
-            }}
           />
         )}
 
@@ -756,7 +757,7 @@ export function PairingModal({
       onCancel={() => setFileAccessAsked(true)}
     />
     <ConfirmDialog
-      open={Boolean(visibilityHelp) && askReceiveVisibility && open && viewMode === "host" && status.status === "hostWaiting"}
+      open={askReceiveVisibility}
       kicker="Sync devices"
       title="Allow This Device to Be Discovered"
       richBody
@@ -777,13 +778,13 @@ export function PairingModal({
       confirmLabel={visibilityHelp?.openLabel ?? "Done"}
       confirmDanger={false}
       onConfirm={() => {
-        setAskReceiveVisibility(false);
+        setReceiveVisibilityAsked(true);
         if (!visibilityHelp?.openLabel) return;
         void pairingApi
           .openReceiveSettings()
           .catch((cause) => showError("Couldn't open the sharing settings", cause));
       }}
-      onCancel={() => setAskReceiveVisibility(false)}
+      onCancel={() => setReceiveVisibilityAsked(true)}
     />
     </>
   );

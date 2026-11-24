@@ -1897,41 +1897,6 @@
   flex: none;
 }
 
-/* After Use AirDrop / Quick Share on the sender: what happens next, with the manual open below. */
-.pairing-nearby-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.25);
-  background: rgb(var(--purple-accent-rgb) / 0.07);
-  text-align: left;
-  box-sizing: border-box;
-}
-
-.pairing-nearby-note > svg {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  margin-top: 1px;
-  color: var(--obsidian-purple);
-}
-
-.pairing-nearby-note p,
-.modal-card.pairing-modal .pairing-nearby-note p {
-  margin: 0 0 4px;
-  font-size: 0.8rem;
-  line-height: 1.45;
-  color: var(--obsidian-text);
-}
-
-.pairing-nearby-note .pairing-other-ways {
-  padding: 2px 0;
-  align-self: flex-start;
-}
-
 /* "Other ways to connect": the quietest link on the screen. */
 .pairing-other-ways.pairing-other-ways-quiet {
   color: var(--obsidian-muted);

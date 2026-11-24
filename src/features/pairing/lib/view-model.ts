@@ -19,8 +19,9 @@ export function hasNearbyShare(): boolean {
  * What the receiving device's user is asked to change so a device on another account can send it
  * the file: who may share with it by AirDrop or Quick Share, which apps cannot change themselves.
  * `openLabel` is the button that opens the setting (`pairingApi.openReceiveSettings`); absent where
- * no app can open it (iPhone), so the popup gives the steps only. Null where there is no such
- * setting to ask about (Linux).
+ * no app can open it (iPhone), so the popup gives the steps only. Null where it isn't asked: Linux
+ * has no such setting, and on Android no app can reach Quick Share's (the button only got as far
+ * as Settings on a Pixel and a Galaxy).
  */
 export type ReceiveVisibilityHelp = {
   paragraphs: string[];
@@ -30,16 +31,6 @@ export type ReceiveVisibilityHelp = {
 };
 
 export function receiveVisibilityHelp(): ReceiveVisibilityHelp | null {
-  if (isAndroid()) {
-    return {
-      paragraphs: ["Unless both devices use the same Google Account, set Quick Share to Everyone for 10 Minutes."],
-      note: [
-        "Tap Open Quick Share Settings, select Everyone for 10 minutes, then return here.",
-        "If Settings opens instead, search for Quick Share.",
-      ],
-      openLabel: "Open Quick Share Settings",
-    };
-  }
   if (isIOS()) {
     return {
       paragraphs: ["Unless both devices use the same Apple Account, set AirDrop to Everyone for 10 Minutes."],

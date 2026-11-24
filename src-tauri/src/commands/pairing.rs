@@ -695,24 +695,13 @@ pub async fn pairing_file_request_access() -> CommandResult<()> {
 
 /// Opens the setting that decides who may send this device files by AirDrop or Quick Share, so a
 /// device on another Google or Apple account can send here; apps cannot change it themselves.
-/// Android: Quick Share's settings (or Settings). Mac: Finder's AirDrop window (or System Settings).
-/// Windows: Nearby Sharing in Settings. Elsewhere (iPhone, Linux) there is nothing to open: the
-/// page gives the steps.
+/// Mac: Finder's AirDrop window (or System Settings). Windows: Nearby Sharing in Settings.
+/// Elsewhere there is nothing an app can open: iPhone gets the steps, and Android (where no app
+/// reaches Quick Share's settings) is not asked.
 #[tauri::command]
 pub async fn pairing_open_receive_settings(
     #[allow(unused_variables)] app: AppHandle,
 ) -> CommandResult<()> {
-    #[cfg(target_os = "android")]
-    {
-        let opened = tauri::async_runtime::spawn_blocking(
-            crate::platform::android_files::open_quick_share_settings,
-        )
-        .await
-        .map_err(|_| file_error(FILE_READ_FAILED))?
-        .inspect_err(|error| sync_log::failed_text("file: opening Quick Share settings", error))
-        .map_err(file_error)?;
-        sync_log::note(&format!("file: opened {opened} for Quick Share visibility"));
-    }
     #[cfg(target_os = "macos")]
     {
         use tauri_plugin_opener::OpenerExt;

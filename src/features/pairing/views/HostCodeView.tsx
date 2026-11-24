@@ -1,6 +1,5 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { PairingStatus } from "../../../types";
-import { NearbyShareIcon } from "../../../shared/ui/icons";
 import { formatCountdown, formatJoinCode, hostWaitingFields, isLegacyCode, startsGroupInRow } from "../lib/view-model";
 
 /** How long a link code lasts (`transport::SESSION_TIMEOUT_SECS`), for the bar under it. */
@@ -14,7 +13,6 @@ export function HostCodeView({
   onOtherWays,
   nearbyName,
   onOpenFile,
-  onUseNearby,
 }: {
   status: PairingStatus;
   remainingSecs: number | null;
@@ -29,10 +27,7 @@ export function HostCodeView({
   nearbyName?: string;
   /** Opens the file by hand, for one that wasn't picked up by itself. */
   onOpenFile?: () => void;
-  /** "Use AirDrop" / "Use Quick Share" was tapped: get this device ready to receive the file. */
-  onUseNearby?: () => void;
 }) {
-  const [nearbyChosen, setNearbyChosen] = useState(false);
   const host = hostWaitingFields(status);
   const joinCode = host?.joinCode ?? "";
   if (!joinCode) {
@@ -61,10 +56,6 @@ export function HostCodeView({
   // Six digits for an older version go over Wi-Fi only.
   const nearby = isLegacyCode(joinCode) ? undefined : nearbyName;
   const left = remainingSecs == null ? 1 : Math.max(0, Math.min(1, remainingSecs / CODE_LIFETIME_SECS));
-  const chooseNearby = () => {
-    setNearbyChosen(true);
-    onUseNearby?.();
-  };
 
   return (
     <div className="pairing-host-content">
@@ -87,28 +78,10 @@ export function HostCodeView({
         {nearby ? `Waiting for the other device on Wi-Fi or ${nearby}…` : "Waiting for the other device to connect…"}
       </SearchingRow>
 
-      {nearby ? (
-        nearbyChosen ? (
-          <div className="pairing-nearby-note">
-            <NearbyShareIcon />
-            <div>
-              <p>
-                On the other device, enter this code and tap <strong>Use {nearby}</strong>. Accept the file when it
-                arrives here, then confirm adding the accounts.
-              </p>
-              {onOpenFile ? (
-                <button type="button" className="pairing-other-ways" onClick={onOpenFile}>
-                  Received it but nothing happened? Open the file
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ) : (
-          <button type="button" className="button pairing-nearby-btn" onClick={chooseNearby}>
-            <NearbyShareIcon />
-            <span>Use {nearby}</span>
-          </button>
-        )
+      {nearby && onOpenFile ? (
+        <button type="button" className="pairing-other-ways" onClick={onOpenFile}>
+          Received a file but nothing happened? Open it
+        </button>
       ) : null}
 
       {onOtherWays ? <OtherWaysLink onClick={onOtherWays} /> : null}

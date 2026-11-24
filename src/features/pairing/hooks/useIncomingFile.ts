@@ -28,12 +28,15 @@ export function useIncomingFile({
   onError: (cause: unknown) => void;
 }) {
   const [needsAccess, setNeedsAccess] = useState(false);
+  /** The first watch answered, so `needsAccess` is known. */
+  const [checked, setChecked] = useState(false);
   const handleOpened = useEffectEvent(onOpened);
   const handleError = useEffectEvent(onError);
 
   useEffect(() => {
     if (!active) {
       setNeedsAccess(false);
+      setChecked(false);
       return;
     }
     let cancelled = false;
@@ -58,6 +61,7 @@ export function useIncomingFile({
         const info = await pairingApi.watchForFile();
         if (cancelled) return;
         setNeedsAccess(info.needsAccess);
+        setChecked(true);
         if (info.watching) {
           timer = window.setInterval(() => void poll(), POLL_MS);
         } else if (info.needsAccess) {
@@ -66,6 +70,7 @@ export function useIncomingFile({
         }
       } catch (cause) {
         logIgnored("pairing.watchForFile", cause);
+        if (!cancelled) setChecked(true);
       }
     };
     void start();
@@ -82,5 +87,5 @@ export function useIncomingFile({
     void pairingApi.requestFileAccess().catch(onError);
   };
 
-  return { needsAccess, requestAccess };
+  return { needsAccess, checked, requestAccess };
 }
