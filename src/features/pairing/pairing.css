@@ -1879,13 +1879,6 @@
   cursor: default;
 }
 
-/* The Wi-Fi search found no one: this is the way on. */
-.button.pairing-nearby-btn.is-suggested {
-  border-color: var(--obsidian-purple-strong);
-  background: rgb(var(--purple-accent-rgb) / 0.22);
-  box-shadow: 0 0 0 3px rgb(var(--purple-accent-rgb) / 0.2);
-}
-
 .button.pairing-nearby-btn svg {
   width: 20px;
   height: 20px;

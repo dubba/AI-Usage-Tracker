@@ -556,7 +556,7 @@ describe("entering a link code", () => {
 describe("transfer by file", () => {
   const codeInput = () => document.getElementById("pairing-join-code-input") as HTMLInputElement;
 
-  /** Send and type the code, which connects by itself; here the search never ends. */
+  /** Send and type the code; the search finds no one, so the file goes by AirDrop by itself. */
   async function sendWithCode() {
     api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     render();
@@ -574,14 +574,14 @@ describe("transfer by file", () => {
     await settle();
   }
 
-  it("names AirDrop on a Mac and sends the accounts as one file", async () => {
+  it("names AirDrop on a Mac and sends the accounts as one file by itself", async () => {
     api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     render();
     await press("Send Accounts from This Device");
-    expect(button("Use AirDrop").disabled).toBe(true);
+    // No button: Wi-Fi first, then AirDrop by itself.
+    expect(buttons().some((b) => b.textContent?.includes("Use AirDrop"))).toBe(false);
     typeInto(codeInput(), CODE);
     await settle();
-    await press("Use AirDrop");
     expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(api.shareFile).toHaveBeenCalledTimes(1);
     expect(api.saveFile).not.toHaveBeenCalled();
@@ -604,13 +604,11 @@ describe("transfer by file", () => {
     await press("Send Accounts from This Device");
     typeInto(codeInput(), CODE);
     await settle();
-    await press("Use AirDrop");
     expect(api.sendFile).toHaveBeenCalledWith(CODE, false, undefined);
   });
 
   it("sends the file again or saves a copy", async () => {
     await sendWithCode();
-    await press("Use AirDrop");
     await press("Send again by AirDrop");
     expect(api.shareFile).toHaveBeenCalledTimes(2);
     await press("Save to a file instead");
@@ -621,7 +619,6 @@ describe("transfer by file", () => {
   it("saves the file where there is no share menu", async () => {
     api.sendFile.mockResolvedValue(false);
     await sendWithCode();
-    await press("Use AirDrop");
     expect(api.saveFile).toHaveBeenCalledTimes(1);
     expect(api.shareFile).not.toHaveBeenCalled();
     expect(text()).not.toContain("Send again by");
@@ -631,7 +628,6 @@ describe("transfer by file", () => {
   it("offers Try Again when the file can't be made", async () => {
     api.sendFile.mockRejectedValueOnce(new Error("disk full"));
     await sendWithCode();
-    await press("Use AirDrop");
     expect(text()).toContain("disk full");
     expect(title()).toBe("Sending by AirDrop");
     expect(api.shareFile).not.toHaveBeenCalled();
@@ -643,7 +639,6 @@ describe("transfer by file", () => {
   it("goes back to the code, still typed, from a file that couldn't be made", async () => {
     api.sendFile.mockRejectedValueOnce(new Error("disk full"));
     await sendWithCode();
-    await press("Use AirDrop");
     await press("Back");
     expect(title()).toBe("Enter Link Code");
     expect(codeInput().value).toBe("KTQ MPR XDH WAB");
@@ -788,7 +783,7 @@ describe("transfer by file", () => {
     await press("Back");
     // The sender sends: it needs no access.
     await press("Send Accounts from This Device");
-    expect(text()).toContain("Use Quick Share");
+    expect(text()).toContain("Quick Share takes over by itself");
     expect(popup()).toBeNull();
   });
 
@@ -984,7 +979,6 @@ describe("transfer by file", () => {
     await press("Send Accounts from This Device");
     typeInto(codeInput(), CODE);
     await settle();
-    await press("Use AirDrop");
     expect(api.shareFile).toHaveBeenCalledTimes(1);
     expect(text()).toContain("Send again by AirDrop");
     // Save to Files is in the share sheet.
@@ -1030,32 +1024,27 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await settle();
   }
 
-  it("counts down the search, then offers Quick Share, which sends only when tapped", async () => {
+  it("counts down the search, then sends by Quick Share by itself once it finds no one", async () => {
     await searchForCode();
     expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
     expect(text()).toContain("Looking for the other device on Wi-Fi…");
-    expect(text()).toContain("Not found within 10 seconds? You can send by Quick Share instead.");
+    expect(text()).toContain("Not found within 10 seconds? Quick Share takes over by itself.");
+    // No button: Wi-Fi first, and the switch is automatic.
+    expect(buttons().some((b) => b.textContent?.includes("Use Quick Share"))).toBe(false);
     await searchSeconds(3);
     expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("7 seconds");
     await searchSeconds(7);
     expect(text()).toContain("Finishing the search on Wi-Fi…");
+    // The countdown is only shown: the search's own end decides.
+    expect(api.sendFile).not.toHaveBeenCalled();
     await notFound();
-    // Nothing goes until the user taps it.
-    expect(api.sendFile).not.toHaveBeenCalled();
-    expect(title()).toBe("Enter Link Code");
-    expect(document.querySelector(".modal-error")).toBeNull();
-    expect(text()).toContain(
-      "Couldn't find the other device on the same Wi-Fi network. Tap Use Quick Share to sync accounts instead, or connect both devices to the same Wi-Fi and tap Connect. If a VPN is on, turn it off on both devices.",
-    );
-    expect(button("Use Quick Share").className).toContain("is-suggested");
-    await searchSeconds(30);
-    expect(api.sendFile).not.toHaveBeenCalled();
-    await press("Use Quick Share");
     expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(api.shareFile).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".modal-error")).toBeNull();
     expect(title()).toBe("Sending by Quick Share");
-    expect(text()).toContain("isn't on this network, so the accounts go by Quick Share");
+    expect(text()).toContain(
+      "The other device wasn't found on this Wi-Fi network (a VPN on either device can hide it), so the accounts go by Quick Share.",
+    );
     expect(text()).toContain("Send again by Quick Share");
   });
 
@@ -1066,19 +1055,6 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await searchSeconds(10);
     expect(api.sendFile).not.toHaveBeenCalled();
     expect(text()).not.toContain("Sending by");
-  });
-
-  it("keeps Use Quick Share off while Wi-Fi is searched, and on once the search finds no one", async () => {
-    await searchForCode();
-    expect(text()).not.toContain("Use Quick Share now");
-    expect(button("Use Quick Share").disabled).toBe(true);
-    await searchSeconds(9);
-    expect(button("Use Quick Share").disabled).toBe(true);
-    await notFound();
-    expect(button("Use Quick Share").disabled).toBe(false);
-    // Typing again, or a new search, turns it off until that search ends.
-    typeInto(codeInput(), "KTQ");
-    expect(button("Use Quick Share").disabled).toBe(true);
   });
 
   it("sends no file after going back from the search", async () => {
@@ -1096,54 +1072,35 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
 
   it("keeps an older version's six digits to Wi-Fi", async () => {
     await searchForCode("123456");
-    expect(text()).not.toContain("You can send by");
+    expect(text()).not.toContain("takes over by itself");
     await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
     expect(text()).toContain(NOT_FOUND);
   });
 
-  it("shows any other failure of the search as it is, without offering the file in its place", async () => {
+  it("shows any other failure of the search as it is, without sending the file in its place", async () => {
     api.startClientByCode.mockRejectedValue({ code: "unclassified", message: "mDNS unavailable: no network interface" });
     await searchForCode();
     expect(document.querySelector(".modal-error")?.textContent).toContain("mDNS unavailable: no network interface");
-    expect(text()).not.toContain("Couldn't find the other device");
     expect(api.sendFile).not.toHaveBeenCalled();
-  });
-
-  it("tries Wi-Fi again from Connect, and forgets the not-found note when the code changes", async () => {
-    await searchForCode();
-    await notFound();
-    expect(text()).toContain("Couldn't find the other device");
-    await press("Connect");
-    expect(api.startClientByCode).toHaveBeenCalledTimes(2);
-    expect(text()).not.toContain("Couldn't find the other device");
-    await notFound();
-    typeInto(codeInput(), "KTQMP");
-    expect(text()).not.toContain("Couldn't find the other device");
   });
 
   it("names AirDrop on iPhone", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     await searchForCode();
-    expect(text()).toContain("You can send by AirDrop instead");
-    expect(button("Use AirDrop").disabled).toBe(true);
+    expect(text()).toContain("AirDrop takes over by itself");
     await notFound();
-    expect(api.sendFile).not.toHaveBeenCalled();
-    await press("Use AirDrop");
     expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(text()).toContain("Choose the other device in AirDrop");
   });
 
-  it("offers the file on a Mac and on Windows too", async () => {
-    for (const [userAgent, name] of [
-      ["Mozilla/5.0 (Macintosh)", "AirDrop"],
-      ["Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Quick Share"],
-    ]) {
+  it("sends by itself on a Mac and on Windows too", async () => {
+    for (const userAgent of ["Mozilla/5.0 (Macintosh)", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"]) {
       Object.defineProperty(navigator, "userAgent", { value: userAgent, configurable: true });
+      api.sendFile.mockClear();
       await searchForCode();
       await notFound();
-      expect(text()).toContain(`Tap Use ${name} to sync accounts instead`);
-      expect(api.sendFile).not.toHaveBeenCalled();
+      expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
       mounted.unmount();
     }
   });
@@ -1153,7 +1110,6 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await searchForCode();
     await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
-    expect(text()).not.toContain("Use Quick Share");
     expect(text()).toContain(NOT_FOUND);
   });
 });

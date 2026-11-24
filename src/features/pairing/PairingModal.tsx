@@ -58,8 +58,9 @@ import {
 const FOCUS_DELAY_MS = 50;
 /**
  * How long the sender's search for the receiver on the network lasts (`discovery::DISCOVERY_TIMEOUT`),
- * counted down on the code screen. When it ends with no one found, the screen says so and offers
- * Quick Share or AirDrop; the file goes only when the user taps it (making the file stops the search).
+ * counted down on the code screen. When it ends with no one found, the accounts go by Quick Share or
+ * AirDrop by themselves. Only the search's own end sends them: a timer of its own could cut off a
+ * device answering late.
  */
 const WIFI_SEARCH_SECS = 10;
 export function PairingModal({
@@ -74,8 +75,6 @@ export function PairingModal({
   const [{ viewMode, activeFlow, intendedRole }, dispatchFlow] = useReducer(flowReducer, INITIAL_FLOW);
   const { status, setStatus, remainingSecs, hasCompletedRef } = usePairingStatus(open);
   const [joinCodeInput, setJoinCodeInput] = useState("");
-  /** The Wi-Fi search for the typed link code ended without finding the other device. */
-  const [wifiNotFound, setWifiNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
   // After a failure the reason is the screen's content ("The reason is below"), so it stays.
   const { error: errorMessage, setError: setErrorMessage } = useAutoDismissedError(
@@ -213,7 +212,7 @@ export function PairingModal({
   // Busy on the code screen with nothing connected yet: the network search for the typed code.
   const searchingForCode =
     fileFallback && open && viewMode === "code" && busy && status.status === "idle" && isLinkCode(joinCodeInput);
-  // Seconds left in the search, counted down on the code screen. Its own end (not found) offers the
+  // Seconds left in the search, counted down on the code screen. Its own end (not found) sends the
   // file; see `onSubmit` below.
   const [searchSecsLeft, setSearchSecsLeft] = useState(WIFI_SEARCH_SECS);
   useEffect(() => {
@@ -439,7 +438,6 @@ export function PairingModal({
     }
     showView("code", "wifi");
     setJoinCodeInput("");
-    setWifiNotFound(false);
   };
 
   // On close: forget everything, so the next open starts at step 1.
@@ -448,7 +446,6 @@ export function PairingModal({
     discardSession();
     clearAllErrors();
     setJoinCodeInput("");
-    setWifiNotFound(false);
     dispatchFlow({ type: "reset" });
     roleAutoSelectedRef.current = false;
     setBusy(false);
@@ -635,25 +632,19 @@ export function PairingModal({
             value={joinCodeInput}
             busy={busy}
             allowLegacy={otherWaysShown}
-            onChange={(code) => {
-              setJoinCodeInput(code);
-              setWifiNotFound(false);
-            }}
-            onSubmit={(code) => {
-              setWifiNotFound(false);
+            onChange={setJoinCodeInput}
+            onSubmit={(code) =>
               void handleConnectByCode(code, () => {
-                // Not found on the network (or no network): say so and offer the file, which the
-                // user sends with Use AirDrop / Use Quick Share.
+                // The search found no one on the network: the file goes by AirDrop or Quick Share
+                // by itself, and its share sheet opens.
                 if (!fileFallback || !isLinkCode(code)) return false;
-                setWifiNotFound(true);
+                fileTransfer.send(code, true);
                 return true;
-              });
-            }}
+              })
+            }
             onBack={goBack}
             onOtherWays={otherWaysShown ? () => leaveAttempt("select-mode") : undefined}
             nearbyName={nearbyName}
-            notFound={wifiNotFound}
-            onUseNearby={() => fileTransfer.send(joinCodeInput, wifiNotFound)}
             fallback={searchingForCode ? { secsLeft: searchSecsLeft, totalSecs: WIFI_SEARCH_SECS } : undefined}
             setKeyboardOpen={setIsKeyboardOpen}
           />

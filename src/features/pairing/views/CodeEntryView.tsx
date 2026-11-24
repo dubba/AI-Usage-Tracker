@@ -5,19 +5,18 @@ import {
   formatJoinCode,
   isCompleteCode,
   isLegacyCode,
-  isLinkCode,
   startsGroupInRow,
 } from "../lib/view-model";
 
-import { ChevronIcon, NearbyShareIcon } from "../../../shared/ui/icons";
+import { ChevronIcon } from "../../../shared/ui/icons";
 import { isMobileDevice } from "../../../shared/lib/platform";
 import { OtherWaysLink, SearchingRow } from "./HostCodeView";
 
 /**
  * Typing in the link code shown on the other device: twelve letters, or six digits from a device with
  * an older version. The last character connects by itself over Wi-Fi. For a twelve-letter code where
- * there is AirDrop or Quick Share, a button sends the accounts that way instead, offered above all
- * when the search finds no one.
+ * there is AirDrop or Quick Share, a search that finds no one sends the accounts that way by itself
+ * (`PairingModal`).
  */
 export function CodeEntryView({
   value,
@@ -28,8 +27,6 @@ export function CodeEntryView({
   onBack,
   onOtherWays,
   nearbyName,
-  notFound,
-  onUseNearby,
   fallback,
   setKeyboardOpen,
 }: {
@@ -49,10 +46,6 @@ export function CodeEntryView({
   onOtherWays?: () => void;
   /** "AirDrop" or "Quick Share" where the request can go that way; absent where it can't. */
   nearbyName?: string;
-  /** The Wi-Fi search for this code ended without finding the other device. */
-  notFound?: boolean;
-  /** Sends the accounts for the typed code by AirDrop or Quick Share; usable once `notFound`. */
-  onUseNearby?: () => void;
   /** While the Wi-Fi search runs: the seconds left in it. */
   fallback?: { secsLeft: number; totalSecs: number };
   /** Lets the field flag the on-screen keyboard before the viewport has resized. */
@@ -133,8 +126,8 @@ export function CodeEntryView({
                 />
               </div>
               <p className="pairing-code-help">
-                Not found within <strong>{fallback.secsLeft} {fallback.secsLeft === 1 ? "second" : "seconds"}</strong>?
-                You can send by {nearby} instead.
+                Not found within <strong>{fallback.secsLeft} {fallback.secsLeft === 1 ? "second" : "seconds"}</strong>?{" "}
+                {nearby} takes over by itself.
               </p>
             </>
           ) : (
@@ -142,35 +135,16 @@ export function CodeEntryView({
           )
         ) : busy ? (
           <SearchingRow>Looking for the other device on Wi-Fi…</SearchingRow>
-        ) : notFound && nearby ? (
-          <p className="pairing-code-help pairing-code-not-found" role="status">
-            <strong>Couldn't find the other device on the same Wi-Fi network.</strong> Tap <strong>Use {nearby}</strong> to
-            sync accounts instead, or connect both devices to the same Wi-Fi and tap Connect. If a VPN is on, turn it off
-            on both devices.
-          </p>
         ) : (
           <p className="pairing-code-help">
             {legacy
               ? "A 6-digit code from an older version connects over Wi-Fi only."
               : nearby
-                ? `Connects over Wi-Fi or a hotspot. If the other device isn't on the same network, you can send by ${nearby} instead.`
+                ? `Connects over Wi-Fi or a hotspot. If the other device isn't on the same network, ${nearby} takes over by itself.`
                 : "Both devices must be connected to the same Wi-Fi network."}
           </p>
         )}
       </div>
-
-      {nearby && onUseNearby ? (
-        <button
-          type="button"
-          className={`button pairing-nearby-btn${notFound ? " is-suggested" : ""}`}
-          // Only once the Wi-Fi search for this code found no one: Wi-Fi is always tried first.
-          disabled={!notFound || !isLinkCode(value) || busy}
-          onClick={onUseNearby}
-        >
-          <NearbyShareIcon />
-          <span>Use {nearby}</span>
-        </button>
-      ) : null}
 
       {onOtherWays ? <OtherWaysLink disabled={busy && !searching} onClick={onOtherWays} /> : null}
 

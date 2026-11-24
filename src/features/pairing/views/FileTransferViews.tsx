@@ -102,7 +102,9 @@ export function FileSendView({
       <div className="pairing-panel-status pairing-file-view">
         <TransferSteps steps={steps} current={1} />
         <p>
-          {state.notOnNetwork ? `The other device isn't on this network, so the accounts go by ${nearbyName}. ` : ""}
+          {state.notOnNetwork
+            ? `The other device wasn't found on this Wi-Fi network (a VPN on either device can hide it), so the accounts go by ${nearbyName}. `
+            : ""}
           Once the other device accepts the file and confirms, the accounts are added there.
         </p>
         <SendAgainLinks nearbyName={nearbyName} canShare={canShare} busy={busy} onShare={onShare} onSave={onSave} />
