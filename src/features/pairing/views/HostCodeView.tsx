@@ -121,7 +121,8 @@ function DiscoverableNote() {
       {ios ? (
         // AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes.
         <p>
-          Unless both devices use the same Apple Account, set AirDrop to <strong>Everyone for 10 Minutes</strong>.
+          <strong>For AirDrop:</strong> Unless both devices use the same Apple Account, set AirDrop to{" "}
+          <strong>Everyone for 10 Minutes</strong>.
         </p>
       ) : (
         <p>
@@ -131,7 +132,7 @@ function DiscoverableNote() {
       )}
       <p>
         {ios
-          ? "Go to Settings → General → AirDrop, then return here."
+          ? "To change this, search for AirDrop in your device Settings, then return here."
           : "To change this, search for Quick Share in your device Settings, then return here."}
       </p>
     </div>
