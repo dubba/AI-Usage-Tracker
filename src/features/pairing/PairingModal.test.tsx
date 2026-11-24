@@ -773,7 +773,9 @@ describe("transfer by file", () => {
     expect(text()).toContain("Use Quick Share");
     const popup = () => document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
     expect(popup()?.textContent).toContain("Allow file access");
-    expect(popup()?.textContent).toContain("It opens only Sync Devices files.");
+    expect(popup()?.textContent).toContain(
+      "Allow AI Usage Tracker to access files saved by Quick Share in Downloads so synced accounts are added automatically. Only Sync Devices files are opened.",
+    );
     click(Array.from(popup()!.querySelectorAll("button")).find((b) => b.textContent === "Allow")!);
     await settle();
     expect(api.requestFileAccess).toHaveBeenCalledTimes(1);

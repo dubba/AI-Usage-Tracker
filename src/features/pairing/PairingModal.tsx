@@ -741,7 +741,7 @@ export function PairingModal({
       open={askFileAccess}
       kicker="Sync devices"
       title="Allow file access"
-      body={`So accounts sent by ${nearbyName ?? "Quick Share"} are added without opening the file yourself, allow AI Usage Tracker to see the files ${nearbyName ?? "Quick Share"} saves to Downloads. It opens only Sync Devices files.`}
+      body={`Allow AI Usage Tracker to access files saved by ${nearbyName ?? "Quick Share"} in Downloads so synced accounts are added automatically. Only Sync Devices files are opened.`}
       cancelLabel="Not Now"
       confirmLabel="Allow"
       confirmDanger={false}
