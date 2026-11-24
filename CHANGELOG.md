@@ -28,14 +28,14 @@
 - The Usage page's key (Measured, Estimated, No data, Reset) has larger text, matching the Dashboard's status bar, on desktop and on phones. On desktop the key box is now as tall as the status bar, and on narrow phones it stays on one line.
 - Sync Devices takes fewer steps: after choosing Send or Receive, the receiving device shows its link code at once and the sending device asks for it. Typing the last letter connects without pressing Connect, and once connected the sending device sends straight away instead of asking "Send to the other device?". A 6-digit code for a device with an older version, and the QR code, are under "Other ways to connect". A failed pairing now says "Pairing Failed" in the heading, with a green Try Again button.
 - In Settings, the Menu Bar Labels switch description now reads "Show labels below icons in bottom bar."
-- The Sync Devices link code screens have a new look: the code shows as large letter tiles with a bar counting down to when it expires, the code you type fills matching tiles, a pulsing dot shows while it looks for the other device, and the file transfer screens show each step with a tick as it's done.
+- The Sync Devices link code screens have a new look: the code shows as large letter tiles in two rows of five with a bar counting down to when it expires, the code you type fills matching tiles, a pulsing dot shows while it looks for the other device, and the file transfer screens show each step with a tick as it's done.
 - Error messages in dialogs (Sync Devices, Add Account, groups, alerts, Google AI Studio) now stay for 10 seconds instead of 6, and have an X in the top right corner to close them sooner.
 
 ### Fixed (5)
 
 - When Sync Devices fails, the reason now stays on screen until you close it with its X, press Back or press Try Again. Before, it disappeared after 10 seconds and left "The reason is below" pointing at nothing.
 - On desktop, the usage bars in compact account cards are now centered in the card, with the same space above and below. Before, they sat slightly low.
-- When you type a link code, it now shows in two groups (KTQMP RXDHW), matching the code on the other device.
+- When you type a link code, it now fills two rows of five letters, matching the code on the other device.
 - On the Usage page, switching between 7D, 30D and 90D no longer dims the cards for a moment; the old charts stay until the new ones are drawn.
 - On Android, a phone that shares its hotspot while also connected to Wi-Fi can now enter the link code of a device that joined its hotspot. Before, pairing failed with "The link to the other device broke" unless that phone showed the code instead.
 

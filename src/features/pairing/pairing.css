@@ -387,7 +387,7 @@
   line-height: 1.4 !important;
 }
 
-/* The code field: ten tiles (six for an older version's digits) drawn over by one real input,
+/* The code field: ten tiles in two rows (six in a row for an older version's digits) drawn over by one real input,
    transparent, so typing and pasting work as in any field while the tiles show the code. */
 .pairing-code-tiles {
   position: relative;
@@ -477,22 +477,21 @@
 .pairing-code-tiles.is-busy .pairing-code-tile:nth-child(10) { animation-delay: 0.8s; }
 .pairing-code-tiles.is-busy .pairing-code-tile:nth-child(11) { animation-delay: 0.9s; }
 
-/* Ten letters share the width: each tile shrinks to fit a phone, up to the size of six. */
+/* Ten letters: two rows of five, one row per group. */
 .pairing-code-tiles.is-long {
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 48px));
+  justify-content: center;
+  gap: 8px;
 }
 
 .pairing-code-tiles.is-long .pairing-code-tile {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 38px;
+  width: auto;
   height: 52px;
-  border-radius: 10px;
-  font-size: 1.35rem;
 }
 
 .pairing-code-tiles.is-long .pairing-code-tile.group-start {
-  margin-left: 10px;
+  margin-left: 0;
 }
 
 @keyframes pairing-caret {
@@ -508,9 +507,9 @@
   .pairing-code-tiles { gap: 6px; }
   .pairing-code-tile { width: 38px; height: 50px; font-size: 1.4rem; }
   .pairing-code-tile.group-start { margin-left: 8px; }
-  .pairing-code-tiles.is-long { gap: 4px; }
-  .pairing-code-tiles.is-long .pairing-code-tile { height: 46px; font-size: 1.2rem; }
-  .pairing-code-tiles.is-long .pairing-code-tile.group-start { margin-left: 6px; }
+  .pairing-code-tiles.is-long { gap: 6px; }
+  .pairing-code-tiles.is-long .pairing-code-tile { height: 48px; }
+  .pairing-code-tiles.is-long .pairing-code-tile.group-start { margin-left: 0; }
 }
 
 /* Under the tiles: what is happening, with the countdown to AirDrop or Quick Share. */
@@ -1253,11 +1252,10 @@
     font-size: 1.4rem;
   }
 
-  /* Ten letters keep their smaller size. */
+  /* Ten letters take two rows: shorter tiles leave room above the keyboard. */
   .modal-card.pairing-modal.keyboard-open .pairing-code-tiles.is-long .pairing-code-tile,
   html.keyboard-active .modal-card.pairing-modal .pairing-code-tiles.is-long .pairing-code-tile {
-    height: 44px;
-    font-size: 1.2rem;
+    height: 42px;
   }
 
   .modal-card.pairing-modal.keyboard-open .pairing-code-help,
@@ -1757,30 +1755,29 @@
   margin-left: 12px;
 }
 
-/* A ten-letter code: the tiles share the width, as in the code field. */
+/* A ten-letter code: two rows of five, as in the code field. */
 .pairing-code-digits.is-long {
-  width: 100%;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 46px));
+  justify-content: center;
+  gap: 8px;
 }
 
 .pairing-code-digits.is-long .pairing-code-digit {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 40px;
+  width: auto;
   height: 52px;
-  font-size: 1.5rem;
 }
 
 .pairing-code-digits.is-long .pairing-code-digit.group-start {
-  margin-left: 10px;
+  margin-left: 0;
 }
 
 @media (max-width: 360px) {
   .pairing-code-digit { width: 34px; height: 46px; font-size: 1.5rem; }
   .pairing-code-digit.group-start { margin-left: 8px; }
-  .pairing-code-digits.is-long { gap: 4px; }
-  .pairing-code-digits.is-long .pairing-code-digit { height: 46px; font-size: 1.3rem; }
-  .pairing-code-digits.is-long .pairing-code-digit.group-start { margin-left: 6px; }
+  .pairing-code-digits.is-long { gap: 6px; }
+  .pairing-code-digits.is-long .pairing-code-digit { height: 46px; }
+  .pairing-code-digits.is-long .pairing-code-digit.group-start { margin-left: 0; }
 }
 
 .pairing-code-expiry {
