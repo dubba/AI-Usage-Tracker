@@ -861,7 +861,9 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     expect(api.sendFile).not.toHaveBeenCalled();
     expect(title()).toBe("Enter Link Code");
     expect(document.querySelector(".modal-error")).toBeNull();
-    expect(text()).toContain("The other device isn't on this Wi-Fi network.");
+    expect(text()).toContain(
+      "Couldn't find the other device on the same Wi-Fi network. Tap Use Quick Share to sync accounts instead, or connect both devices to the same Wi-Fi and tap Connect.",
+    );
     expect(button("Use Quick Share").className).toContain("is-suggested");
     await searchSeconds(30);
     expect(api.sendFile).not.toHaveBeenCalled();
@@ -919,13 +921,13 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
   it("tries Wi-Fi again from Connect, and forgets the not-found note when the code changes", async () => {
     await searchForCode();
     await notFound();
-    expect(text()).toContain("isn't on this Wi-Fi network");
+    expect(text()).toContain("Couldn't find the other device");
     await press("Connect");
     expect(api.startClientByCode).toHaveBeenCalledTimes(2);
-    expect(text()).not.toContain("isn't on this Wi-Fi network");
+    expect(text()).not.toContain("Couldn't find the other device");
     await notFound();
     typeInto(codeInput(), "KTQMP");
-    expect(text()).not.toContain("isn't on this Wi-Fi network");
+    expect(text()).not.toContain("Couldn't find the other device");
   });
 
   it("names AirDrop on iPhone", async () => {
@@ -948,7 +950,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
       Object.defineProperty(navigator, "userAgent", { value: userAgent, configurable: true });
       await searchForCode();
       await notFound();
-      expect(text()).toContain(`Tap Use ${name} to send the accounts as a file instead`);
+      expect(text()).toContain(`Tap Use ${name} to sync accounts instead`);
       expect(api.sendFile).not.toHaveBeenCalled();
       mounted.unmount();
     }
