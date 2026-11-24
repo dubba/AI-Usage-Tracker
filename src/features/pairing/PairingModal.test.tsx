@@ -793,14 +793,26 @@ describe("transfer by file", () => {
     expect(note?.textContent).toContain(
       "Unless both devices use the same Google Account, in Quick Share, set Who can share with you to Everyone for 10 Minutes.",
     );
-    expect(note?.textContent).toContain("Go to Settings and search for Quick Share to change this setting.");
+    expect(note?.textContent).toContain("Go to Settings and search for Quick Share to change this setting, then return here.");
     expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
       "Who can share with you",
       "Everyone for 10 Minutes",
     ]);
   });
 
-  it("shows that note only on Android", async () => {
+  it("shows the AirDrop version of that note on iPhone, with no popup", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
+    render();
+    await press("Receive Accounts on This Device");
+    const note = document.querySelector(".pairing-discover-note");
+    expect(note?.textContent).toContain(
+      "Unless both devices use the same Apple Account, in AirDrop, set Who can share with you to Everyone for 10 Minutes.",
+    );
+    expect(note?.textContent).toContain("Go to Settings → General → AirDrop, then return here.");
+    expect(popup()).toBeNull();
+  });
+
+  it("shows that note only on phones", async () => {
     render();
     await press("Receive Accounts on This Device");
     expect(document.querySelector(".pairing-discover-note")).toBeNull();
@@ -833,21 +845,6 @@ describe("transfer by file", () => {
     expect(popup()?.textContent).toContain("If System Settings opens instead, go to General → AirDrop & Handoff.");
     await pressIn("Open AirDrop");
     expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
-  });
-
-  it("gives an iPhone the steps only, with nothing to open", async () => {
-    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
-    render();
-    await press("Receive Accounts on This Device");
-    expect(popup()?.querySelector(".confirm-dialog-body")?.textContent).toBe(
-      "Unless both devices use the same Apple Account, set AirDrop to Everyone for 10 Minutes.",
-    );
-    const box = popup()?.querySelector(".confirm-dialog-note")?.textContent;
-    expect(box).toContain("Go to Settings → General → AirDrop, then return here.");
-    expect(box).toContain("If Settings opens instead, search for AirDrop.");
-    await pressIn("Done");
-    expect(api.openReceiveSettings).not.toHaveBeenCalled();
-    expect(popup()).toBeNull();
   });
 
   it("points Windows to Quick Share's Receiving setting and opens Nearby sharing", async () => {
@@ -963,7 +960,6 @@ describe("transfer by file", () => {
     render();
     await press("Receive Accounts on This Device");
     expect(text()).toContain("Waiting for the other device on Wi-Fi or AirDrop");
-    await pressIn("Not Now");
     await press("Back");
     api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     await press("Send Accounts from This Device");

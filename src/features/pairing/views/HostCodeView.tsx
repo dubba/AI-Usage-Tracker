@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { PairingStatus } from "../../../types";
-import { isAndroid } from "../../../shared/lib/platform";
+import { isAndroid, isIOS } from "../../../shared/lib/platform";
 import { formatCountdown, formatJoinCode, hostWaitingFields, isLegacyCode, startsGroupInRow } from "../lib/view-model";
 
 /** How long a link code lasts (`transport::SESSION_TIMEOUT_SECS`), for the bar under it. */
@@ -79,7 +79,7 @@ export function HostCodeView({
         {nearby ? `Waiting for the other device on Wi-Fi or ${nearby}…` : "Waiting for the other device to connect…"}
       </SearchingRow>
 
-      {nearby && isAndroid() ? <DiscoverableNote /> : null}
+      {nearby && (isAndroid() || isIOS()) ? <DiscoverableNote /> : null}
 
       {nearby && onOpenFile ? (
         <button type="button" className="pairing-other-ways" onClick={onOpenFile}>
@@ -110,17 +110,23 @@ function CodeDigits({ code }: { code: string }) {
 }
 
 /**
- * Android: a phone on another Google account can send here only if Quick Share lets everyone share
- * with this one, and no app can open or change that setting, so this says where it is.
+ * Phones: a device on another account can send here only if Quick Share (Android) or AirDrop
+ * (iPhone) lets everyone share with this one, and no app can open or change that setting, so this
+ * says where it is.
  */
 function DiscoverableNote() {
+  const ios = isIOS();
   return (
     <div className="pairing-discover-note">
       <p>
-        Unless both devices use the same Google Account, in Quick Share, set <strong>Who can share with you</strong> to{" "}
-        <strong>Everyone for 10 Minutes</strong>.
+        Unless both devices use the same {ios ? "Apple" : "Google"} Account, in {ios ? "AirDrop" : "Quick Share"}, set{" "}
+        <strong>Who can share with you</strong> to <strong>Everyone for 10 Minutes</strong>.
       </p>
-      <p>Go to Settings and search for Quick Share to change this setting.</p>
+      <p>
+        {ios
+          ? "Go to Settings → General → AirDrop, then return here."
+          : "Go to Settings and search for Quick Share to change this setting, then return here."}
+      </p>
     </div>
   );
 }
