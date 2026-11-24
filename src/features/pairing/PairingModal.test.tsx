@@ -806,7 +806,7 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     const note = document.querySelector(".pairing-discover-note");
     expect(note?.textContent).toContain(
-      "Unless both devices use the same Apple Account, in AirDrop, set Who can share with you to Everyone for 10 Minutes.",
+      "Unless both devices use the same Apple Account, set AirDrop to Everyone for 10 Minutes.",
     );
     expect(note?.textContent).toContain("Go to Settings → General → AirDrop, then return here.");
     expect(popup()).toBeNull();

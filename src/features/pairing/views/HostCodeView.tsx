@@ -118,10 +118,17 @@ function DiscoverableNote() {
   const ios = isIOS();
   return (
     <div className="pairing-discover-note">
-      <p>
-        Unless both devices use the same {ios ? "Apple" : "Google"} Account, in {ios ? "AirDrop" : "Quick Share"}, set{" "}
-        <strong>Who can share with you</strong> to <strong>Everyone for 10 Minutes</strong>.
-      </p>
+      {ios ? (
+        // AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes.
+        <p>
+          Unless both devices use the same Apple Account, set AirDrop to <strong>Everyone for 10 Minutes</strong>.
+        </p>
+      ) : (
+        <p>
+          Unless both devices use the same Google Account, in Quick Share, set <strong>Who can share with you</strong> to{" "}
+          <strong>Everyone for 10 Minutes</strong>.
+        </p>
+      )}
       <p>
         {ios
           ? "Go to Settings → General → AirDrop, then return here."
