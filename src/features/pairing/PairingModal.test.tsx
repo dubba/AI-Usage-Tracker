@@ -29,6 +29,7 @@ const api = vi.hoisted(() => ({
   stopWatchingForFile: vi.fn(),
   pollForFile: vi.fn(),
   requestFileAccess: vi.fn(),
+  openQuickShareSettings: vi.fn(),
 }));
 const cancelPairing = vi.hoisted(() => vi.fn());
 vi.mock("../../shared/lib/api", () => ({ pairingApi: api, cancelPairing }));
@@ -159,6 +160,7 @@ beforeEach(() => {
   api.stopWatchingForFile.mockResolvedValue(undefined);
   api.pollForFile.mockResolvedValue(null);
   api.requestFileAccess.mockResolvedValue(undefined);
+  api.openQuickShareSettings.mockResolvedValue(undefined);
   // A Mac: the file goes out through the share menu.
   api.sendFile.mockResolvedValue(true);
   api.shareFile.mockResolvedValue(undefined);
@@ -798,6 +800,49 @@ describe("transfer by file", () => {
     expect(api.requestFileAccess).not.toHaveBeenCalled();
     await press("Use Quick Share");
     expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks an Android receiver choosing Quick Share to let everyone nearby share, and opens its settings", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
+    render();
+    await press("Receive Accounts on This Device");
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    await press("Use Quick Share");
+    const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
+    expect(popup?.textContent).toContain("Let the other phone find this one");
+    expect(popup?.textContent).toContain("choose Everyone for 10 minutes");
+    expect(popup?.textContent).toContain("Apps can't change this setting themselves.");
+    await press("Open Quick Share Settings");
+    expect(api.openQuickShareSettings).toHaveBeenCalledTimes(1);
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(title()).toBe("Your Link Code");
+  });
+
+  it("asks for file access before Quick Share's visibility, and closes from Not Now", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
+    api.watchForFile.mockResolvedValue({ watching: false, needsAccess: true });
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Not Now");
+    await press("Use Quick Share");
+    // File access first: the visibility comes on the next tap, once access is allowed.
+    expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
+    expect(text()).not.toContain("Let the other phone find this one");
+    api.watchForFile.mockResolvedValue({ watching: true, needsAccess: false });
+    mounted.unmount();
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Use Quick Share");
+    await press("Not Now");
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(api.openQuickShareSettings).not.toHaveBeenCalled();
+  });
+
+  it("asks nothing about visibility for AirDrop on a Mac", async () => {
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Use AirDrop");
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
   });
 
   it("does not ask for file access once it is allowed", async () => {

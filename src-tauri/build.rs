@@ -91,6 +91,7 @@ const APP_COMMANDS: &[&str] = &[
     "pairing_file_watch_stop",
     "pairing_file_poll",
     "pairing_file_request_access",
+    "pairing_open_quick_share_settings",
 ];
 
 fn main() {

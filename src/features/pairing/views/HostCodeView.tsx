@@ -14,7 +14,7 @@ export function HostCodeView({
   onOtherWays,
   nearbyName,
   onOpenFile,
-  fileAccess,
+  onUseNearby,
 }: {
   status: PairingStatus;
   remainingSecs: number | null;
@@ -29,11 +29,8 @@ export function HostCodeView({
   nearbyName?: string;
   /** Opens the file by hand, for one that wasn't picked up by itself. */
   onOpenFile?: () => void;
-  /**
-   * Android, until the app may read Downloads: the way to allow it, also offered when Use Quick
-   * Share is chosen. `PairingModal` asks in a popup first.
-   */
-  fileAccess?: { needed: boolean; onAllow: () => void };
+  /** "Use AirDrop" / "Use Quick Share" was tapped: get this device ready to receive the file. */
+  onUseNearby?: () => void;
 }) {
   const [nearbyChosen, setNearbyChosen] = useState(false);
   const host = hostWaitingFields(status);
@@ -66,7 +63,7 @@ export function HostCodeView({
   const left = remainingSecs == null ? 1 : Math.max(0, Math.min(1, remainingSecs / CODE_LIFETIME_SECS));
   const chooseNearby = () => {
     setNearbyChosen(true);
-    if (fileAccess?.needed) fileAccess.onAllow();
+    onUseNearby?.();
   };
 
   return (

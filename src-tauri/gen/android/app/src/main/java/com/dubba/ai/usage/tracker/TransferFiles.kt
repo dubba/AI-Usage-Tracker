@@ -3,6 +3,7 @@ package com.dubba.ai.usage.tracker
 import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -154,11 +155,56 @@ internal class TransferFiles(private val activity: Activity) {
     }
   }
 
+  /**
+   * Opens Quick Share's settings on this phone, where "Everyone for 10 minutes" lets a phone signed
+   * in to another Google account send here; apps cannot change that setting themselves. Google
+   * documents no way in, so this tries the Quick Share screens Play Services has had, then this
+   * phone's Settings. Returns which one opened ("quick-share" or "settings"), for the Sync Devices
+   * log. Waits until it has run.
+   */
+  fun openQuickShareSettings(): String {
+    val attempts = listOf(
+      Intent(QUICK_SHARE_SETTINGS_ACTION),
+      Intent().setComponent(ComponentName(PLAY_SERVICES, "$PLAY_SERVICES.nearby.sharing.SettingsActivity")),
+      Intent().setComponent(ComponentName(PLAY_SERVICES, "$PLAY_SERVICES.nearby.sharing.settings.SettingsActivity")),
+    )
+    var opened = "settings"
+    val done = java.util.concurrent.CountDownLatch(1)
+    activity.runOnUiThread {
+      try {
+        opened = if (attempts.any { tryStart(it) }) "quick-share" else {
+          activity.startActivity(Intent(Settings.ACTION_SETTINGS))
+          "settings"
+        }
+      } catch (e: Throwable) {
+        android.util.Log.w(LOG_TAG, "Opening Quick Share settings failed: ${e.message}")
+      } finally {
+        done.countDown()
+      }
+    }
+    done.await(5, java.util.concurrent.TimeUnit.SECONDS)
+    return opened
+  }
+
+  /** Starts `intent`; false when no app has that screen, or it may not be opened from here. */
+  private fun tryStart(intent: Intent): Boolean =
+    try {
+      activity.startActivity(intent)
+      true
+    } catch (e: ActivityNotFoundException) {
+      false
+    } catch (e: SecurityException) {
+      false
+    }
+
   /** The shared Downloads folder Quick Share saves into. */
   fun downloadsDir(): String =
     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
 
   companion object {
+    private const val PLAY_SERVICES = "com.google.android.gms"
+    /** Quick Share's settings, on Play Services versions that answer it. */
+    private const val QUICK_SHARE_SETTINGS_ACTION = "com.google.android.gms.settings.NEARBY_SHARING_SETTINGS"
     /**
      * The files' own type (the same in `AndroidManifest.xml`'s VIEW filter). Quick Share sends it
      * with the file; if the receiving phone keeps it (Samsung), tapping the file opens this app

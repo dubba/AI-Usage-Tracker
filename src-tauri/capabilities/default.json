@@ -108,6 +108,7 @@
     "allow-pairing-file-watch",
     "allow-pairing-file-watch-stop",
     "allow-pairing-file-poll",
-    "allow-pairing-file-request-access"
+    "allow-pairing-file-request-access",
+    "allow-pairing-open-quick-share-settings"
   ]
 }

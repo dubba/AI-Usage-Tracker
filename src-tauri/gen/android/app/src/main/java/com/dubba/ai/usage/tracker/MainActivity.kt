@@ -395,6 +395,9 @@ class MainActivity : TauriActivity() {
 
   fun downloadsDir(): String = transferFiles.downloadsDir()
 
+  /** Quick Share's settings (or this phone's Settings): "quick-share" or "settings", for the log. */
+  fun openQuickShareSettings(): String = transferFiles.openQuickShareSettings()
+
   /**
    * Keeps this window out of screenshots, screen recordings and the recent-apps preview while
    * the air-gap transfer codes are showing (capture_protection.rs).

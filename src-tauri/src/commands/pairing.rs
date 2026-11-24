@@ -693,6 +693,25 @@ pub async fn pairing_file_request_access() -> CommandResult<()> {
     Ok(())
 }
 
+/// Android: opens Quick Share's settings so the user can set "Everyone for 10 minutes" (a phone on
+/// another Google account cannot send here otherwise; apps cannot change it). Falls back to this
+/// phone's Settings. Does nothing elsewhere.
+#[tauri::command]
+pub async fn pairing_open_quick_share_settings() -> CommandResult<()> {
+    #[cfg(target_os = "android")]
+    {
+        let opened = tauri::async_runtime::spawn_blocking(
+            crate::platform::android_files::open_quick_share_settings,
+        )
+        .await
+        .map_err(|_| file_error(FILE_READ_FAILED))?
+        .inspect_err(|error| sync_log::failed_text("file: opening Quick Share settings", error))
+        .map_err(file_error)?;
+        sync_log::note(&format!("file: opened {opened} for Quick Share visibility"));
+    }
+    Ok(())
+}
+
 /// The transfer file that arrived in Downloads since [`pairing_file_watch`], opened as a file
 /// tapped in another app is. `None` while nothing new has arrived; a file that is not a transfer
 /// file is skipped (and logged), so the watch goes on. One that opened is deleted.

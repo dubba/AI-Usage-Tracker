@@ -163,6 +163,32 @@ pub fn request_downloads_access() -> Result<(), String> {
     })
 }
 
+/// Opens Quick Share's settings, or this phone's Settings when no Quick Share screen may be opened
+/// (Google documents none). Returns which: "quick-share" or "settings".
+pub fn open_quick_share_settings() -> Result<String, String> {
+    const FAILED: &str =
+        "Couldn't open Quick Share's settings. Open Settings and search for Quick Share.";
+    crate::platform::android_context::with_activity(FAILED, |env, activity| {
+        let result = env.call_method(
+            activity,
+            "openQuickShareSettings",
+            "()Ljava/lang/String;",
+            &[],
+        );
+        if threw(env) {
+            return Err(FAILED.into());
+        }
+        let object = result
+            .and_then(|value| value.l())
+            .map_err(|_| FAILED.to_string())?;
+        let text: String = env
+            .get_string(&jni::objects::JString::from(object))
+            .map_err(|_| FAILED.to_string())?
+            .into();
+        Ok(text)
+    })
+}
+
 /// The shared Downloads folder, where Quick Share saves what it receives. `None` if it cannot be
 /// found.
 pub fn downloads_dir() -> Option<std::path::PathBuf> {
