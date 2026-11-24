@@ -31,6 +31,8 @@ export function useFileTransfer({
   const [preview, setPreview] = useState<FilePreview | null>(null);
   /** Whether the request went out by itself because the Wi-Fi search found nothing. */
   const [requestedAutomatically, setRequestedAutomatically] = useState(false);
+  /** Whether the reply's open dialog is the step running, so only its button says "Opening…". */
+  const [openingReply, setOpeningReply] = useState(false);
   /** Whether this device has a share menu; until a file is made, assume not. */
   const [canShare, setCanShare] = useState(false);
 
@@ -67,6 +69,7 @@ export function useFileTransfer({
     preview,
     canShare,
     requestedAutomatically,
+    openingReply,
     /** Shows the share menu again for the file made last. */
     share: () => void share(),
     /** Saves a copy of the file made last. */
@@ -84,10 +87,12 @@ export function useFileTransfer({
         deliver(shareMenu);
       }),
     /** Receiver: open the reply and show how many accounts it holds. */
-    openReply: () =>
-      step("Couldn't open the reply", () => pairingApi.openFileReply(), (opened) => {
+    openReply: () => {
+      setOpeningReply(true);
+      return step("Couldn't open the reply", () => pairingApi.openFileReply(), (opened) => {
         if (opened) setPreview(opened);
-      }),
+      }).finally(() => setOpeningReply(false));
+    },
     /** Receiver, after its user agreed: add the accounts. */
     importReply: () => {
       const opened = preview;

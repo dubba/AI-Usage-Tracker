@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (22 changes)
+## Unreleased (24 changes)
 
 ### Added (1)
 
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens. Its text is a soft light gray instead of bright white, so it is easier on the eyes; text on colored buttons stays white.
 
-### Improved (15)
+### Improved (16)
 
+- On a Mac, Sync Devices transfer files now show the app's icon and the kind "AI Usage Tracker transfer file" in the share menu and in Finder, instead of a generic icon.
 - In Settings, the Appearance description now reads "Choose your preferred app theme."
 - When Sync Devices fails, Try Again now sits at the bottom right in place of Close, styled like Connect to Device. The X at the top still closes the dialog.
 - On iPhone and iPad, Sync Devices can now move accounts by file too, so an iPhone can sync with a device that isn't on the same network. The request and reply go out through the iPhone's share sheet (AirDrop, Messages, Mail, or Save to Files), and when one arrives by AirDrop, or is opened from Files or Mail, the app opens it at the right step. As on Android, if the code finds no device on the network within 10 seconds, the share sheet opens by itself with the request. Android phones whose Quick Share works with AirDrop (such as recent Pixels and the Galaxy S26) can send to and receive from an iPhone or Mac this way.
@@ -25,8 +26,9 @@
 - In Settings, the Menu Bar Labels switch description now reads "Show labels below icons in bottom bar."
 - Error messages in dialogs (Sync Devices, Add Account, groups, alerts, Google AI Studio) now stay for 10 seconds instead of 6, and have an X in the top right corner to close them sooner.
 
-### Fixed (5)
+### Fixed (6)
 
+- In Sync Devices, while you save or share the request file, the Open Reply button no longer says "Opening…"; it says that only while its own file dialog is open.
 - When Sync Devices fails, the reason now stays on screen until you close it with its X, press Back or press Try Again. Before, it disappeared after 10 seconds and left "The reason is below" pointing at nothing.
 - On desktop, the usage bars in compact account cards are now centered in the card, with the same space above and below. Before, they sat slightly low.
 - When you type a link code, it now shows as two groups of three digits (123 456), matching the empty box and the code on the other device.

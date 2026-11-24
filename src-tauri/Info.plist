@@ -10,5 +10,35 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>AI Usage Tracker requires camera access to scan device linking QR codes.</string>
+	<!-- Sync Devices transfer files (.aiutpair; the same type as Info.ios.plist): named and drawn
+	     with the app's icon in the share menu and Finder. Only the type is declared, not a
+	     document type, so opening one in Finder does not open the app; Sync Devices' Open
+	     buttons do. -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.dubba.ai.usage.tracker.transfer</string>
+			<key>UTTypeDescription</key>
+			<string>AI Usage Tracker transfer file</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeIconFile</key>
+			<string>icon.icns</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>aiutpair</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/vnd.aiut.pair</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 </dict>
 </plist>

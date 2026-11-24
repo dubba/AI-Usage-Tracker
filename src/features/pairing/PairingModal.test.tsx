@@ -581,6 +581,25 @@ describe("transfer by file", () => {
     expect(onCompleted).toHaveBeenCalledTimes(1);
   });
 
+  it("says Opening only while the reply's open dialog is up, not while saving", async () => {
+    let finishSave: (saved: boolean) => void = () => {};
+    api.saveFile.mockImplementation(() => new Promise((resolve) => (finishSave = resolve)));
+    await receiveWithCode();
+    await press("Use a file instead");
+    click(button("Save the request to a file"));
+    await settle();
+    expect(button("Open Reply…").disabled).toBe(true);
+    expect(text()).not.toContain("Opening…");
+    await act(async () => finishSave(true));
+    let finishOpen: (preview: null) => void = () => {};
+    api.openFileReply.mockImplementation(() => new Promise((resolve) => (finishOpen = resolve)));
+    click(button("Open Reply…"));
+    await settle();
+    expect(text()).toContain("Opening…");
+    await act(async () => finishOpen(null));
+    expect(text()).toContain("Open Reply…");
+  });
+
   it("shares again or saves a copy of the request", async () => {
     await receiveWithCode();
     await press("Use a file instead");

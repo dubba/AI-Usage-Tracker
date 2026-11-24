@@ -109,6 +109,7 @@ export function FileSendView({
 export function FileReceiveView({
   preview,
   automatic,
+  openingReply,
   canShare,
   busy,
   onOpenReply,
@@ -120,6 +121,8 @@ export function FileReceiveView({
   preview: FilePreview | null;
   /** The request went out by itself because the Wi-Fi search found nothing. */
   automatic: boolean;
+  /** The open dialog for the reply is up (other steps leave the button's label alone). */
+  openingReply: boolean;
   canShare: boolean;
   busy: boolean;
   onOpenReply: () => void;
@@ -160,7 +163,7 @@ export function FileReceiveView({
       <div className="pairing-nav-row">
         <BackButton onClick={onBack} disabled={busy} />
         <button type="button" className="button primary" onClick={onOpenReply} disabled={busy}>
-          {busy ? "Opening…" : "Open Reply…"}
+          {openingReply ? "Opening…" : "Open Reply…"}
         </button>
       </div>
     </div>

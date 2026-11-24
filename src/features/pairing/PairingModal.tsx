@@ -520,6 +520,7 @@ export function PairingModal({
           <FileReceiveView
             preview={fileTransfer.preview}
             automatic={fileTransfer.requestedAutomatically}
+            openingReply={fileTransfer.openingReply}
             canShare={fileTransfer.canShare}
             busy={busy}
             onOpenReply={() => void fileTransfer.openReply()}
