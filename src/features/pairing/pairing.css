@@ -1897,6 +1897,33 @@
   flex: none;
 }
 
+/* Android, receiving: where to let a phone on another Google account share with this one. */
+.pairing-discover-note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--purple-text-rgb) / 0.22);
+  border-radius: 10px;
+  background: rgb(var(--purple-text-rgb) / 0.08);
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.pairing-discover-note p,
+.modal-card.pairing-modal .pairing-discover-note p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--obsidian-text);
+}
+
+.pairing-discover-note strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
 /* "Other ways to connect": the quietest link on the screen. */
 .pairing-other-ways.pairing-other-ways-quiet {
   color: var(--obsidian-muted);

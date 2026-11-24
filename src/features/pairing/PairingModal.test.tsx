@@ -785,6 +785,27 @@ describe("transfer by file", () => {
     expect(title()).toBe("Your Link Code");
   });
 
+  it("tells an Android receiver where Quick Share's Who can share with you setting is, in place of a button", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
+    render();
+    await press("Receive Accounts on This Device");
+    const note = document.querySelector(".pairing-discover-note");
+    expect(note?.textContent).toContain(
+      "Unless both devices use the same Google Account, in Quick Share, set Who can share with you to Everyone for 10 Minutes.",
+    );
+    expect(note?.textContent).toContain("Go to Settings and search for Quick Share to change this setting.");
+    expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
+      "Who can share with you",
+      "Everyone for 10 Minutes",
+    ]);
+  });
+
+  it("shows that note only on Android", async () => {
+    render();
+    await press("Receive Accounts on This Device");
+    expect(document.querySelector(".pairing-discover-note")).toBeNull();
+  });
+
   it("closes the file access popup from Not Now", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
     api.watchForFile.mockResolvedValue({ watching: false, needsAccess: true });
