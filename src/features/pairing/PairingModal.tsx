@@ -615,6 +615,7 @@ export function PairingModal({
           <CodeEntryView
             value={joinCodeInput}
             busy={busy}
+            allowLegacy={otherWaysShown}
             onChange={(code) => {
               setJoinCodeInput(code);
               setWifiNotFound(false);

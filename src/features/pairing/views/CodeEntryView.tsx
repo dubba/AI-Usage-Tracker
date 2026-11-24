@@ -23,6 +23,7 @@ export function CodeEntryView({
   value,
   busy,
   onChange,
+  allowLegacy,
   onSubmit,
   onBack,
   onOtherWays,
@@ -36,6 +37,11 @@ export function CodeEntryView({
   busy: boolean;
   /** Receives the code as `cleanCode` leaves it. */
   onChange: (code: string) => void;
+  /**
+   * Whether an older version's six digits may be typed (Other ways to connect shown). Otherwise
+   * digits are ignored, so a stray one never turns the field into six tiles.
+   */
+  allowLegacy: boolean;
   /** Connect with `code`, complete. */
   onSubmit: (code: string) => void;
   onBack: () => void;
@@ -92,7 +98,7 @@ export function CodeEntryView({
             }, 120);
           }}
           onChange={(event) => {
-            const code = cleanCode(event.target.value);
+            const code = cleanCode(event.target.value, allowLegacy);
             onChange(code);
             // The last character connects: there is nothing else to decide.
             if (isCompleteCode(code) && !isCompleteCode(value)) onSubmit(code);

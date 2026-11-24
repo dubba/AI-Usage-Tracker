@@ -8,7 +8,7 @@
 
 ### Added (2)
 
-- Settings > Sync Options (under Advanced) has an "Other Ways to Connect" switch. It is off by default, which hides the "Other ways to connect" link in Sync Devices; turn it on to reach the 6-digit code for older app versions and the QR codes. The choice is kept on each device.
+- Settings > Sync Options (under Advanced) has an "Other Ways to Connect" switch. It is off by default, which hides the "Other ways to connect" link in Sync Devices; turn it on to reach the 6-digit code for older app versions and the QR codes. While it is off, the code field ignores digits, so a stray one doesn't switch it to a 6-digit code. The choice is kept on each device.
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens. Its text is a soft light gray instead of bright white, so it is easier on the eyes; text on colored buttons stays white.
 
 ### Improved (18)

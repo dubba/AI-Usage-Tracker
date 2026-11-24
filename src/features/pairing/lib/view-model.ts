@@ -200,11 +200,12 @@ export function isLegacyCode(code: string): boolean {
 
 /**
  * What was typed, as a code: a link code's letters (capitalized; anything else dropped) or, when it
- * starts with a digit, an older version's digits. Never longer than the code.
+ * starts with a digit and `allowLegacy`, an older version's digits. Never longer than the code.
+ * Without `allowLegacy` (Other ways to connect hidden) digits are dropped like any other character.
  */
-export function cleanCode(typed: string): string {
+export function cleanCode(typed: string, allowLegacy = true): string {
   const compact = typed.toUpperCase().replace(/[\s-]/g, "");
-  if (isLegacyCode(compact)) return compact.replace(/\D/g, "").slice(0, LEGACY_CODE_LENGTH);
+  if (allowLegacy && isLegacyCode(compact)) return compact.replace(/\D/g, "").slice(0, LEGACY_CODE_LENGTH);
   return Array.from(compact)
     .filter((char) => LINK_CODE_ALPHABET.includes(char))
     .join("")

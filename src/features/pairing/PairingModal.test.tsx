@@ -382,6 +382,17 @@ describe("entering a link code", () => {
     expect(gapBefore).toEqual([3, 9]);
   });
 
+  it("ignores digits while Other ways to connect is hidden, keeping twelve tiles", async () => {
+    setSyncOtherWays("off");
+    await openCodeEntry();
+    typeInto(input(), "3");
+    expect(input().value).toBe("");
+    expect(document.querySelectorAll(".pairing-code-tile")).toHaveLength(12);
+    typeInto(input(), "3kt9q");
+    expect(input().value).toBe("KTQ");
+    expect(text()).not.toContain("6-digit code");
+  });
+
   it("takes an older version's six digits, in two groups of three, and connects by itself at six", async () => {
     await openCodeEntry();
     typeInto(input(), "12a");

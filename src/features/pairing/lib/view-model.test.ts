@@ -193,6 +193,9 @@ describe("formatting", () => {
   it("tells a link code from an older version's six digits by its first character", () => {
     expect(cleanCode(" kt-1qmILOp ")).toBe("KTQMP");
     expect(cleanCode("1a2 3")).toBe("123");
+    // Without older versions' codes, a digit is dropped like any other character.
+    expect(cleanCode("1a2 3", false)).toBe("A");
+    expect(cleanCode("3kt9q", false)).toBe("KTQ");
     expect(codeLength("")).toBe(12);
     expect(codeLength("K")).toBe(12);
     expect(codeLength("4")).toBe(6);
