@@ -263,7 +263,7 @@ describe("mobile Wi-Fi prompt for link codes", () => {
     expect(title()).toBe("Send or Receive Accounts");
   });
 
-  it("says a file by Quick Share works without Wi-Fi on Android, and only the hotspot on iPhone", async () => {
+  it("says a file by Quick Share works without Wi-Fi on Android, and by AirDrop on iPhone", async () => {
     api.wifiEnabled.mockResolvedValue(false);
     const prompt = () => document.querySelector(".confirm-dialog-backdrop")?.textContent ?? "";
     render();
@@ -276,7 +276,7 @@ describe("mobile Wi-Fi prompt for link codes", () => {
     });
     render();
     await press("Receive Accounts on This Device");
-    expect(prompt()).toContain("close this message if this iPhone shares its hotspot");
+    expect(prompt()).toContain("close this message to carry on without it and send a file by AirDrop");
     expect(prompt()).not.toContain("Quick Share");
   });
 
@@ -738,7 +738,20 @@ describe("transfer by file", () => {
       expect(text()).toContain("Send 3 accounts?");
     });
 
-    it("is not looked for off Android", async () => {
+    it("opens a reply AirDropped to an iPhone while the app was running", async () => {
+      Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
+      api.openTappedFile.mockResolvedValue({ kind: "reply", preview: { accountCount: 2, ticket: "ticket-1" } });
+      render();
+      await settle();
+      api.tappedFilePending.mockResolvedValue(true);
+      await act(async () => {
+        window.dispatchEvent(new Event(TRANSFER_FILE_TAPPED_EVENT));
+      });
+      await settle();
+      expect(text()).toContain("Add 2 accounts?");
+    });
+
+    it("is not looked for on desktop", async () => {
       render();
       await comeBackWithTappedFile();
       expect(api.tappedFilePending).not.toHaveBeenCalled();
@@ -746,14 +759,18 @@ describe("transfer by file", () => {
     });
   });
 
-  it("is not offered on iPhone yet", async () => {
+  it("is offered on iPhone, which shares by AirDrop and saves from the share sheet", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     render();
     await press("Send Accounts from This Device");
-    expect(text()).not.toContain("Open a request file");
+    expect(text()).toContain("Open a request file");
     await press("Back");
-    await press("Receive Accounts on This Device");
-    expect(text()).not.toContain("Use a file instead");
+    await receiveWithCode();
+    await press("Use a file instead");
+    expect(api.shareFile).toHaveBeenCalledTimes(1);
+    expect(text()).toContain("Share the request again");
+    // Save to Files is in the share sheet.
+    expect(text()).not.toContain("Save the request to a file");
   });
 });
 
@@ -838,6 +855,16 @@ describe("Quick Share when the code finds no one on the network (Android)", () =
     typeInto(codeInput(), "123456");
     await press("Connect to Device");
     expect(text()).toContain("isn't found within 10 seconds");
+  });
+
+  it("names AirDrop on iPhone", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
+    await searchForCode();
+    expect(text()).toContain("so you can sync your account data via AirDrop");
+    expect(text()).toContain("Use AirDrop now");
+    await searchSeconds(10);
+    expect(api.makeFileRequest).toHaveBeenCalledWith("123456");
+    expect(text()).toContain("Choose the other device in AirDrop");
   });
 
   it("waits for a click on desktop, where the share menu needs one", async () => {

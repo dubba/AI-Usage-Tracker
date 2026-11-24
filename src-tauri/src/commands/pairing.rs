@@ -308,8 +308,12 @@ fn read_picked(path: tauri_plugin_dialog::FilePath, max_len: usize) -> CommandRe
             }
             Ok(bytes)
         }
+        // iOS hands back the picked file's copy as a `file://` address.
         #[cfg(not(target_os = "android"))]
-        tauri_plugin_dialog::FilePath::Url(_) => Err(file_error(FILE_READ_FAILED)),
+        tauri_plugin_dialog::FilePath::Url(url) => match url.to_file_path() {
+            Ok(path) => read_capped(&path, max_len),
+            Err(()) => Err(file_error(FILE_READ_FAILED)),
+        },
     }
 }
 
@@ -547,30 +551,36 @@ pub async fn pairing_file_open_reply(
     preview.map(Some).map_err(file_error)
 }
 
-/// Android: whether a transfer file was tapped in another app (Quick Share's notification) and
-/// not opened yet. Always false elsewhere.
+/// Android and iOS: whether a transfer file was opened from another app (Quick Share's
+/// notification, AirDrop, Files) and not opened in Sync Devices yet. Always false elsewhere.
 #[tauri::command]
 pub async fn pairing_file_tapped_pending() -> CommandResult<bool> {
     #[cfg(target_os = "android")]
     let pending = tauri::async_runtime::spawn_blocking(crate::platform::android_files::has_tapped)
         .await
         .map_err(|_| file_error(FILE_READ_FAILED))?;
-    #[cfg(not(target_os = "android"))]
+    #[cfg(target_os = "ios")]
+    let pending = tauri::async_runtime::spawn_blocking(crate::platform::ios_files::has_tapped)
+        .await
+        .map_err(|_| file_error(FILE_READ_FAILED))?;
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let pending = false;
     Ok(pending)
 }
 
-/// Android: opens the file tapped in another app as a request or a reply, whichever it is, as
-/// `pairing_file_open_request` and `pairing_file_open_reply` do for a chosen file. `None` when no
-/// file is waiting. A request, once opened, is deleted at once; a reply after its import. Always
-/// `None` elsewhere.
+/// Android and iOS: opens the file opened from another app as a request or a reply, whichever it
+/// is, as `pairing_file_open_request` and `pairing_file_open_reply` do for a chosen file. `None`
+/// when no file is waiting. On Android a request, once opened, is deleted at once and a reply after
+/// its import; iOS's own copy is deleted once read. Always `None` elsewhere.
 #[tauri::command]
 pub async fn pairing_file_open_tapped(
     state: State<'_, Arc<AppState>>,
 ) -> CommandResult<Option<pairing::file_transfer::TappedFile>> {
     #[cfg(target_os = "android")]
     let opened = open_tapped_on_android(state.inner()).await?;
-    #[cfg(not(target_os = "android"))]
+    #[cfg(target_os = "ios")]
+    let opened = open_tapped_on_ios(state.inner()).await?;
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let opened = {
         let _ = state;
         None
@@ -578,34 +588,45 @@ pub async fn pairing_file_open_tapped(
     Ok(opened)
 }
 
-#[cfg(target_os = "android")]
-async fn open_tapped_on_android(
+#[cfg(target_os = "ios")]
+async fn open_tapped_on_ios(
     state: &AppState,
 ) -> CommandResult<Option<pairing::file_transfer::TappedFile>> {
-    use crate::platform::android_files;
-    use pairing::file_transfer::{open_tapped, TappedFile, MAX_TAPPED_LEN};
-    let read =
-        tauri::async_runtime::spawn_blocking(|| -> CommandResult<Option<(String, Vec<u8>)>> {
-            let Some(uri) = android_files::take_tapped().map_err(file_error)? else {
-                return Ok(None);
-            };
-            let bytes = android_files::read(&uri, MAX_TAPPED_LEN).map_err(file_error)?;
-            if bytes.len() > MAX_TAPPED_LEN {
-                return Err(file_error(pairing::file_transfer::NOT_A_PAIRING_FILE));
-            }
-            Ok(Some((uri, bytes)))
+    use pairing::file_transfer::MAX_TAPPED_LEN;
+    let read = tauri::async_runtime::spawn_blocking(|| {
+        crate::platform::ios_files::take_tapped(MAX_TAPPED_LEN)
+    })
+    .await
+    .map_err(|_| file_error(FILE_READ_FAILED))
+    .and_then(|read| {
+        read.map_err(|error| {
+            crate::diagnostics::warn(&format!(
+                "Reading an opened transfer file failed: {}",
+                crate::diagnostics::command_error(error)
+            ));
+            file_error(FILE_READ_FAILED)
         })
-        .await
-        .map_err(|_| file_error(FILE_READ_FAILED))
-        .and_then(|read| read)
-        .inspect_err(|error| {
-            sync_log::failed("file: reading a file tapped in another app", error)
-        })?;
-    // The page can ask twice at once (Android's event and the page coming back into view): the
-    // one that finds nothing logs nothing.
-    let Some((uri, bytes)) = read else {
+    })
+    .inspect_err(|error| sync_log::failed("file: reading a file opened from another app", error))?;
+    // The page can ask twice at once: the one that finds nothing logs nothing.
+    let Some(bytes) = read else {
         return Ok(None);
     };
+    if bytes.len() > MAX_TAPPED_LEN {
+        let error = file_error(pairing::file_transfer::NOT_A_PAIRING_FILE);
+        sync_log::failed("file: opening a file opened from another app", &error);
+        return Err(error);
+    }
+    open_tapped_bytes(state, bytes).await.map(Some)
+}
+
+/// Opens a file from another app, already read, as a request or a reply, logging how it went.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+async fn open_tapped_bytes(
+    state: &AppState,
+    bytes: Vec<u8>,
+) -> CommandResult<pairing::file_transfer::TappedFile> {
+    use pairing::file_transfer::{open_tapped, TappedFile};
     let len = bytes.len();
     let opened = open_tapped(state, bytes).await.map_err(|error| {
         sync_log::failed_text(
@@ -629,6 +650,38 @@ async fn open_tapped_on_android(
             sync_log::accounts(preview.account_count)
         ),
     });
+    Ok(opened)
+}
+
+#[cfg(target_os = "android")]
+async fn open_tapped_on_android(
+    state: &AppState,
+) -> CommandResult<Option<pairing::file_transfer::TappedFile>> {
+    use crate::platform::android_files;
+    use pairing::file_transfer::{TappedFile, MAX_TAPPED_LEN};
+    let read =
+        tauri::async_runtime::spawn_blocking(|| -> CommandResult<Option<(String, Vec<u8>)>> {
+            let Some(uri) = android_files::take_tapped().map_err(file_error)? else {
+                return Ok(None);
+            };
+            let bytes = android_files::read(&uri, MAX_TAPPED_LEN).map_err(file_error)?;
+            if bytes.len() > MAX_TAPPED_LEN {
+                return Err(file_error(pairing::file_transfer::NOT_A_PAIRING_FILE));
+            }
+            Ok(Some((uri, bytes)))
+        })
+        .await
+        .map_err(|_| file_error(FILE_READ_FAILED))
+        .and_then(|read| read)
+        .inspect_err(|error| {
+            sync_log::failed("file: reading a file tapped in another app", error)
+        })?;
+    // The page can ask twice at once (Android's event and the page coming back into view): the
+    // one that finds nothing logs nothing.
+    let Some((uri, bytes)) = read else {
+        return Ok(None);
+    };
+    let opened = open_tapped_bytes(state, bytes).await?;
     match opened {
         // The request is held in memory now; the file is used up.
         TappedFile::Request { .. } => {

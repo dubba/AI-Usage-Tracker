@@ -209,6 +209,17 @@ pub fn run() {
                     state.request_refresh_check();
                 }
             }
+            // A Sync Devices transfer file opened from AirDrop, Files or Mail while the app runs:
+            // tell the page, which opens it (MainActivity does the same on Android).
+            #[cfg(target_os = "ios")]
+            if let tauri::RunEvent::Opened { urls } = &event {
+                if platform::ios_files::note_opened(urls) {
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window
+                            .eval("window.dispatchEvent(new Event('aiut-transfer-file-tapped'))");
+                    }
+                }
+            }
             // Ask iOS for the next background refresh at launch, on returning to the
             // app and on leaving it; a new request replaces the pending one.
             #[cfg(target_os = "ios")]

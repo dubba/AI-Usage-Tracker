@@ -20,6 +20,51 @@
 	<array>
 		<string>com.dubba.ai.usage.tracker.refresh</string>
 	</array>
+	<!-- Sync Devices transfer files (.aiutpair, the same type as Android's
+	     TransferFiles.MIME_TYPE). Declaring the type lets AirDrop, Files and Mail offer this app
+	     for one; iOS copies it into Documents/Inbox, where platform/ios_files.rs reads it.
+	     Not opened in place, so no security-scoped access is needed. -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.dubba.ai.usage.tracker.transfer</string>
+			<key>UTTypeDescription</key>
+			<string>AI Usage Tracker transfer file</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>aiutpair</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/vnd.aiut.pair</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>AI Usage Tracker transfer file</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.dubba.ai.usage.tracker.transfer</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
 	<!-- Apps built with the iOS 27 SDK must use the scene life cycle; this key opts tao
 	     into it. One window, so a single scene. tao installs its own scene delegate. -->
 	<key>UIApplicationSceneManifest</key>

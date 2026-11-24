@@ -1,6 +1,8 @@
 import { ChevronIcon } from "../../../shared/ui/icons";
 import type { FilePreview } from "../../../types";
 import type { FileSendState } from "../hooks/useFileTransfer";
+import { isIOS } from "../../../shared/lib/platform";
+import { nearbyShareName } from "../lib/view-model";
 
 function accounts(count: number): string {
   return count === 1 ? "1 account" : `${count} accounts`;
@@ -15,7 +17,10 @@ function BackButton({ onClick, disabled }: { onClick: () => void; disabled?: boo
   );
 }
 
-/** Ways to send the file made last again: the share menu (where there is one) and a saved copy. */
+/**
+ * Ways to send the file made last again: the share menu (where there is one) and a saved copy. An
+ * iPhone saves from the share sheet (Save to Files), so it gets no separate Save.
+ */
 function SendAgainLinks({
   what,
   canShare,
@@ -36,9 +41,11 @@ function SendAgainLinks({
           Share the {what} again
         </button>
       ) : null}
-      <button type="button" className="pairing-other-ways" disabled={busy} onClick={onSave}>
-        Save the {what} to a file
-      </button>
+      {isIOS() ? null : (
+        <button type="button" className="pairing-other-ways" disabled={busy} onClick={onSave}>
+          Save the {what} to a file
+        </button>
+      )}
     </div>
   );
 }
@@ -142,7 +149,7 @@ export function FileReceiveView({
       {automatic ? (
         <p>
           The other device wasn't found on this network, so the share menu opened with a request. Choose the other
-          device in Quick Share.
+          device in {nearbyShareName()}.
         </p>
       ) : null}
       <p>

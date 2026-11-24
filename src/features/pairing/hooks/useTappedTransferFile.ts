@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent } from "react";
 import { pairingApi } from "../../../shared/lib/api";
 import { logIgnored } from "../../../shared/lib/log";
-import { isAndroid } from "../../../shared/lib/platform";
+import { isAndroid, isIOS } from "../../../shared/lib/platform";
 
 /**
  * The window event Android dispatches when a transfer file is tapped while the app is running
@@ -11,8 +11,8 @@ import { isAndroid } from "../../../shared/lib/platform";
 export const TRANSFER_FILE_TAPPED_EVENT = "aiut-transfer-file-tapped";
 
 /**
- * Android: a Sync Devices transfer file tapped in another app (Quick Share's notification) opens
- * this app, which keeps the file until it is taken. While `active`, this checks for one when it
+ * Android and iOS: a Sync Devices transfer file opened from another app (Quick Share's
+ * notification, AirDrop, Files) opens this app, which keeps the file until it is taken. While `active`, this checks for one when it
  * starts (a cold start from the file), when Android says a file was tapped, and when the page
  * becomes visible or focused, and calls `onTapped` when one is waiting. Does nothing elsewhere.
  */
@@ -20,7 +20,7 @@ export function useTappedTransferFile(active: boolean, onTapped: () => void) {
   const handleTapped = useEffectEvent(onTapped);
 
   useEffect(() => {
-    if (!active || !isAndroid()) return;
+    if (!active || !(isAndroid() || isIOS())) return;
     let cancelled = false;
     const check = async () => {
       try {

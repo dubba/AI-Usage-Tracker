@@ -1,4 +1,10 @@
 import type { PairingStatus } from "../../../types";
+import { isIOS } from "../../../shared/lib/platform";
+
+/** What this phone calls sending a file to a nearby device: AirDrop on iPhone and iPad. */
+export function nearbyShareName(): "AirDrop" | "Quick Share" {
+  return isIOS() ? "AirDrop" : "Quick Share";
+}
 
 export type ViewMode =
   | "select-role"

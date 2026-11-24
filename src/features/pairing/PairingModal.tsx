@@ -15,6 +15,7 @@ import {
   hasOwnActionButtons as viewHasOwnActionButtons,
   isWaitingStatus,
   confirmFields,
+  nearbyShareName,
   pairingHeader,
   type ActiveFlow,
   type ViewMode,
@@ -51,8 +52,8 @@ import {
 /** Wait after a view change before moving keyboard focus into it, so the new view has rendered. */
 const FOCUS_DELAY_MS = 50;
 /**
- * On Android, how long the receiver looks for the sender on the network before the request goes
- * out by Quick Share by itself. The search goes on (it gives up at 15 s), so a late find still
+ * On a phone, how long the receiver looks for the sender on the network before the request goes
+ * out by Quick Share or AirDrop by itself. The search goes on (it gives up at 15 s), so a late find still
  * connects over Wi-Fi.
  */
 const FILE_FALLBACK_SECS = 10;
@@ -154,14 +155,12 @@ export function PairingModal({
     onCompleted,
   });
 
-  // Files are offered on desktop and Android; iPhone and iPad get them in a later step.
   const fileTransfer = useFileTransfer({ context: actionContext, includeSettings, showView });
-  const filesOffered = !isIOS();
-  // A file tapped in Quick Share: open it as the request or reply it is.
+  // A file opened from Quick Share, AirDrop or Files: open it as the request or reply it is.
   useTappedTransferFile(open, () => void fileTransfer.openTapped());
-  // Android opens its share sheet without a fresh tap, so there a receiver whose code finds no
+  // Phones open their share sheet without a fresh tap, so there a receiver whose code finds no
   // sender on the network sends a request by itself. Desktop share menus want a click.
-  const fileFallback = filesOffered && isAndroid();
+  const fileFallback = isAndroid() || isIOS();
   // Busy on the code screen with nothing connected yet: the network search for the typed code.
   const searchingForCode = fileFallback && open && viewMode === "code" && busy && status.status === "idle";
   const sendRequestAutomatically = useEffectEvent(() => void fileTransfer.startRequest(joinCodeInput, true));
@@ -477,7 +476,7 @@ export function PairingModal({
             remainingSecs={remainingSecs}
             onRegenerate={() => void initHostSession()}
             onOtherWays={() => leaveAttempt("select-mode")}
-            onOpenRequest={filesOffered ? () => void fileTransfer.openRequest() : undefined}
+            onOpenRequest={() => void fileTransfer.openRequest()}
           />
         )}
 
@@ -548,7 +547,7 @@ export function PairingModal({
             onSubmit={() => void handleConnectByCode(joinCodeInput)}
             onBack={goBack}
             onOtherWays={() => leaveAttempt("select-mode")}
-            onUseFile={filesOffered ? () => void fileTransfer.startRequest(joinCodeInput) : undefined}
+            onUseFile={() => void fileTransfer.startRequest(joinCodeInput)}
             fileFallbackSecs={fileFallback ? fallbackSecsLeft : undefined}
             setKeyboardOpen={setIsKeyboardOpen}
           />
@@ -655,10 +654,8 @@ export function PairingModal({
       kicker="Link code"
       title="Connect to Wi-Fi"
       body={
-        // Closing carries on to the code screen, which offers a file wherever files are offered.
-        filesOffered
-          ? "Link codes work over the same Wi-Fi network, or a hotspot one device shares. Connect to Wi-Fi, or close this message to carry on without it and send a file by Quick Share instead."
-          : "Link codes work over the same Wi-Fi network, or a hotspot one device shares. Connect to Wi-Fi, or close this message if this iPhone shares its hotspot."
+        // Closing carries on to the code screen, which offers a file instead.
+        `Link codes work over the same Wi-Fi network, or a hotspot one device shares. Connect to Wi-Fi, or close this message to carry on without it and send a file by ${nearbyShareName()} instead.`
       }
       confirmLabel="Open Wi-Fi Settings"
       cancelLabel="Other Ways"

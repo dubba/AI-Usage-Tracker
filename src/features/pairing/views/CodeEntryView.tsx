@@ -1,4 +1,4 @@
-import { PAIRING_CODE_LENGTH } from "../lib/view-model";
+import { nearbyShareName, PAIRING_CODE_LENGTH } from "../lib/view-model";
 
 import { ChevronIcon } from "../../../shared/ui/icons";
 import { isMobileDevice } from "../../../shared/lib/platform";
@@ -86,7 +86,7 @@ export function CodeEntryView({
                   <strong>
                     within {secsLeft} {secsLeft === 1 ? "second" : "seconds"}
                   </strong>
-                  , the share menu will open so you can sync your account data via Quick Share.
+                  , the share menu will open so you can sync your account data via {nearbyShareName()}.
                 </>
               )
             :"The other device wasn't found on this network. Opening the share menu…"
@@ -108,7 +108,7 @@ export function CodeEntryView({
               else document.getElementById("pairing-join-code-input")?.focus();
             }}
           >
-            {searchingWithFallback ? "Use Quick Share now" : "Not on the same network? Use a file instead"}
+            {searchingWithFallback ? `Use ${nearbyShareName()} now` : "Not on the same network? Use a file instead"}
           </button>
         ) : null}
         <OtherWaysLink disabled={busy} onClick={onOtherWays} />

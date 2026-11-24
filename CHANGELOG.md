@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (18 changes)
+## Unreleased (19 changes)
 
 ### Added (1)
 
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens.
 
-### Improved (13)
+### Improved (14)
 
+- On iPhone and iPad, Sync Devices can now move accounts by file too, so an iPhone can sync with a device that isn't on the same network. The request and reply go out through the iPhone's share sheet (AirDrop, Messages, Mail, or Save to Files), and when one arrives by AirDrop, or is opened from Files or Mail, the app opens it at the right step. As on Android, if the code finds no device on the network within 10 seconds, the share sheet opens by itself with the request. Android phones whose Quick Share works with AirDrop (such as recent Pixels and the Galaxy S26) can send to and receive from an iPhone or Mac this way.
 - In Sync Devices, the screen that shows your link code is now titled "Your Link Code".
 - On Android, when you enter a link code and the other device isn't found on the network within 10 seconds, Sync Devices now opens the share sheet by itself with a request file, so you can send it by Quick Share. While it looks, the screen counts down the seconds left, and a "Use Quick Share now" link skips the wait. The search keeps going for a few more seconds, so a device found late still connects over Wi-Fi.
 - Settings > Diagnostics now records each Sync Devices step: how the devices connected (link code, QR codes, or a file sent by Quick Share or AirDrop), whether the phone was on Wi-Fi, which network interface the connection used, which transfer files were made, opened or saved, and how the sync ended, with the number of accounts added, updated and skipped or the reason it failed. Link codes, file names and account names are never recorded.
