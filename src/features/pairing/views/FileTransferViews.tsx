@@ -103,7 +103,7 @@ export function FileSendView({
         <TransferSteps steps={steps} current={1} />
         <p>
           {state.notOnNetwork ? `The other device isn't on this network, so the accounts go by ${nearbyName}. ` : ""}
-          Once the other device accepts the file, the accounts are added there by themselves.
+          Once the other device accepts the file and confirms, the accounts are added there.
         </p>
         <SendAgainLinks nearbyName={nearbyName} canShare={canShare} busy={busy} onShare={onShare} onSave={onSave} />
         <div className="pairing-nav-row is-single">
@@ -131,7 +131,7 @@ export function FileSendView({
   );
 }
 
-/** Receiver: the file arrived and opened with the code; its accounts are added by themselves. */
+/** Receiver: the file arrived and opened with the code; its accounts are added once the user confirms (the popup in `PairingModal`). */
 export function FileReceiveView({
   preview,
   nearbyName,

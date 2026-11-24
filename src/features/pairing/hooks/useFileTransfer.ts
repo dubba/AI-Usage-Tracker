@@ -13,8 +13,8 @@ export type FileSendState = { made: boolean; notOnNetwork: boolean };
  * its user typed, makes one file holding the accounts encrypted with that code, and sends it
  * through the system share menu (AirDrop, Quick Share) or a save dialog; it can be sent again.
  * The receiver, showing the code, opens the file that arrives by itself (`useIncomingFile`,
- * `useTappedTransferFile`; the open dialog remains as a fallback) and adds its accounts at once.
- * Typing the code is the consent on one side, showing it on the other. Rust shows every menu and
+ * `useTappedTransferFile`; the open dialog remains as a fallback), asks its user to confirm adding
+ * the accounts it holds (`awaitingConfirm`), then adds them. Typing the code is the sender's consent. Rust shows every menu and
  * dialog and keeps the files, so these calls carry only counts and a ticket.
  */
 export function useFileTransfer({
@@ -35,6 +35,8 @@ export function useFileTransfer({
   const [preview, setPreview] = useState<FilePreview | null>(null);
   /** Whether this device has a share menu; until a file is made, assume not. */
   const [canShare, setCanShare] = useState(false);
+  /** A file opened and counted, waiting for the receiving user to agree to add its accounts. */
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   /** The code the last file was made for, to make it again after a failure. */
   const codeRef = useRef("");
 
@@ -90,23 +92,28 @@ export function useFileTransfer({
       },
     );
 
-  /**
-   * Receiver: adds the accounts of the file that opened. The import uses the opened file up
-   * whatever happens, so after a failure the other device sends it again to a new code.
-   */
-  const importOpened = (opened: FilePreview) => {
+  /** Receiver: a file opened; show what it holds and ask whether to add it. */
+  const showOpened = (opened: FilePreview) => {
     setPreview(opened);
+    setAwaitingConfirm(true);
     showView("file-receive");
-    afterViewChange(
-      () =>
-        void step(
-          "Couldn't add the accounts",
-          () => pairingApi.importFile(opened.ticket, includeSettings),
-          (summary) => {
-            setPreview(null);
-            onImported(summary);
-          },
-        ),
+  };
+
+  /**
+   * Receiver, once its user agreed: adds the accounts of the file that opened. The import uses the
+   * opened file up whatever happens, so after a failure the other device sends it again to a new code.
+   */
+  const confirmImport = () => {
+    if (!preview) return;
+    const { ticket } = preview;
+    setAwaitingConfirm(false);
+    void step(
+      "Couldn't add the accounts",
+      () => pairingApi.importFile(ticket, includeSettings),
+      (summary) => {
+        setPreview(null);
+        onImported(summary);
+      },
     );
   };
 
@@ -131,21 +138,26 @@ export function useFileTransfer({
     /** Saves a copy of the file made last. */
     save: () => void save(),
     /** A file that arrived by itself (Downloads): add its accounts. */
-    handleOpened: importOpened,
+    handleOpened: showOpened,
+    /** Receiver: the opened file waits for its user to agree to add its accounts. */
+    awaitingConfirm: awaitingConfirm && preview !== null,
+    /** Receiver: add the opened file's accounts. */
+    confirmImport,
     /** Receiver: open the file by hand (the open dialog), then add its accounts. */
     openFile: () =>
       step("Couldn't open the file", () => pairingApi.openFile(), (opened) => {
-        if (opened) importOpened(opened);
+        if (opened) showOpened(opened);
       }),
     /** Android and iPhone: open the file opened from another app, then add its accounts. */
     openTapped: () =>
       step("Couldn't open the file", () => pairingApi.openTappedFile(), (opened) => {
-        if (opened) importOpened(opened);
+        if (opened) showOpened(opened);
       }),
     /** Forget both sides' screens (the dialog closed). */
     reset: () => {
       setSendState(null);
       setPreview(null);
+      setAwaitingConfirm(false);
       setCanShare(false);
       codeRef.current = "";
     },

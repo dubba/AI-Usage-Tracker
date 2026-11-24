@@ -94,7 +94,7 @@ export function HostCodeView({
             <div>
               <p>
                 On the other device, enter this code and tap <strong>Use {nearby}</strong>. Accept the file when it
-                arrives here, and the accounts are added by themselves.
+                arrives here, then confirm adding the accounts.
               </p>
               {onOpenFile ? (
                 <button type="button" className="pairing-other-ways" onClick={onOpenFile}>

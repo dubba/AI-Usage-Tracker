@@ -583,7 +583,7 @@ describe("transfer by file", () => {
     expect(api.saveFile).not.toHaveBeenCalled();
     expect(title()).toBe("Sending by AirDrop");
     expect(text()).toContain("Choose the other device in AirDrop");
-    expect(text()).toContain("Once the other device accepts the file, the accounts are added there by themselves.");
+    expect(text()).toContain("Once the other device accepts the file and confirms, the accounts are added there.");
     // Nothing comes back: the sender waits for no file.
     expect(api.watchForFile).not.toHaveBeenCalled();
     await press("Done");
@@ -643,23 +643,53 @@ describe("transfer by file", () => {
     expect(codeInput().value).toBe("KTQ MPR XDH WAB");
   });
 
-  it("adds the accounts of a file that arrives while showing the code, with no tap", async () => {
+  it("asks before adding the accounts of a file that arrives while showing the code", async () => {
     render();
     await press("Receive Accounts on This Device");
     expect(api.watchForFile).toHaveBeenCalledTimes(1);
     await arrives(PREVIEW);
+    const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
+    expect(popup?.textContent).toContain("Add 2 accounts?");
+    expect(popup?.textContent).toContain("Are you sure you want to add these 2 accounts from the other device to this one?");
+    expect(api.importFile).not.toHaveBeenCalled();
+    await press("Add Accounts");
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
     expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
     expect(onCompleted).toHaveBeenCalledTimes(1);
     expect(title()).toBe("Devices linked");
   }, 10_000);
 
-  it("adds a file opened by hand at once", async () => {
+  it("adds nothing when the popup is cancelled, and closes Sync Devices", async () => {
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Use AirDrop");
+    await press("Received it but nothing happened? Open the file");
+    expect(text()).toContain("Add 2 accounts?");
+    click(Array.from(document.querySelectorAll<HTMLButtonElement>(".confirm-dialog-backdrop button")).find((b) => b.textContent === "Cancel")!);
+    await settle();
+    expect(api.importFile).not.toHaveBeenCalled();
+    expect(cancelPairing).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("says one account in the singular", async () => {
+    api.openFile.mockResolvedValue({ accountCount: 1, ticket: "ticket-1" });
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Use AirDrop");
+    await press("Received it but nothing happened? Open the file");
+    expect(text()).toContain("Add 1 account?");
+    expect(text()).toContain("Are you sure you want to add this account from the other device to this one?");
+  });
+
+  it("adds a file opened by hand once confirmed", async () => {
     render();
     await press("Receive Accounts on This Device");
     await press("Use AirDrop");
     expect(text()).toContain("On the other device, enter this code and tap Use AirDrop.");
     await press("Received it but nothing happened? Open the file");
     expect(api.openFile).toHaveBeenCalledTimes(1);
+    await press("Add Accounts");
     expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
     expect(onCompleted).toHaveBeenCalledTimes(1);
   });
@@ -697,6 +727,7 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     await press("Use AirDrop");
     await press("Received it but nothing happened? Open the file");
+    await press("Add Accounts");
     expect(text()).toContain("store locked");
     expect(title()).toBe("Receiving by AirDrop");
     await press("Back");
@@ -779,6 +810,7 @@ describe("transfer by file", () => {
       expect(api.openTappedFile).not.toHaveBeenCalled();
       await comeBackWithTappedFile();
       expect(api.openTappedFile).toHaveBeenCalledTimes(1);
+      await press("Add Accounts");
       expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
       expect(title()).toBe("Devices linked");
     });
@@ -804,6 +836,7 @@ describe("transfer by file", () => {
         window.dispatchEvent(new Event(TRANSFER_FILE_TAPPED_EVENT));
       });
       await settle();
+      await press("Add Accounts");
       expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
     });
 
@@ -817,6 +850,7 @@ describe("transfer by file", () => {
         window.dispatchEvent(new Event(TRANSFER_FILE_TAPPED_EVENT));
       });
       await settle();
+      await press("Add Accounts");
       expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
     });
 

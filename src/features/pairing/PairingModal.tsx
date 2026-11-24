@@ -33,6 +33,7 @@ import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { describeError } from "../../shared/lib/errors";
 import type { SyncSummary } from "../../types";
+import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { DialogError } from "../../shared/ui/DialogError";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { AirgapSenderView } from "./views/AirgapSenderView";
@@ -728,8 +729,27 @@ export function PairingModal({
         <DialogError message={errorMessage} onDismiss={() => setErrorMessage(null)} />
       )}
     </ModalDialog>
+    {/* A file that arrived by AirDrop or Quick Share is added only once the receiving user agrees.
+        Cancel closes Sync Devices, which drops the opened file (`pairing_cancel`). */}
+    <ConfirmDialog
+      open={open && viewMode === "file-receive" && fileTransfer.awaitingConfirm}
+      kicker="Sync devices"
+      title={`Add ${accountsLabel(fileTransfer.preview?.accountCount ?? 0)}?`}
+      body={`Are you sure you want to add ${
+        fileTransfer.preview?.accountCount === 1 ? "this account" : `these ${accountsLabel(fileTransfer.preview?.accountCount ?? 0)}`
+      } from the other device to this one?`}
+      confirmLabel="Add Accounts"
+      confirmDanger={false}
+      onConfirm={fileTransfer.confirmImport}
+      onCancel={requestClose}
+    />
     </>
   );
+}
+
+/** "1 account", "4 accounts". */
+function accountsLabel(count: number): string {
+  return count === 1 ? "1 account" : `${count} accounts`;
 }
 
 function BackButton({ onClick }: { onClick: () => void }) {

@@ -100,6 +100,8 @@ pub async fn pairing_cancel(app: AppHandle, state: State<'_, Arc<AppState>>) -> 
     crate::platform::capture_protection::release(&app);
     state.pairing.cancel().await;
     state.pairing_options.write().reset();
+    // A transfer file that opened but was not added: its accounts go too.
+    *state.pairing_file_received.lock() = None;
     crate::platform::lan_binding::configure_pairing_network(false);
     Ok(())
 }
