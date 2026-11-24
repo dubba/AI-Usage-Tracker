@@ -239,6 +239,11 @@
     --obsidian-surface-container-high: #121016;
     --bottom-nav-surface: #161618;
     --bottom-nav-line: #2a2a2e;
+    /* Softer text: pure white on pure black glares, so headings and body text are a light gray.
+     * Text on purple, green and red fills (--white) stays white. */
+    --text: #d8d6dc;
+    --obsidian-text: #d8d6dc;
+    --bottom-nav-label-active: #d8d6dc;
     --toast-surface: rgba(10, 8, 16, 0.96);
     --danger-banner-surface: rgba(24, 8, 10, 0.96);
   }

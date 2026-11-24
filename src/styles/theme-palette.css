@@ -256,5 +256,16 @@
     --c-232222: #121212;
     --c-242323: #141414;
     --c-211e29: #121016;
+    /* The near-white text grays, softened to match --text (tokens.css). */
+    --c-ffffff: #d8d6dc;
+    --c-f7f4ff: #d8d6dc;
+    --c-f5f1ef: #d8d6dc;
+    --c-f4f1f1: #d8d6dc;
+    --c-f0edef: #d8d6dc;
+    --c-f2efef: #d8d6dc;
+    --c-eeeaea: #d8d6dc;
+    --c-f3f0ef: #d8d6dc;
+    --c-f5f1f0: #d8d6dc;
+    --c-f3f4f6: #d8d6dc;
   }
 }
