@@ -103,6 +103,8 @@ export const bridgeApi = {
 
 export const pairingApi = {
   ensureCameraPermission: () => invoke<void>("ensure_camera_permission"),
+  /** Whether the phone is on Wi-Fi; Rust records it in the Sync Devices log. */
+  wifiEnabled: () => invoke<boolean>("pairing_wifi_enabled"),
   /** `acceptSettings`: this device's "Also Sync Settings and Layout" choice, used if it receives. */
   startHost: (acceptSettings: boolean) =>
     invoke<PairingHostInit>("pairing_start_host", { acceptSettings }),

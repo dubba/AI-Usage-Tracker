@@ -31,6 +31,7 @@ pub async fn ensure_camera_permission() -> CommandResult<()> {
         .map_err(Into::into)
 }
 
+/// Whether the phone is on Wi-Fi, for the Sync Devices log only: nothing waits on the answer.
 #[tauri::command]
 pub async fn pairing_wifi_enabled() -> CommandResult<bool> {
     let on_wifi = tauri::async_runtime::spawn_blocking(crate::platform::wifi::is_enabled)
@@ -43,20 +44,6 @@ pub async fn pairing_wifi_enabled() -> CommandResult<bool> {
         })??;
     sync_log::wifi_check(on_wifi);
     Ok(on_wifi)
-}
-
-#[tauri::command]
-pub async fn pairing_open_wifi_settings() -> CommandResult<()> {
-    sync_log::note("Wi-Fi check: opening Wi-Fi settings");
-    tauri::async_runtime::spawn_blocking(crate::platform::wifi::open_settings)
-        .await
-        .map_err(|e| {
-            format!(
-                "Couldn't open Wi-Fi settings: {}",
-                crate::diagnostics::command_error(e)
-            )
-        })?
-        .map_err(Into::into)
 }
 
 #[tauri::command]

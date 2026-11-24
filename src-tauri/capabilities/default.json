@@ -86,7 +86,6 @@
     "allow-get-pending-update-notice",
     "allow-ensure-camera-permission",
     "allow-pairing-wifi-enabled",
-    "allow-pairing-open-wifi-settings",
     "allow-pairing-start-host",
     "allow-pairing-start-client-by-code",
     "allow-pairing-select-role",

@@ -400,6 +400,8 @@ export function PairingModal({
 
   // Start showing a link code. A newer start (or leaving the view) makes an older one's result moot.
   const startLinkCode = (action: "host" | "code") => {
+    // For the diagnostics log only: whether the phone was on Wi-Fi when the code screen opened.
+    if (isMobileDevice()) void pairingApi.wifiEnabled().catch((cause) => logIgnored("pairing.wifiEnabled", cause));
     if (action === "host") {
       showView("host", "wifi");
       void initHostSession();

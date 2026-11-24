@@ -17,6 +17,7 @@ const api = vi.hoisted(() => ({
   previewAirgapFrames: vi.fn(),
   importAirgapFrames: vi.fn(),
   ensureCameraPermission: vi.fn(),
+  wifiEnabled: vi.fn(),
   makeFileRequest: vi.fn(),
   makeFileReply: vi.fn(),
   shareFile: vi.fn(),
@@ -151,6 +152,7 @@ beforeEach(() => {
   api.clearPendingUiState.mockResolvedValue(undefined);
   api.prepareAirgapExport.mockResolvedValue(AIRGAP);
   api.ensureCameraPermission.mockResolvedValue(undefined);
+  api.wifiEnabled.mockResolvedValue(false);
   // Downloads is watched, and nothing has arrived yet.
   api.watchForFile.mockResolvedValue({ watching: true, needsAccess: false });
   api.stopWatchingForFile.mockResolvedValue(undefined);
@@ -264,6 +266,8 @@ describe("no Wi-Fi check before a link code", () => {
     await press("Receive Accounts on This Device");
     expect(title()).toBe("Enter Link Code");
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    // Asked only so the diagnostics log can say whether the phone was on Wi-Fi.
+    expect(api.wifiEnabled).toHaveBeenCalledTimes(1);
   });
 });
 

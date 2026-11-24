@@ -2,9 +2,6 @@ package com.dubba.ai.usage.tracker
 
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import android.os.Build
-import android.provider.Settings
 
 /**
  * What Link Devices needs from the phone's network: the Wi-Fi state, and the multicast lock and
@@ -42,13 +39,9 @@ internal class PairingNetwork(private val activity: Activity) {
   }
 
   /**
-   * Whether this phone is connected to a Wi-Fi network (including another phone's hotspot). Link
-   * codes need one, so link-code pairing asks this first and otherwise sends the user to the
-   * system Wi-Fi panel. The radio being on is not enough: on a Pixel it is often on with no
-   * network (disconnected from the Internet panel, or turned back on by "Turn on Wi-Fi
-   * automatically"), which hid the prompt. A hotspot this phone shares is not checked: the prompt
-   * shows, and the user closes it to carry on. Fail-open (true) if the check itself throws, so a
-   * broken probe cannot block pairing.
+   * Whether this phone is connected to a Wi-Fi network (including another phone's hotspot), for
+   * the Sync Devices log. The radio being on is not enough: on a Pixel it is often on with no
+   * network. A hotspot this phone shares is not checked. True if the check itself throws.
    */
   fun isWifiEnabled(): Boolean {
     return try {
@@ -56,23 +49,6 @@ internal class PairingNetwork(private val activity: Activity) {
     } catch (e: Throwable) {
       android.util.Log.w(LOG_TAG, "isWifiEnabled failed: ${e.message}")
       true
-    }
-  }
-
-  fun openWifiSettings() {
-    activity.runOnUiThread {
-      try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-          try {
-            activity.startActivity(Intent(Settings.Panel.ACTION_WIFI))
-            return@runOnUiThread
-          } catch (_: Exception) {
-          }
-        }
-        activity.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
-      } catch (e: Throwable) {
-        android.util.Log.w(LOG_TAG, "openWifiSettings failed: ${e.message}")
-      }
     }
   }
 

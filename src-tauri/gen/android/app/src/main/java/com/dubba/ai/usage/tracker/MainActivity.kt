@@ -370,8 +370,6 @@ class MainActivity : TauriActivity() {
   // Pairing network (wifi.rs, lan_binding.rs).
   fun isWifiEnabled(): Boolean = pairingNetwork.isWifiEnabled()
 
-  fun openWifiSettings() = pairingNetwork.openWifiSettings()
-
   fun setPairingLanBinding(enabled: Boolean) = pairingNetwork.setLanBinding(enabled)
 
   fun routePairingTo(interfaceName: String) = pairingNetwork.routePairingTo(interfaceName)

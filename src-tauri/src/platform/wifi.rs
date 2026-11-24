@@ -1,13 +1,10 @@
-//! Whether Wi-Fi is on, and a way to open the system Wi-Fi panel so the user
-//! can turn it on. Link-code pairing only works on the same local network:
-//! a Wi-Fi network, or a hotspot this phone shares.
+//! Whether the phone is on Wi-Fi, recorded in the Sync Devices log when a code screen opens (link
+//! codes need the same local network: a Wi-Fi network, or a hotspot this phone shares).
 
 /// `true` when the phone is on a Wi-Fi network (Android: connected to one; iOS:
 /// its Wi-Fi interface has an address), or when this platform does not
-/// need a check (desktop). A hotspot this phone shares is not checked: with
-/// Wi-Fi off the prompt shows, and the user closes it to carry on over the
-/// hotspot. A failure to ask the OS is reported as `true` so pairing is not
-/// blocked by a broken probe.
+/// need a check (desktop). A hotspot this phone shares is not checked. A failure to ask the OS is
+/// reported as `true`.
 pub fn is_enabled() -> Result<bool, String> {
     #[cfg(target_os = "android")]
     {
@@ -20,23 +17,6 @@ pub fn is_enabled() -> Result<bool, String> {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
         Ok(true)
-    }
-}
-
-/// Opens the OS Wi-Fi settings (Android system panel, iOS Settings). Desktop
-/// is a no-op.
-pub fn open_settings() -> Result<(), String> {
-    #[cfg(target_os = "android")]
-    {
-        return android_open_settings();
-    }
-    #[cfg(target_os = "ios")]
-    {
-        return ios_open_settings();
-    }
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    {
-        Ok(())
     }
 }
 
@@ -56,23 +36,6 @@ fn android_is_enabled() -> Result<bool, String> {
             Err(_) => Ok(true),
         }
     })
-}
-
-#[cfg(target_os = "android")]
-fn android_open_settings() -> Result<(), String> {
-    crate::platform::android_context::with_activity(
-        "Unable to open Wi-Fi settings",
-        |env, activity| {
-            let result = env.call_method(activity, "openWifiSettings", "()V", &[]);
-            if env.exception_check().unwrap_or(false) {
-                let _ = env.exception_clear();
-                return Err("Unable to open Wi-Fi settings.".into());
-            }
-            result
-                .map(|_| ())
-                .map_err(|_| "Unable to open Wi-Fi settings.".into())
-        },
-    )
 }
 
 /// Wi-Fi-like interface names used on iOS (`en0`) and Android (`wlan0`).
@@ -103,50 +66,6 @@ fn ios_wifi_enabled() -> bool {
     )
 }
 
-#[cfg(target_os = "ios")]
-fn ios_open_settings() -> Result<(), String> {
-    use objc2::runtime::{AnyClass, AnyObject, Bool, Sel};
-    use objc2::{msg_send, sel};
-
-    unsafe {
-        let Some(app_cls) = AnyClass::get(c"UIApplication") else {
-            return Err("Unable to open Wi-Fi settings.".into());
-        };
-        let app: *mut AnyObject = msg_send![app_cls, sharedApplication];
-        if app.is_null() {
-            return Err("Unable to open Wi-Fi settings.".into());
-        }
-        let Some(url_cls) = AnyClass::get(c"NSURL") else {
-            return Err("Unable to open Wi-Fi settings.".into());
-        };
-        let Some(str_cls) = AnyClass::get(c"NSString") else {
-            return Err("Unable to open Wi-Fi settings.".into());
-        };
-
-        // App-Prefs opens the Wi-Fi pane on sideloaded iOS. The documented
-        // fallback is this app's own Settings page.
-        for url in [c"App-Prefs:root=WIFI", c"prefs:root=WIFI", c"app-settings:"] {
-            let s: *mut AnyObject = msg_send![str_cls, stringWithUTF8String: url.as_ptr()];
-            if s.is_null() {
-                continue;
-            }
-            let nsurl: *mut AnyObject = msg_send![url_cls, URLWithString: s];
-            if nsurl.is_null() {
-                continue;
-            }
-            let open: Sel = sel!(openURL:);
-            let _: () = msg_send![
-                app,
-                performSelectorOnMainThread: open,
-                withObject: nsurl,
-                waitUntilDone: Bool::YES
-            ];
-            return Ok(());
-        }
-    }
-    Err("Unable to open Wi-Fi settings.".into())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,11 +94,5 @@ mod tests {
     fn desktop_reports_wifi_as_enabled() {
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         assert!(is_enabled().expect("desktop wifi probe"));
-    }
-
-    #[test]
-    fn desktop_open_settings_is_a_noop() {
-        #[cfg(not(any(target_os = "android", target_os = "ios")))]
-        assert!(open_settings().is_ok());
     }
 }
