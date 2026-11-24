@@ -125,14 +125,14 @@ function DiscoverableNote() {
         </p>
       ) : (
         <p>
-          Unless both devices use the same Google Account, in Quick Share, set <strong>Who can share with you</strong> to{" "}
+          For Quick Share: Unless both devices use the same Google Account, set <strong>Who can share with you</strong> to{" "}
           <strong>Everyone for 10 Minutes</strong>.
         </p>
       )}
       <p>
         {ios
           ? "Go to Settings → General → AirDrop, then return here."
-          : "Go to Settings and search for Quick Share to change this setting, then return here."}
+          : "To change this setting, search for Quick Share in Settings, then return here."}
       </p>
     </div>
   );

@@ -791,9 +791,9 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     const note = document.querySelector(".pairing-discover-note");
     expect(note?.textContent).toContain(
-      "Unless both devices use the same Google Account, in Quick Share, set Who can share with you to Everyone for 10 Minutes.",
+      "For Quick Share: Unless both devices use the same Google Account, set Who can share with you to Everyone for 10 Minutes.",
     );
-    expect(note?.textContent).toContain("Go to Settings and search for Quick Share to change this setting, then return here.");
+    expect(note?.textContent).toContain("To change this setting, search for Quick Share in Settings, then return here.");
     expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
       "Who can share with you",
       "Everyone for 10 Minutes",
