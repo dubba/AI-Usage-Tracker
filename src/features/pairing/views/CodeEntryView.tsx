@@ -33,15 +33,16 @@ export function CodeEntryView({
   /** Saves a request file for the typed code; absent where files are not offered yet. */
   onUseFile?: () => void;
   /**
-   * Where a request goes out by itself when the Wi-Fi search finds nothing (Android): after how
-   * many seconds. While that search runs the file link stays usable, to skip the wait.
+   * Where a request goes out by itself when the Wi-Fi search finds nothing (Android): the seconds
+   * left, counting down while the search runs. The file link stays usable then, to skip the wait.
    */
   fileFallbackSecs?: number;
   /** Lets the field flag the on-screen keyboard before the viewport has resized. */
   setKeyboardOpen: (open: boolean) => void;
 }) {
   // While the code is being looked for on the network (busy), a file can still be chosen instead.
-  const searchingWithFallback = busy && fileFallbackSecs != null;
+  const secsLeft = busy ? fileFallbackSecs : undefined;
+  const searchingWithFallback = secsLeft != null;
   return (
     <div className="pairing-code-entry-view">
       <input
@@ -78,7 +79,11 @@ export function CodeEntryView({
       />
       <p id="pairing-code-help" className="pairing-code-help">
         {searchingWithFallback
-          ? `Looking for the other device on this network. If it isn't found within ${fileFallbackSecs} seconds, the share menu opens to send a request by Quick Share.`
+          ? secsLeft > 0
+            ? `Looking for the other device on this network. If it isn't found in ${secsLeft} ${
+                secsLeft === 1 ? "second" : "seconds"
+              }, the share menu opens to send a request by Quick Share.`
+            : "The other device wasn't found on this network. Opening the share menu…"
           : onUseFile
             ? "Works when both devices are on the same Wi-Fi. If they aren't, use a file instead."
             : "Both devices must be connected to the same Wi-Fi network."}

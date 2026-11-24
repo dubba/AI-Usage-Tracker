@@ -165,10 +165,22 @@ export function PairingModal({
   // Busy on the code screen with nothing connected yet: the network search for the typed code.
   const searchingForCode = fileFallback && open && viewMode === "code" && busy && status.status === "idle";
   const sendRequestAutomatically = useEffectEvent(() => void fileTransfer.startRequest(joinCodeInput, true));
+  // Seconds left before the request goes out, counted down on the code screen.
+  const [fallbackSecsLeft, setFallbackSecsLeft] = useState(FILE_FALLBACK_SECS);
   useEffect(() => {
     if (!searchingForCode) return;
-    const timer = setTimeout(sendRequestAutomatically, FILE_FALLBACK_SECS * 1000);
-    return () => clearTimeout(timer);
+    let left = FILE_FALLBACK_SECS;
+    const timer = setInterval(() => {
+      left -= 1;
+      setFallbackSecsLeft(left);
+      if (left > 0) return;
+      clearInterval(timer);
+      sendRequestAutomatically();
+    }, 1000);
+    return () => {
+      clearInterval(timer);
+      setFallbackSecsLeft(FILE_FALLBACK_SECS);
+    };
   }, [searchingForCode]);
 
   // Drops the camera and the state of any pairing in progress. `stopCamera` and `capture` are new
@@ -537,7 +549,7 @@ export function PairingModal({
             onBack={goBack}
             onOtherWays={() => leaveAttempt("select-mode")}
             onUseFile={filesOffered ? () => void fileTransfer.startRequest(joinCodeInput) : undefined}
-            fileFallbackSecs={fileFallback ? FILE_FALLBACK_SECS : undefined}
+            fileFallbackSecs={fileFallback ? fallbackSecsLeft : undefined}
             setKeyboardOpen={setIsKeyboardOpen}
           />
         )}

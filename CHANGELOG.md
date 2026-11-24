@@ -8,7 +8,7 @@
 
 ### Improved (12)
 
-- On Android, when you enter a link code and the other device isn't found on the network within 10 seconds, Sync Devices now opens the share sheet by itself with a request file, so you can send it by Quick Share. While it looks, a "Use Quick Share now" link skips the wait. The search keeps going for a few more seconds, so a device found late still connects over Wi-Fi.
+- On Android, when you enter a link code and the other device isn't found on the network within 10 seconds, Sync Devices now opens the share sheet by itself with a request file, so you can send it by Quick Share. While it looks, the screen counts down the seconds left, and a "Use Quick Share now" link skips the wait. The search keeps going for a few more seconds, so a device found late still connects over Wi-Fi.
 - Settings > Diagnostics now records each Sync Devices step: how the devices connected (link code, QR codes, or a file sent by Quick Share or AirDrop), whether the phone was on Wi-Fi, which network interface the connection used, which transfer files were made, opened or saved, and how the sync ended, with the number of accounts added, updated and skipped or the reason it failed. Link codes, file names and account names are never recorded.
 - In Sync Devices, the settings option is now called "Also Sync Settings and Layout", and its description no longer mentions the local API.
 - On Android, Sync Devices now asks you to connect to Wi-Fi whenever the phone isn't on a Wi-Fi network, not only when Wi-Fi is turned off, so a Pixel with Wi-Fi on but not connected gets the prompt too. The prompt is now titled "Connect to Wi-Fi", and its button reads "Open Wi-Fi Settings". Closing it carries on without Wi-Fi, to send a file by Quick Share instead.
