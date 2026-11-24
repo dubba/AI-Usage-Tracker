@@ -793,7 +793,7 @@ describe("transfer by file", () => {
     expect(note?.textContent).toContain(
       "For Quick Share: Unless both devices use the same Google Account, set Who can share with you to Everyone for 10 Minutes.",
     );
-    expect(note?.textContent).toContain("To change this setting, search for Quick Share in Settings, then return here.");
+    expect(note?.textContent).toContain("To change this, search for Quick Share in your device Settings, then return here.");
     expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
       "For Quick Share:",
       "Who can share with you",

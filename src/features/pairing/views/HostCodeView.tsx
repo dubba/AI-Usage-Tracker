@@ -132,7 +132,7 @@ function DiscoverableNote() {
       <p>
         {ios
           ? "Go to Settings → General → AirDrop, then return here."
-          : "To change this setting, search for Quick Share in Settings, then return here."}
+          : "To change this, search for Quick Share in your device Settings, then return here."}
       </p>
     </div>
   );
