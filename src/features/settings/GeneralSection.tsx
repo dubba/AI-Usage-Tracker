@@ -61,7 +61,7 @@ export function GeneralSection() {
         <div className="settings-row">
           <div>
             <strong>Appearance</strong>
-            <small>Black, dark, light, or match your device.</small>
+            <small>Choose your preferred app theme.</small>
           </div>
           <div className="settings-account-refresh settings-appearance-dropdown">
             <CustomDropdown<ThemePreference>

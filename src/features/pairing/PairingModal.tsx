@@ -69,7 +69,11 @@ export function PairingModal({
   const { status, setStatus, remainingSecs, hasCompletedRef } = usePairingStatus(open);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const { error: errorMessage, setError: setErrorMessage } = useAutoDismissedError(viewMode);
+  // After a failure the reason is the screen's content ("The reason is below"), so it stays.
+  const { error: errorMessage, setError: setErrorMessage } = useAutoDismissedError(
+    viewMode,
+    status.status === "failed",
+  );
   const { error: airgapPrepareError, setError: setAirgapPrepareError } = useAutoDismissedError(viewMode);
   const [confirmedTransfer, setConfirmedTransfer] = useState(false);
   const [includeSettings, setIncludeSettings] = useState(true);

@@ -15,8 +15,11 @@ export const ERROR_AUTO_DISMISS_MS = 10_000;
  * when `resetKey` changes (a different step or a closed dialog), and when the
  * caller clears it. Setting the same message again does not restart the timer,
  * so a poll that re-publishes a failure cannot pin the banner open.
+ *
+ * While `keepOpen` is true the error stays until it is cleared (its X, or the caller), for a
+ * screen whose only content is that error; when it turns false a shown error gets a fresh timer.
  */
-export function useAutoDismissedError(resetKey?: unknown): {
+export function useAutoDismissedError(resetKey?: unknown, keepOpen = false): {
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
   clearError: () => void;
@@ -25,6 +28,8 @@ export function useAutoDismissedError(resetKey?: unknown): {
   const errorRef = useRef<string | null>(null);
   const generationRef = useRef(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const keepOpenRef = useRef(keepOpen);
+  keepOpenRef.current = keepOpen;
 
   const clearTimer = () => {
     if (timeoutRef.current == null) return;
@@ -32,14 +37,9 @@ export function useAutoDismissedError(resetKey?: unknown): {
     timeoutRef.current = null;
   };
 
-  const apply = useCallback((message: string | null) => {
-    if (message === errorRef.current) return;
-    generationRef.current += 1;
-    const generation = generationRef.current;
-    errorRef.current = message;
-    setErrorState(message);
+  const startTimer = useCallback(() => {
     clearTimer();
-    if (message == null) return;
+    const generation = generationRef.current;
     timeoutRef.current = setTimeout(() => {
       if (generationRef.current !== generation) return;
       errorRef.current = null;
@@ -47,6 +47,18 @@ export function useAutoDismissedError(resetKey?: unknown): {
       setErrorState(null);
     }, ERROR_AUTO_DISMISS_MS);
   }, []);
+
+  const apply = useCallback(
+    (message: string | null) => {
+      if (message === errorRef.current) return;
+      generationRef.current += 1;
+      errorRef.current = message;
+      setErrorState(message);
+      clearTimer();
+      if (message != null && !keepOpenRef.current) startTimer();
+    },
+    [startTimer],
+  );
 
   const setError = useCallback<Dispatch<SetStateAction<string | null>>>(
     (update) => {
@@ -61,6 +73,11 @@ export function useAutoDismissedError(resetKey?: unknown): {
     apply(null);
     return clearTimer;
   }, [resetKey, apply]);
+
+  useEffect(() => {
+    if (keepOpen) clearTimer();
+    else if (errorRef.current != null && timeoutRef.current == null) startTimer();
+  }, [keepOpen, startTimer]);
 
   return { error, setError, clearError };
 }

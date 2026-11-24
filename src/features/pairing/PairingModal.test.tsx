@@ -1115,7 +1115,7 @@ describe("finishing", () => {
     expect(title()).toBe("Other Ways to Connect");
   });
 
-  it("auto-dismisses the pairing-failed detail after 10 seconds even if the poll repeats it", async () => {
+  it("keeps the pairing-failed reason past 10 seconds, until its X closes it", async () => {
     vi.useFakeTimers();
     try {
       render();
@@ -1134,9 +1134,12 @@ describe("finishing", () => {
       await emit(failed);
       expect(document.querySelector(".modal-error")?.textContent).toContain("peer vanished");
       await act(async () => {
-        vi.advanceTimersByTime(1);
+        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS * 2);
         await Promise.resolve();
       });
+      expect(document.querySelector(".modal-error")?.textContent).toContain("peer vanished");
+      click(document.querySelector<HTMLButtonElement>(".dialog-error-dismiss")!);
+      await emit(failed);
       expect(document.querySelector(".modal-error")).toBeNull();
       expect(text()).toContain("Pairing Failed");
       expect(button("Try Again")).toBeDefined();

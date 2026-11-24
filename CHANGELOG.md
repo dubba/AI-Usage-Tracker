@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (20 changes)
+## Unreleased (22 changes)
 
 ### Added (1)
 
@@ -8,6 +8,7 @@
 
 ### Improved (15)
 
+- In Settings, the Appearance description now reads "Choose your preferred app theme."
 - When Sync Devices fails, Try Again now sits at the bottom right in place of Close, styled like Connect to Device. The X at the top still closes the dialog.
 - On iPhone and iPad, Sync Devices can now move accounts by file too, so an iPhone can sync with a device that isn't on the same network. The request and reply go out through the iPhone's share sheet (AirDrop, Messages, Mail, or Save to Files), and when one arrives by AirDrop, or is opened from Files or Mail, the app opens it at the right step. As on Android, if the code finds no device on the network within 10 seconds, the share sheet opens by itself with the request. Android phones whose Quick Share works with AirDrop (such as recent Pixels and the Galaxy S26) can send to and receive from an iPhone or Mac this way.
 - In Sync Devices, the screen that shows your link code is now titled "Your Link Code".
@@ -24,8 +25,9 @@
 - In Settings, the Menu Bar Labels switch description now reads "Show labels below icons in bottom bar."
 - Error messages in dialogs (Sync Devices, Add Account, groups, alerts, Google AI Studio) now stay for 10 seconds instead of 6, and have an X in the top right corner to close them sooner.
 
-### Fixed (4)
+### Fixed (5)
 
+- When Sync Devices fails, the reason now stays on screen until you close it with its X, press Back or press Try Again. Before, it disappeared after 10 seconds and left "The reason is below" pointing at nothing.
 - On desktop, the usage bars in compact account cards are now centered in the card, with the same space above and below. Before, they sat slightly low.
 - When you type a link code, it now shows as two groups of three digits (123 456), matching the empty box and the code on the other device.
 - On the Usage page, switching between 7D, 30D and 90D no longer dims the cards for a moment; the old charts stay until the new ones are drawn.
