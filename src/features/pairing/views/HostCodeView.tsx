@@ -29,7 +29,10 @@ export function HostCodeView({
   nearbyName?: string;
   /** Opens the file by hand, for one that wasn't picked up by itself. */
   onOpenFile?: () => void;
-  /** Android, until the app may read Downloads: the way to allow it. */
+  /**
+   * Android, until the app may read Downloads: the way to allow it, also offered when Use Quick
+   * Share is chosen. `PairingModal` asks in a popup first.
+   */
   fileAccess?: { needed: boolean; onAllow: () => void };
 }) {
   const [nearbyChosen, setNearbyChosen] = useState(false);
@@ -111,8 +114,6 @@ export function HostCodeView({
         )
       ) : null}
 
-      {nearby && fileAccess?.needed ? <FileAccessNote name={nearby} onAllow={fileAccess.onAllow} /> : null}
-
       {onOtherWays ? <OtherWaysLink onClick={onOtherWays} /> : null}
     </div>
   );
@@ -141,20 +142,6 @@ export function SearchingRow({ children }: { children: ReactNode }) {
     <div className="pairing-searching-row">
       <span className="pairing-pulse" aria-hidden="true" />
       <span>{children}</span>
-    </div>
-  );
-}
-
-/** Android: the app needs file access to see what Quick Share saves, so files open by themselves. */
-export function FileAccessNote({ name, onAllow }: { name?: string; onAllow: () => void }) {
-  return (
-    <div className="pairing-access-note">
-      <p>
-        Allow file access once so files from {name ?? "Quick Share"} open here by themselves, with nothing to tap.
-      </p>
-      <button type="button" className="button ghost pairing-access-btn" onClick={onAllow}>
-        Allow
-      </button>
     </div>
   );
 }

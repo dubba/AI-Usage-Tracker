@@ -201,6 +201,11 @@ export function PairingModal({
     onError: (cause) => showError("Couldn't open the file that arrived", cause),
   });
   const fileAccess = incoming.needsAccess ? { needed: true, onAllow: incoming.requestAccess } : undefined;
+  // Android asks for file access in a popup while the code shows, once per opening of Sync Devices:
+  // Allow opens the system page, Not Now leaves it to Use Quick Share, which asks again.
+  const [fileAccessAsked, setFileAccessAsked] = useState(false);
+  const askFileAccess =
+    open && viewMode === "host" && status.status === "hostWaiting" && Boolean(fileAccess?.needed) && !fileAccessAsked;
   // Busy on the code screen with nothing connected yet: the network search for the typed code.
   const searchingForCode =
     fileFallback && open && viewMode === "code" && busy && status.status === "idle" && isLinkCode(joinCodeInput);
@@ -446,6 +451,7 @@ export function PairingModal({
     setConfirmedTransfer(false);
     setIncludeSettings(true);
     setLegacyHost(false);
+    setFileAccessAsked(false);
     clearExport();
     autoConfirmedRef.current = null;
     request.cancel();
@@ -731,6 +737,20 @@ export function PairingModal({
         <DialogError message={errorMessage} onDismiss={() => setErrorMessage(null)} />
       )}
     </ModalDialog>
+    <ConfirmDialog
+      open={askFileAccess}
+      kicker="Sync devices"
+      title="Allow file access"
+      body={`So accounts sent by ${nearbyName ?? "Quick Share"} are added without opening the file yourself, allow AI Usage Tracker to see the files ${nearbyName ?? "Quick Share"} saves to Downloads. It opens only Sync Devices files.`}
+      cancelLabel="Not Now"
+      confirmLabel="Allow"
+      confirmDanger={false}
+      onConfirm={() => {
+        setFileAccessAsked(true);
+        fileAccess?.onAllow();
+      }}
+      onCancel={() => setFileAccessAsked(true)}
+    />
     {/* A file that arrived by AirDrop or Quick Share is added only once the receiving user agrees.
         Cancel closes Sync Devices, which drops the opened file (`pairing_cancel`). */}
     <ConfirmDialog

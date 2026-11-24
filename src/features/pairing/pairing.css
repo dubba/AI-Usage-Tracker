@@ -1927,37 +1927,6 @@
   align-self: flex-start;
 }
 
-/* Android: allow file access once so Quick Share files open by themselves. */
-.pairing-access-note {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--tint-amber-rgb) / 0.3);
-  background: rgb(var(--tint-amber-rgb) / 0.08);
-  text-align: left;
-  box-sizing: border-box;
-}
-
-.pairing-access-note p,
-.modal-card.pairing-modal .pairing-access-note p {
-  flex: 1;
-  margin: 0;
-  font-size: 0.76rem;
-  line-height: 1.4;
-  color: var(--obsidian-text);
-}
-
-.button.pairing-access-btn {
-  flex: none;
-  min-height: 34px;
-  padding: 0 14px;
-  border-color: rgb(var(--tint-amber-rgb) / 0.45);
-  color: var(--obsidian-amber);
-}
-
 /* "Other ways to connect": the quietest link on the screen. */
 .pairing-other-ways.pairing-other-ways-quiet {
   color: var(--obsidian-muted);

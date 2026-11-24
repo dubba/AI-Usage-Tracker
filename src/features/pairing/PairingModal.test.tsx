@@ -765,20 +765,44 @@ describe("transfer by file", () => {
     expect(api.sendFile).not.toHaveBeenCalled();
   });
 
-  it("names Quick Share on Android and asks once for file access so files open by themselves", async () => {
+  it("names Quick Share on Android and asks for file access in a popup", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
     api.watchForFile.mockResolvedValue({ watching: false, needsAccess: true });
     render();
     await press("Receive Accounts on This Device");
     expect(text()).toContain("Use Quick Share");
-    expect(text()).toContain("Allow file access once");
-    await press("Allow");
+    const popup = () => document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
+    expect(popup()?.textContent).toContain("Allow file access");
+    expect(popup()?.textContent).toContain("It opens only Sync Devices files.");
+    click(Array.from(popup()!.querySelectorAll("button")).find((b) => b.textContent === "Allow")!);
+    await settle();
     expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
+    // Asked once: it does not come back while access is still missing.
+    expect(popup()).toBeNull();
     await press("Back");
     // The sender sends: it needs no access.
     await press("Send Accounts from This Device");
     expect(text()).toContain("Use Quick Share");
-    expect(text()).not.toContain("Allow file access");
+    expect(popup()).toBeNull();
+  });
+
+  it("leaves file access to Use Quick Share after Not Now", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
+    api.watchForFile.mockResolvedValue({ watching: false, needsAccess: true });
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Not Now");
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(api.requestFileAccess).not.toHaveBeenCalled();
+    await press("Use Quick Share");
+    expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not ask for file access once it is allowed", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
+    render();
+    await press("Receive Accounts on This Device");
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
   });
 
   it("offers no AirDrop or Quick Share where there is none", async () => {
