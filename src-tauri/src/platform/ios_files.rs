@@ -218,13 +218,13 @@ mod tests {
 
     #[test]
     fn only_file_urls_to_transfer_files_are_kept() {
+        // Built from a real path, so the file address is valid on every host that runs tests
+        // (a Unix-style `file:///private/…` address is no file path on Windows).
+        let dir = tempfile::tempdir().unwrap();
+        let file_url = |name: &str| url::Url::from_file_path(dir.path().join(name)).unwrap();
         let urls = [
-            "file:///private/var/mobile/tmp/x-Inbox/a.aiutpair"
-                .parse()
-                .unwrap(),
-            "file:///private/var/mobile/tmp/x-Inbox/a.pdf"
-                .parse()
-                .unwrap(),
+            file_url("a.aiutpair"),
+            file_url("a.pdf"),
             "aiusage-signin://done".parse().unwrap(),
         ];
         let before = WAITING.lock().files.len();
