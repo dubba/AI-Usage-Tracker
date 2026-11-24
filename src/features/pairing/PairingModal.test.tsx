@@ -136,6 +136,8 @@ async function emit(status: PairingStatus) {
 const CODE = "KTQMPRXDHWAB";
 const HOST_INIT = { sessionId: "s1", joinCode: CODE, expiresAt: Math.floor(Date.now() / 1000) + 125 };
 const PREVIEW = { accountCount: 2, ticket: "ticket-1" };
+/** The Wi-Fi search for the code ended without finding the other device. */
+const SEARCH_FOUND_NO_ONE = { code: "not_found", message: "No device is showing a link code on this Wi-Fi network." };
 const CONFIRM = (role: "sender" | "receiver", extra: object = {}) =>
   ({ status: "confirmTransfer", data: { sessionId: "s1", role, accountCount: 3, ...extra } }) as PairingStatus;
 
@@ -556,7 +558,7 @@ describe("transfer by file", () => {
 
   /** Send and type the code, which connects by itself; here the search never ends. */
   async function sendWithCode() {
-    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
+    api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     render();
     await press("Send Accounts from This Device");
     typeInto(codeInput(), CODE);
@@ -573,7 +575,7 @@ describe("transfer by file", () => {
   }
 
   it("names AirDrop on a Mac and sends the accounts as one file", async () => {
-    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
+    api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     render();
     await press("Send Accounts from This Device");
     expect(button("Use AirDrop").disabled).toBe(true);
@@ -595,7 +597,7 @@ describe("transfer by file", () => {
   });
 
   it("sends no settings or layout when they are left out", async () => {
-    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
+    api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     render();
     click(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!);
     await settle();
@@ -978,7 +980,7 @@ describe("transfer by file", () => {
     expect(text()).toContain("Use AirDrop");
     // AirDrop opens the file in the app itself: there is no folder to watch.
     await press("Back");
-    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
+    api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     await press("Send Accounts from This Device");
     typeInto(codeInput(), CODE);
     await settle();
@@ -1066,16 +1068,17 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     expect(text()).not.toContain("Sending by");
   });
 
-  it("lets the user skip the wait with Use Quick Share now, and drops the search's late error", async () => {
+  it("keeps Use Quick Share off while Wi-Fi is searched, and on once the search finds no one", async () => {
     await searchForCode();
-    await press("Use Quick Share now");
-    expect(api.sendFile).toHaveBeenCalledTimes(1);
-    expect(text()).toContain("Choose the other device in Quick Share");
-    await searchSeconds(20);
+    expect(text()).not.toContain("Use Quick Share now");
+    expect(button("Use Quick Share").disabled).toBe(true);
+    await searchSeconds(9);
+    expect(button("Use Quick Share").disabled).toBe(true);
     await notFound();
-    expect(api.sendFile).toHaveBeenCalledTimes(1);
-    expect(document.querySelector(".modal-error")).toBeNull();
-    expect(title()).toBe("Sending by Quick Share");
+    expect(button("Use Quick Share").disabled).toBe(false);
+    // Typing again, or a new search, turns it off until that search ends.
+    typeInto(codeInput(), "KTQ");
+    expect(button("Use Quick Share").disabled).toBe(true);
   });
 
   it("sends no file after going back from the search", async () => {
@@ -1123,7 +1126,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     await searchForCode();
     expect(text()).toContain("You can send by AirDrop instead");
-    expect(text()).toContain("Use AirDrop now");
+    expect(button("Use AirDrop").disabled).toBe(true);
     await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
     await press("Use AirDrop");

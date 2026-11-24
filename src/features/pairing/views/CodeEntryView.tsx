@@ -51,7 +51,7 @@ export function CodeEntryView({
   nearbyName?: string;
   /** The Wi-Fi search for this code ended without finding the other device. */
   notFound?: boolean;
-  /** Sends the accounts for the typed code by AirDrop or Quick Share now. */
+  /** Sends the accounts for the typed code by AirDrop or Quick Share; usable once `notFound`. */
   onUseNearby?: () => void;
   /** While the Wi-Fi search runs: the seconds left in it. */
   fallback?: { secsLeft: number; totalSecs: number };
@@ -163,11 +163,12 @@ export function CodeEntryView({
         <button
           type="button"
           className={`button pairing-nearby-btn${notFound ? " is-suggested" : ""}`}
-          disabled={!isLinkCode(value) || (busy && !searching)}
+          // Only once the Wi-Fi search for this code found no one: Wi-Fi is always tried first.
+          disabled={!notFound || !isLinkCode(value) || busy}
           onClick={onUseNearby}
         >
           <NearbyShareIcon />
-          <span>{searching ? `Use ${nearby} now` : `Use ${nearby}`}</span>
+          <span>Use {nearby}</span>
         </button>
       ) : null}
 
