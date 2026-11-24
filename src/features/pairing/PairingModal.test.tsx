@@ -582,6 +582,8 @@ describe("transfer by file", () => {
     expect(api.shareFile).toHaveBeenCalledTimes(1);
     expect(api.saveFile).not.toHaveBeenCalled();
     expect(title()).toBe("Sending by AirDrop");
+    // On a phone the share sheet covers the lower half: this dialog sits at the top instead.
+    expect(document.querySelector(".pairing-modal")?.className).toContain("view-file-send");
     expect(text()).toContain("Choose the other device in AirDrop");
     expect(text()).toContain("Once the other device accepts the file and confirms, the accounts are added there.");
     // Nothing comes back: the sender waits for no file.

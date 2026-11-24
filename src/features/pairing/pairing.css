@@ -1031,6 +1031,20 @@
   }
 }
 
+/* Sending by AirDrop or Quick Share: the system share sheet rises over the lower half of a phone
+   screen, so the dialog sits at the top, keeping its steps and instructions in view above it. */
+@media (max-width: 768px) {
+  .modal-backdrop:has(.pairing-modal.view-file-send) {
+    align-items: flex-start;
+    padding-top: calc(max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) + 8px);
+  }
+
+  /* A dialog centres itself with auto margins (`.modal-card`); this one starts at the top. */
+  .modal-card.pairing-modal.view-file-send {
+    margin-top: 0;
+  }
+}
+
 /* Mobile Keyboard Adaptation: Move modals 20px above on-screen keyboard when keyboard appears */
 @media (max-width: 768px) {
   .modal-backdrop.keyboard-open:has(.pairing-modal),

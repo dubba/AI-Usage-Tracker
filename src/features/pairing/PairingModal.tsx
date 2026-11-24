@@ -493,7 +493,9 @@ export function PairingModal({
     <ModalDialog
       dialogRef={dialogRef}
       labelledBy="pairing-modal-title"
-      className={`pairing-modal ${isWaitingState && viewMode === "code" ? "view-code-entry" : ""} ${isKeyboardOpen ? "keyboard-open" : ""}`}
+      className={`pairing-modal ${isWaitingState && viewMode === "code" ? "view-code-entry" : ""} ${
+        isWaitingState && viewMode === "file-send" ? "view-file-send" : ""
+      } ${isKeyboardOpen ? "keyboard-open" : ""}`}
       backdropClassName={isKeyboardOpen ? "keyboard-open" : ""}
       onClose={requestClose}
       closeDisabled={status.status === "transferring"}
