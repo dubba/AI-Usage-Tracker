@@ -889,10 +889,10 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await searchForCode();
     expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
     expect(text()).toContain("Looking for the other device on Wi-Fi…");
-    expect(text()).toContain("Not found within 15 seconds? You can send by Quick Share instead.");
+    expect(text()).toContain("Not found within 10 seconds? You can send by Quick Share instead.");
     await searchSeconds(3);
-    expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("12 seconds");
-    await searchSeconds(12);
+    expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("7 seconds");
+    await searchSeconds(7);
     expect(text()).toContain("Finishing the search on Wi-Fi…");
     await notFound();
     // Nothing goes until the user taps it.
@@ -916,7 +916,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
 
   it("still connects over Wi-Fi to a device found late in the search", async () => {
     await searchForCode();
-    await searchSeconds(13);
+    await searchSeconds(8);
     await emit({ status: "clientConnecting", data: { sessionId: "s1" } } as PairingStatus);
     await searchSeconds(10);
     expect(api.sendFile).not.toHaveBeenCalled();
@@ -945,7 +945,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await press("Send Accounts from This Device");
     typeInto(codeInput(), CODE);
     await settle();
-    expect(text()).toContain("within 15 seconds?");
+    expect(text()).toContain("within 10 seconds?");
   });
 
   it("keeps an older version's six digits to Wi-Fi", async () => {

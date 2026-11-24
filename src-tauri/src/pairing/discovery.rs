@@ -42,7 +42,7 @@ pub const LINK_CODE_LEN: usize = 12;
 pub const LINK_CODE_ALPHABET: &[u8; 23] = b"ABCDEFGHJKMNPQRSTUVWXYZ";
 /// How long a joiner looks for a host before giving up.
 #[cfg(not(test))]
-pub(crate) const DISCOVERY_TIMEOUT: Duration = Duration::from_millis(15_000);
+pub(crate) const DISCOVERY_TIMEOUT: Duration = Duration::from_millis(10_000);
 #[cfg(test)]
 pub(crate) const DISCOVERY_TIMEOUT: Duration = Duration::from_millis(25);
 /// Once one host is found, how much longer to listen for others on the network.

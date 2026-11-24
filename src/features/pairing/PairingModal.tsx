@@ -59,7 +59,7 @@ const FOCUS_DELAY_MS = 50;
  * counted down on the code screen. When it ends with no one found, the screen says so and offers
  * Quick Share or AirDrop; the file goes only when the user taps it (making the file stops the search).
  */
-const WIFI_SEARCH_SECS = 15;
+const WIFI_SEARCH_SECS = 10;
 export function PairingModal({
   open,
   onClose,
