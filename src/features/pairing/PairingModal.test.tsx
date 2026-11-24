@@ -795,6 +795,7 @@ describe("transfer by file", () => {
     );
     expect(note?.textContent).toContain("To change this setting, search for Quick Share in Settings, then return here.");
     expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
+      "For Quick Share:",
       "Who can share with you",
       "Everyone for 10 Minutes",
     ]);

@@ -125,7 +125,7 @@ function DiscoverableNote() {
         </p>
       ) : (
         <p>
-          For Quick Share: Unless both devices use the same Google Account, set <strong>Who can share with you</strong> to{" "}
+          <strong>For Quick Share:</strong> Unless both devices use the same Google Account, set <strong>Who can share with you</strong> to{" "}
           <strong>Everyone for 10 Minutes</strong>.
         </p>
       )}
