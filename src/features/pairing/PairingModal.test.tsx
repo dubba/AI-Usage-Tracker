@@ -1153,12 +1153,13 @@ describe("finishing", () => {
     expect(api.startHost).toHaveBeenCalledTimes(2);
   });
 
-  it("closes with Close after a failure", async () => {
+  it("offers Back and Try Again, not Close, after a failure", async () => {
     render();
     await settle();
     await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "x" } } });
-    await press("Close");
-    expect(onClose).toHaveBeenCalled();
+    expect(button("Try Again")?.className).toContain("button primary");
+    expect(button("Back")).toBeDefined();
+    expect(buttons().some((b) => b.textContent === "Close")).toBe(false);
   });
 
   it("cancels the pairing when the dialog is closed", async () => {

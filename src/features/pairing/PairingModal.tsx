@@ -42,7 +42,6 @@ import {
   ApplyingRolePanel,
   CompletedCard,
   ConnectingPanel,
-  FailedCard,
   PeerConnectedPanel,
   ConfirmTransferCard,
   RoleFallbackView,
@@ -330,6 +329,11 @@ export function PairingModal({
     const timer = setTimeout(() => {
       if (!container.isConnected) return;
       if (!container.contains(document.activeElement)) {
+        const retry = container.querySelector<HTMLButtonElement>(".pairing-retry-btn");
+        if (retry) {
+          retry.focus({ preventScroll: true });
+          return;
+        }
         if (viewMode === "code") {
           const input = container.querySelector<HTMLInputElement>("#pairing-join-code-input");
           if (input) {
@@ -403,6 +407,21 @@ export function PairingModal({
   };
 
   const hasOwnActionButtons = viewHasOwnActionButtons(status.status, viewMode);
+
+  /** Try Again after a failure: start the same attempt over. */
+  const retryAfterFailure = () => {
+    setErrorMessage(null);
+    if (activeFlow === "airgap") {
+      void startAirgapSender();
+    } else if (viewMode === "host") {
+      void initHostSession();
+    } else if (viewMode === "code") {
+      // The other device may still show the same code: keep what was typed.
+      leaveAttempt("code", "wifi");
+    } else {
+      leaveAttempt("select-mode");
+    }
+  };
   const showSwitchCamera = availableCameras.length > 1 || isMobileDevice() || Boolean(import.meta.env?.DEV);
   const { title: modalTitle, subtitle: modalSubtitle, step, showStepDots } = pairingHeader({
     status: status.status,
@@ -600,23 +619,6 @@ export function PairingModal({
 
         {status.status === "completed" && <CompletedCard summary={status.data.summary} onDone={handleDone} />}
 
-        {status.status === "failed" && (
-          <FailedCard
-            onRetry={() => {
-              setErrorMessage(null);
-              if (activeFlow === "airgap") {
-                void startAirgapSender();
-              } else if (viewMode === "host") {
-                void initHostSession();
-              } else if (viewMode === "code") {
-                // The other device may still show the same code: keep what was typed.
-                leaveAttempt("code", "wifi");
-              } else {
-                leaveAttempt("select-mode");
-              }
-            }}
-          />
-        )}
 
       </div>
 
@@ -633,15 +635,24 @@ export function PairingModal({
           {isWaitingState && (viewMode === "select-mode" || viewMode === "host") ? (
             <BackButton onClick={goBack} />
           ) : null}
-          {status.status === "failed" ? <BackButton onClick={() => leaveAttempt("select-role")} /> : null}
-          <button
-            type="button"
-            className="button ghost"
-            onClick={requestClose}
-            disabled={status.status === "transferring"}
-          >
-            {status.status === "failed" ? "Close" : "Cancel"}
-          </button>
+          {status.status === "failed" ? (
+            <>
+              <BackButton onClick={() => leaveAttempt("select-role")} />
+              {/* Styled as Connect to Device; the X in the header closes the dialog. */}
+              <button type="button" className="button primary pairing-retry-btn" onClick={retryAfterFailure}>
+                Try Again
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="button ghost"
+              onClick={requestClose}
+              disabled={status.status === "transferring"}
+            >
+              Cancel
+            </button>
+          )}
         </div>
       )}
 

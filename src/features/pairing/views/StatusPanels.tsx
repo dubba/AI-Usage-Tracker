@@ -1,4 +1,4 @@
-import { CheckCircleIcon, RefreshIcon, ShieldIcon } from "../../../shared/ui/icons";
+import { CheckCircleIcon, ShieldIcon } from "../../../shared/ui/icons";
 import type { IntendedRole } from "../lib/view-model";
 import type { SyncSummary } from "../../../types";
 import { RoleCards } from "./RoleCards";
@@ -165,21 +165,6 @@ export function CompletedCard({ summary, onDone }: { summary: SyncSummary; onDon
       <button type="button" className="button primary pairing-done-btn" onClick={onDone}>
         Done
       </button>
-    </div>
-  );
-}
-
-export function FailedCard({ onRetry }: { onRetry: () => void }) {
-  // "Pairing Failed" is the dialog's heading (`pairingHeader`) and the reason renders below the
-  // modal footer as an alert (see PairingModal), so the card holds only the retry action.
-  return (
-    <div className="pairing-error-card">
-      <div className="pairing-error-actions">
-        <button type="button" className="button settings-update-action button-green" onClick={onRetry}>
-          <RefreshIcon />
-          <span>Try Again</span>
-        </button>
-      </div>
     </div>
   );
 }
