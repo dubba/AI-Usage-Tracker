@@ -133,16 +133,25 @@ export function FileSendView({
   );
 }
 
-/** Receiver: the file arrived and opened with the code; its accounts are added once the user confirms (the popup in `PairingModal`). */
+/** Receiver: the file arrived and opened with the code; its accounts are added once the user confirms here. */
 export function FileReceiveView({
   preview,
   nearbyName,
   busy,
+  awaitingConfirm,
+  onConfirm,
+  onCancel,
   onBack,
 }: {
   preview: FilePreview | null;
   nearbyName: string;
   busy: boolean;
+  /** The file opened; its accounts are added only once the user agrees here. */
+  awaitingConfirm: boolean;
+  /** Add the accounts. */
+  onConfirm: () => void;
+  /** Add nothing and close Sync Devices (which drops the opened file). */
+  onCancel: () => void;
   /** Back to the role choice (the code is used up). */
   onBack: () => void;
 }) {
@@ -150,6 +159,25 @@ export function FileReceiveView({
     <>File received by {nearbyName}</>,
     preview ? `Adding ${accounts(preview.accountCount)}` : "Adding the accounts",
   ];
+  if (awaitingConfirm && preview) {
+    return (
+      <div className="pairing-panel-status pairing-file-view">
+        <TransferSteps steps={steps} current={1} />
+        <p>
+          Are you sure you want to add {preview.accountCount === 1 ? "this account" : `these ${accounts(preview.accountCount)}`}{" "}
+          from the other device to this one?
+        </p>
+        <div className="pairing-nav-row">
+          <button type="button" className="button ghost" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="button primary" onClick={onConfirm}>
+            Add Accounts
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="pairing-panel-status pairing-file-view">
       <TransferSteps steps={steps} current={1} />

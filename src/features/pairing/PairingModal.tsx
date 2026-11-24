@@ -591,6 +591,9 @@ export function PairingModal({
             preview={fileTransfer.preview}
             nearbyName={nearbyShareName()}
             busy={busy}
+            awaitingConfirm={fileTransfer.awaitingConfirm}
+            onConfirm={fileTransfer.confirmImport}
+            onCancel={requestClose}
             onBack={goBack}
           />
         )}
@@ -782,27 +785,8 @@ export function PairingModal({
       }}
       onCancel={() => setAskReceiveVisibility(false)}
     />
-    {/* A file that arrived by AirDrop or Quick Share is added only once the receiving user agrees.
-        Cancel closes Sync Devices, which drops the opened file (`pairing_cancel`). */}
-    <ConfirmDialog
-      open={open && viewMode === "file-receive" && fileTransfer.awaitingConfirm}
-      kicker="Sync devices"
-      title={`Add ${accountsLabel(fileTransfer.preview?.accountCount ?? 0)}?`}
-      body={`Are you sure you want to add ${
-        fileTransfer.preview?.accountCount === 1 ? "this account" : `these ${accountsLabel(fileTransfer.preview?.accountCount ?? 0)}`
-      } from the other device to this one?`}
-      confirmLabel="Add Accounts"
-      confirmDanger={false}
-      onConfirm={fileTransfer.confirmImport}
-      onCancel={requestClose}
-    />
     </>
   );
-}
-
-/** "1 account", "4 accounts". */
-function accountsLabel(count: number): string {
-  return count === 1 ? "1 account" : `${count} accounts`;
 }
 
 function BackButton({ onClick }: { onClick: () => void }) {

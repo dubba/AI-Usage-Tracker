@@ -649,25 +649,24 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     expect(api.watchForFile).toHaveBeenCalledTimes(1);
     await arrives(PREVIEW);
-    const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
-    expect(popup?.textContent).toContain("Add 2 accounts?");
-    expect(popup?.textContent).toContain("Are you sure you want to add these 2 accounts from the other device to this one?");
+    // Asked in the dialog itself, with no popup over it.
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(title()).toBe("Receiving by AirDrop");
+    expect(text()).toContain("Are you sure you want to add these 2 accounts from the other device to this one?");
     expect(api.importFile).not.toHaveBeenCalled();
     await press("Add Accounts");
-    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
     expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
     expect(onCompleted).toHaveBeenCalledTimes(1);
     expect(title()).toBe("Devices linked");
   }, 10_000);
 
-  it("adds nothing when the popup is cancelled, and closes Sync Devices", async () => {
+  it("adds nothing when Cancel is pressed, and closes Sync Devices", async () => {
     render();
     await press("Receive Accounts on This Device");
     await press("Use AirDrop");
     await press("Received it but nothing happened? Open the file");
-    expect(text()).toContain("Add 2 accounts?");
-    click(Array.from(document.querySelectorAll<HTMLButtonElement>(".confirm-dialog-backdrop button")).find((b) => b.textContent === "Cancel")!);
-    await settle();
+    expect(text()).toContain("Are you sure you want to add these 2 accounts");
+    await press("Cancel");
     expect(api.importFile).not.toHaveBeenCalled();
     expect(cancelPairing).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -679,7 +678,6 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     await press("Use AirDrop");
     await press("Received it but nothing happened? Open the file");
-    expect(text()).toContain("Add 1 account?");
     expect(text()).toContain("Are you sure you want to add this account from the other device to this one?");
   });
 
