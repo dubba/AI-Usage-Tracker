@@ -29,7 +29,7 @@ const api = vi.hoisted(() => ({
   stopWatchingForFile: vi.fn(),
   pollForFile: vi.fn(),
   requestFileAccess: vi.fn(),
-  openQuickShareSettings: vi.fn(),
+  openReceiveSettings: vi.fn(),
 }));
 const cancelPairing = vi.hoisted(() => vi.fn());
 vi.mock("../../shared/lib/api", () => ({ pairingApi: api, cancelPairing }));
@@ -160,7 +160,7 @@ beforeEach(() => {
   api.stopWatchingForFile.mockResolvedValue(undefined);
   api.pollForFile.mockResolvedValue(null);
   api.requestFileAccess.mockResolvedValue(undefined);
-  api.openQuickShareSettings.mockResolvedValue(undefined);
+  api.openReceiveSettings.mockResolvedValue(undefined);
   // A Mac: the file goes out through the share menu.
   api.sendFile.mockResolvedValue(true);
   api.shareFile.mockResolvedValue(undefined);
@@ -816,7 +816,7 @@ describe("transfer by file", () => {
     expect(popup?.textContent).toContain("Tap Open Quick Share Settings, select Everyone for 10 minutes, then return here.");
     expect(popup?.textContent).toContain("If Settings page opens instead, search for Quick Share.");
     await press("Open Quick Share Settings");
-    expect(api.openQuickShareSettings).toHaveBeenCalledTimes(1);
+    expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
     expect(title()).toBe("Your Link Code");
   });
@@ -838,13 +838,46 @@ describe("transfer by file", () => {
     await press("Use Quick Share");
     await press("Not Now");
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
-    expect(api.openQuickShareSettings).not.toHaveBeenCalled();
+    expect(api.openReceiveSettings).not.toHaveBeenCalled();
   });
 
-  it("asks nothing about visibility for AirDrop on a Mac", async () => {
+  it("asks a Mac receiving by AirDrop to be discoverable, and opens AirDrop", async () => {
     render();
     await press("Receive Accounts on This Device");
     await press("Use AirDrop");
+    const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
+    expect(popup?.textContent).toContain("AirDrop must allow everyone to share with this Mac.");
+    expect(popup?.textContent).toContain("If System Settings opens instead, go to General → AirDrop & Handoff.");
+    await press("Open AirDrop");
+    expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives an iPhone the steps only, with nothing to open", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Use AirDrop");
+    const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
+    expect(popup?.textContent).toContain("Open Settings → General → AirDrop, select Everyone for 10 Minutes, then return here.");
+    await press("Done");
+    expect(api.openReceiveSettings).not.toHaveBeenCalled();
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+  });
+
+  it("points Windows to Quick Share's Receiving setting and opens Nearby sharing", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", configurable: true });
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Use Quick Share");
+    expect(text()).toContain("In the Quick Share app, set Receiving to Everyone, then return here.");
+    await press("Open Nearby Sharing Settings");
+    expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks nothing about visibility where there is no AirDrop or Quick Share", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (X11; Linux x86_64)", configurable: true });
+    render();
+    await press("Receive Accounts on This Device");
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
   });
 

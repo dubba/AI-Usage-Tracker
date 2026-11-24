@@ -163,8 +163,11 @@ export const pairingApi = {
   pollForFile: () => invoke<FilePreview | null>("pairing_file_poll"),
   /** Android: opens the system page that allows file access, for `watchForFile`. */
   requestFileAccess: () => invoke<void>("pairing_file_request_access"),
-  /** Android: opens Quick Share's settings (or Settings), for "Everyone for 10 minutes". */
-  openQuickShareSettings: () => invoke<void>("pairing_open_quick_share_settings"),
+  /**
+   * Opens who may send this device files by AirDrop or Quick Share: Quick Share's settings on
+   * Android, the AirDrop window on a Mac, Nearby sharing on Windows. Does nothing on iPhone.
+   */
+  openReceiveSettings: () => invoke<void>("pairing_open_receive_settings"),
   /** Receiver: imports the opened file, with the ticket opening it gave. */
   importFile: (ticket: string, acceptSettings: boolean) =>
     invoke<SyncSummary>("pairing_file_import", { ticket, acceptSettings }),

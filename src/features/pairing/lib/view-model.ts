@@ -15,6 +15,58 @@ export function hasNearbyShare(): boolean {
   return isAndroid() || isIOS() || isMac() || isWindows();
 }
 
+/**
+ * What the receiving device's user is asked to change so a device on another account can send it
+ * the file: who may share with it by AirDrop or Quick Share, which apps cannot change themselves.
+ * `openLabel` is the button that opens the setting (`pairingApi.openReceiveSettings`); absent where
+ * no app can open it (iPhone), so the popup gives the steps only. Null where there is no such
+ * setting to ask about (Linux).
+ */
+export type ReceiveVisibilityHelp = { paragraphs: string[]; note?: string; openLabel?: string };
+
+export function receiveVisibilityHelp(): ReceiveVisibilityHelp | null {
+  if (isAndroid()) {
+    return {
+      paragraphs: [
+        "Unless both phones use the same Google account, Quick Share must allow everyone nearby to share with this device.",
+        "Tap Open Quick Share Settings, select Everyone for 10 minutes, then return here.",
+      ],
+      note: "If Settings page opens instead, search for Quick Share.",
+      openLabel: "Open Quick Share Settings",
+    };
+  }
+  if (isIOS()) {
+    return {
+      paragraphs: [
+        "Unless both devices use the same Apple Account, AirDrop must allow everyone to share with this device.",
+        "Open Settings → General → AirDrop, select Everyone for 10 Minutes, then return here.",
+      ],
+      note: "You can also change it in Control Center: touch and hold the network controls, then tap AirDrop.",
+    };
+  }
+  if (isMac()) {
+    return {
+      paragraphs: [
+        "Unless both devices use the same Apple Account, AirDrop must allow everyone to share with this Mac.",
+        "Click Open AirDrop, set Allow me to be discovered by to Everyone, then return here.",
+      ],
+      note: "If System Settings opens instead, go to General → AirDrop & Handoff.",
+      openLabel: "Open AirDrop",
+    };
+  }
+  if (isWindows()) {
+    return {
+      paragraphs: [
+        "Unless both devices use the same Google account, Quick Share must allow everyone nearby to share with this PC.",
+        "In the Quick Share app, set Receiving to Everyone, then return here.",
+      ],
+      note: "If Windows' own Nearby sharing receives files on this PC, click Open Nearby Sharing Settings and select Everyone nearby.",
+      openLabel: "Open Nearby Sharing Settings",
+    };
+  }
+  return null;
+}
+
 export type ViewMode =
   | "select-role"
   | "select-mode"

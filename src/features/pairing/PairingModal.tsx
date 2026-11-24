@@ -11,7 +11,7 @@ import { useQrScanner } from "./hooks/useQrScanner";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 import { useSyncOtherWays } from "../../shared/hooks/usePreferences";
 import { logIgnored } from "../../shared/lib/log";
-import { isAndroid, isMobileDevice } from "../../shared/lib/platform";
+import { isMobileDevice } from "../../shared/lib/platform";
 import { flowReducer, INITIAL_FLOW } from "./lib/flow-state";
 import {
   hasOwnActionButtons as viewHasOwnActionButtons,
@@ -22,6 +22,7 @@ import {
   isLinkCode,
   nearbyShareName,
   pairingHeader,
+  receiveVisibilityHelp,
   type ActiveFlow,
   type ViewMode,
 } from "./lib/view-model";
@@ -204,8 +205,9 @@ export function PairingModal({
   // Android asks for file access in a popup while the code shows, once per opening of Sync Devices:
   // Allow opens the system page, Not Now leaves it to Use Quick Share, which asks again.
   const [fileAccessAsked, setFileAccessAsked] = useState(false);
-  /** The receiver chose Quick Share on Android: ask them to let everyone nearby send. */
-  const [askQuickShareVisibility, setAskQuickShareVisibility] = useState(false);
+  /** The receiver chose AirDrop or Quick Share: ask them to let everyone nearby send. */
+  const [askReceiveVisibility, setAskReceiveVisibility] = useState(false);
+  const visibilityHelp = receiveVisibilityHelp();
   const askFileAccess =
     open && viewMode === "host" && status.status === "hostWaiting" && Boolean(fileAccess?.needed) && !fileAccessAsked;
   // Busy on the code screen with nothing connected yet: the network search for the typed code.
@@ -454,7 +456,7 @@ export function PairingModal({
     setIncludeSettings(true);
     setLegacyHost(false);
     setFileAccessAsked(false);
-    setAskQuickShareVisibility(false);
+    setAskReceiveVisibility(false);
     clearExport();
     autoConfirmedRef.current = null;
     request.cancel();
@@ -565,10 +567,10 @@ export function PairingModal({
             nearbyName={nearbyName}
             onOpenFile={() => void fileTransfer.openFile()}
             onUseNearby={() => {
-              // File access first, so the file opens by itself; then, on Android, Quick Share's
-              // visibility, so a phone on another Google account can send here.
+              // File access first (Android), so the file opens by itself; then who may share with
+              // this device, so one on another account can send here.
               if (fileAccess?.needed) fileAccess.onAllow();
-              else if (isAndroid()) setAskQuickShareVisibility(true);
+              else if (visibilityHelp) setAskReceiveVisibility(true);
             }}
           />
         )}
@@ -760,27 +762,29 @@ export function PairingModal({
       onCancel={() => setFileAccessAsked(true)}
     />
     <ConfirmDialog
-      open={askQuickShareVisibility && open && viewMode === "host" && status.status === "hostWaiting"}
+      open={Boolean(visibilityHelp) && askReceiveVisibility && open && viewMode === "host" && status.status === "hostWaiting"}
       kicker="Sync devices"
       title="Allow This Device to Be Discovered"
       richBody
       body={
         <>
-          <p>Unless both phones use the same Google account, Quick Share must allow everyone nearby to share with this device.</p>
-          <p>Tap Open Quick Share Settings, select Everyone for 10 minutes, then return here.</p>
+          {visibilityHelp?.paragraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
         </>
       }
-      note="If Settings page opens instead, search for Quick Share."
+      note={visibilityHelp?.note}
       cancelLabel="Not Now"
-      confirmLabel="Open Quick Share Settings"
+      confirmLabel={visibilityHelp?.openLabel ?? "Done"}
       confirmDanger={false}
       onConfirm={() => {
-        setAskQuickShareVisibility(false);
+        setAskReceiveVisibility(false);
+        if (!visibilityHelp?.openLabel) return;
         void pairingApi
-          .openQuickShareSettings()
-          .catch((cause) => showError("Couldn't open Quick Share's settings", cause));
+          .openReceiveSettings()
+          .catch((cause) => showError("Couldn't open the sharing settings", cause));
       }}
-      onCancel={() => setAskQuickShareVisibility(false)}
+      onCancel={() => setAskReceiveVisibility(false)}
     />
     {/* A file that arrived by AirDrop or Quick Share is added only once the receiving user agrees.
         Cancel closes Sync Devices, which drops the opened file (`pairing_cancel`). */}

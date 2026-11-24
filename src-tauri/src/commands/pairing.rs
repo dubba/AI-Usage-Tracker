@@ -693,11 +693,15 @@ pub async fn pairing_file_request_access() -> CommandResult<()> {
     Ok(())
 }
 
-/// Android: opens Quick Share's settings so the user can set "Everyone for 10 minutes" (a phone on
-/// another Google account cannot send here otherwise; apps cannot change it). Falls back to this
-/// phone's Settings. Does nothing elsewhere.
+/// Opens the setting that decides who may send this device files by AirDrop or Quick Share, so a
+/// device on another Google or Apple account can send here; apps cannot change it themselves.
+/// Android: Quick Share's settings (or Settings). Mac: Finder's AirDrop window (or System Settings).
+/// Windows: Nearby Sharing in Settings. Elsewhere (iPhone, Linux) there is nothing to open: the
+/// page gives the steps.
 #[tauri::command]
-pub async fn pairing_open_quick_share_settings() -> CommandResult<()> {
+pub async fn pairing_open_receive_settings(
+    #[allow(unused_variables)] app: AppHandle,
+) -> CommandResult<()> {
     #[cfg(target_os = "android")]
     {
         let opened = tauri::async_runtime::spawn_blocking(
@@ -708,6 +712,45 @@ pub async fn pairing_open_quick_share_settings() -> CommandResult<()> {
         .inspect_err(|error| sync_log::failed_text("file: opening Quick Share settings", error))
         .map_err(file_error)?;
         sync_log::note(&format!("file: opened {opened} for Quick Share visibility"));
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use tauri_plugin_opener::OpenerExt;
+        /// Finder's AirDrop window, with "Allow me to be discovered by" at its foot.
+        const AIRDROP_APP: &str =
+            "/System/Library/CoreServices/Finder.app/Contents/Applications/AirDrop.app";
+        /// System Settings → General → AirDrop & Handoff.
+        const AIRDROP_SETTINGS: &str =
+            "x-apple.systempreferences:com.apple.AirDrop-Handoff-Settings.extension";
+        let opener = app.opener();
+        let opened = if opener.open_path(AIRDROP_APP, None::<&str>).is_ok() {
+            "the AirDrop window"
+        } else if opener.open_url(AIRDROP_SETTINGS, None::<&str>).is_ok() {
+            "AirDrop & Handoff settings"
+        } else {
+            let error = file_error(
+                "Couldn't open AirDrop. Open Finder, choose AirDrop, and set who can discover this Mac.",
+            );
+            sync_log::failed("file: opening AirDrop", &error);
+            return Err(error);
+        };
+        sync_log::note(&format!("file: opened {opened} for AirDrop visibility"));
+    }
+    #[cfg(windows)]
+    {
+        use tauri_plugin_opener::OpenerExt;
+        /// Settings → System → Nearby sharing.
+        const NEARBY_SHARING: &str = "ms-settings:crossdevice";
+        app.opener()
+            .open_url(NEARBY_SHARING, None::<&str>)
+            .map_err(|_| {
+                let error = file_error(
+                    "Couldn't open Nearby sharing. Open Settings → System → Nearby sharing.",
+                );
+                sync_log::failed("file: opening Nearby sharing settings", &error);
+                error
+            })?;
+        sync_log::note("file: opened Nearby sharing settings for Quick Share visibility");
     }
     Ok(())
 }
