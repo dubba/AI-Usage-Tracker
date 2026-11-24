@@ -29,6 +29,8 @@ export function useFileTransfer({
   const { request, setBusy, setStatus, setErrorMessage, showError } = context;
   const [sendState, setSendState] = useState<FileSendState | null>(null);
   const [preview, setPreview] = useState<FilePreview | null>(null);
+  /** Whether the request went out by itself because the Wi-Fi search found nothing. */
+  const [requestedAutomatically, setRequestedAutomatically] = useState(false);
   /** Whether this device has a share menu; until a file is made, assume not. */
   const [canShare, setCanShare] = useState(false);
 
@@ -64,15 +66,20 @@ export function useFileTransfer({
     sendState,
     preview,
     canShare,
+    requestedAutomatically,
     /** Shows the share menu again for the file made last. */
     share: () => void share(),
     /** Saves a copy of the file made last. */
     save: () => void save(),
-    /** Receiver: make the request for `code`, send it, then wait for the reply. */
-    startRequest: (code: string) =>
+    /**
+     * Receiver: make the request for `code`, send it, then wait for the reply. `automatic` when
+     * the Wi-Fi search found nothing in time, rather than the user choosing a file.
+     */
+    startRequest: (code: string, automatic = false) =>
       step("Couldn't make the request", () => pairingApi.makeFileRequest(code), (shareMenu) => {
         setCanShare(shareMenu);
         setPreview(null);
+        setRequestedAutomatically(automatic);
         showView("file-receive");
         deliver(shareMenu);
       }),
@@ -129,6 +136,7 @@ export function useFileTransfer({
       setSendState(null);
       setPreview(null);
       setCanShare(false);
+      setRequestedAutomatically(false);
     },
   };
 }

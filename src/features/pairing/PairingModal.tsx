@@ -9,7 +9,7 @@ import { usePairingStatus } from "./hooks/usePairingStatus";
 import { useQrScanner } from "./hooks/useQrScanner";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 import { logIgnored } from "../../shared/lib/log";
-import { isIOS, isMobileDevice } from "../../shared/lib/platform";
+import { isAndroid, isIOS, isMobileDevice } from "../../shared/lib/platform";
 import { flowReducer, INITIAL_FLOW } from "./lib/flow-state";
 import {
   hasOwnActionButtons as viewHasOwnActionButtons,
@@ -50,6 +50,12 @@ import {
 
 /** Wait after a view change before moving keyboard focus into it, so the new view has rendered. */
 const FOCUS_DELAY_MS = 50;
+/**
+ * On Android, how long the receiver looks for the sender on the network before the request goes
+ * out by Quick Share by itself. The search goes on (it gives up at 15 s), so a late find still
+ * connects over Wi-Fi.
+ */
+const FILE_FALLBACK_SECS = 10;
 export function PairingModal({
   open,
   onClose,
@@ -153,6 +159,17 @@ export function PairingModal({
   const filesOffered = !isIOS();
   // A file tapped in Quick Share: open it as the request or reply it is.
   useTappedTransferFile(open, () => void fileTransfer.openTapped());
+  // Android opens its share sheet without a fresh tap, so there a receiver whose code finds no
+  // sender on the network sends a request by itself. Desktop share menus want a click.
+  const fileFallback = filesOffered && isAndroid();
+  // Busy on the code screen with nothing connected yet: the network search for the typed code.
+  const searchingForCode = fileFallback && open && viewMode === "code" && busy && status.status === "idle";
+  const sendRequestAutomatically = useEffectEvent(() => void fileTransfer.startRequest(joinCodeInput, true));
+  useEffect(() => {
+    if (!searchingForCode) return;
+    const timer = setTimeout(sendRequestAutomatically, FILE_FALLBACK_SECS * 1000);
+    return () => clearTimeout(timer);
+  }, [searchingForCode]);
 
   // Drops the camera and the state of any pairing in progress. `stopCamera` and `capture` are new
   // every render, so the open/close effect below calls this effect event instead of listing them
@@ -468,6 +485,7 @@ export function PairingModal({
         {isWaitingState && viewMode === "file-receive" && (
           <FileReceiveView
             preview={fileTransfer.preview}
+            automatic={fileTransfer.requestedAutomatically}
             canShare={fileTransfer.canShare}
             busy={busy}
             onOpenReply={() => void fileTransfer.openReply()}
@@ -519,6 +537,7 @@ export function PairingModal({
             onBack={goBack}
             onOtherWays={() => leaveAttempt("select-mode")}
             onUseFile={filesOffered ? () => void fileTransfer.startRequest(joinCodeInput) : undefined}
+            fileFallbackSecs={fileFallback ? FILE_FALLBACK_SECS : undefined}
             setKeyboardOpen={setIsKeyboardOpen}
           />
         )}

@@ -101,6 +101,7 @@ export function FileSendView({
 /** Receiver: the request went out; open the reply when it arrives, then agree to add it. */
 export function FileReceiveView({
   preview,
+  automatic,
   canShare,
   busy,
   onOpenReply,
@@ -110,6 +111,8 @@ export function FileReceiveView({
   onBack,
 }: {
   preview: FilePreview | null;
+  /** The request went out by itself because the Wi-Fi search found nothing. */
+  automatic: boolean;
   canShare: boolean;
   busy: boolean;
   onOpenReply: () => void;
@@ -135,7 +138,13 @@ export function FileReceiveView({
   }
   return (
     <div className="pairing-panel-status pairing-file-view">
-      <h3>Request ready</h3>
+      <h3>{automatic ? "Not on the same network" : "Request ready"}</h3>
+      {automatic ? (
+        <p>
+          The other device wasn't found on this network, so the share menu opened with a request. Choose the other
+          device in Quick Share.
+        </p>
+      ) : null}
       <p>
         Send the request to the other device by AirDrop, Quick Share or email. On that device, choose{" "}
         <strong>Open a request file</strong> under its link code. When its reply comes back, open it here.

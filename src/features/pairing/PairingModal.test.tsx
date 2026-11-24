@@ -757,6 +757,88 @@ describe("transfer by file", () => {
   });
 });
 
+describe("Quick Share when the code finds no one on the network (Android)", () => {
+  const codeInput = () => document.getElementById("pairing-join-code-input") as HTMLInputElement;
+  const searchSeconds = async (seconds: number) => {
+    await act(async () => {
+      vi.advanceTimersByTime(seconds * 1000);
+    });
+    await settle();
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
+    // The network search for the code is still running.
+    api.startClientByCode.mockImplementation(() => new Promise(() => {}));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function searchForCode() {
+    render();
+    await press("Receive Accounts on This Device");
+    typeInto(codeInput(), "123456");
+    await press("Connect to Device");
+  }
+
+  it("says the share menu opens if the search finds nothing, then sends the request by itself after 10 s", async () => {
+    await searchForCode();
+    expect(text()).toContain("If it isn't found within 10 seconds, the share menu opens");
+    await searchSeconds(9);
+    expect(api.makeFileRequest).not.toHaveBeenCalled();
+    await searchSeconds(1);
+    expect(api.makeFileRequest).toHaveBeenCalledWith("123456");
+    expect(api.shareFile).toHaveBeenCalledTimes(1);
+    expect(title()).toBe("Receive by File");
+    expect(text()).toContain("Not on the same network");
+    expect(text()).toContain("Share the request again");
+  });
+
+  it("drops the search's late not-found error once the request went out", async () => {
+    let fail: (cause: unknown) => void = () => {};
+    api.startClientByCode.mockImplementation(() => new Promise((_resolve, reject) => (fail = reject)));
+    await searchForCode();
+    await searchSeconds(10);
+    await act(async () => fail(new Error("No device is showing a link code on this Wi-Fi network.")));
+    await settle();
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(title()).toBe("Receive by File");
+  });
+
+  it("lets the user skip the wait with Use Quick Share now", async () => {
+    await searchForCode();
+    await press("Use Quick Share now");
+    expect(api.makeFileRequest).toHaveBeenCalledTimes(1);
+    expect(text()).toContain("Request ready");
+    await searchSeconds(10);
+    expect(api.makeFileRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends no request once the other device is found", async () => {
+    await searchForCode();
+    await emit({ status: "clientConnecting", data: { sessionId: "s1" } } as PairingStatus);
+    await searchSeconds(10);
+    expect(api.makeFileRequest).not.toHaveBeenCalled();
+  });
+
+  it("sends no request after going back from the search", async () => {
+    await searchForCode();
+    await press("Back");
+    await searchSeconds(10);
+    expect(api.makeFileRequest).not.toHaveBeenCalled();
+  });
+
+  it("waits for a click on desktop, where the share menu needs one", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh)", configurable: true });
+    await searchForCode();
+    await searchSeconds(10);
+    expect(api.makeFileRequest).not.toHaveBeenCalled();
+    expect(text()).not.toContain("Use Quick Share now");
+  });
+});
+
 describe("progress reported by the backend", () => {
   it("shows connecting and connected states", async () => {
     render();

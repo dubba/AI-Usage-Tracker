@@ -19,6 +19,7 @@ export function CodeEntryView({
   onBack,
   onOtherWays,
   onUseFile,
+  fileFallbackSecs,
   setKeyboardOpen,
 }: {
   value: string;
@@ -31,9 +32,16 @@ export function CodeEntryView({
   onOtherWays: () => void;
   /** Saves a request file for the typed code; absent where files are not offered yet. */
   onUseFile?: () => void;
+  /**
+   * Where a request goes out by itself when the Wi-Fi search finds nothing (Android): after how
+   * many seconds. While that search runs the file link stays usable, to skip the wait.
+   */
+  fileFallbackSecs?: number;
   /** Lets the field flag the on-screen keyboard before the viewport has resized. */
   setKeyboardOpen: (open: boolean) => void;
 }) {
+  // While the code is being looked for on the network (busy), a file can still be chosen instead.
+  const searchingWithFallback = busy && fileFallbackSecs != null;
   return (
     <div className="pairing-code-entry-view">
       <input
@@ -69,9 +77,11 @@ export function CodeEntryView({
         aria-describedby="pairing-code-help"
       />
       <p id="pairing-code-help" className="pairing-code-help">
-        {onUseFile
-          ? "Works when both devices are on the same Wi-Fi. If they aren't, use a file instead."
-          : "Both devices must be connected to the same Wi-Fi network."}
+        {searchingWithFallback
+          ? `Looking for the other device on this network. If it isn't found within ${fileFallbackSecs} seconds, the share menu opens to send a request by Quick Share.`
+          : onUseFile
+            ? "Works when both devices are on the same Wi-Fi. If they aren't, use a file instead."
+            : "Both devices must be connected to the same Wi-Fi network."}
       </p>
 
       <div className="pairing-code-links">
@@ -79,7 +89,7 @@ export function CodeEntryView({
           <button
             type="button"
             className="pairing-other-ways"
-            disabled={busy}
+            disabled={busy && !searchingWithFallback}
             onClick={() => {
               // The request is made for the typed code, so until it is complete the tap only
               // points at the box (the link stays purple rather than looking unavailable).
@@ -87,7 +97,7 @@ export function CodeEntryView({
               else document.getElementById("pairing-join-code-input")?.focus();
             }}
           >
-            Not on the same network? Use a file instead
+            {searchingWithFallback ? "Use Quick Share now" : "Not on the same network? Use a file instead"}
           </button>
         ) : null}
         <OtherWaysLink disabled={busy} onClick={onOtherWays} />
