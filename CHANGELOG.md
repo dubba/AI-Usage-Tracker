@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (26 changes)
+## Unreleased (27 changes)
 
 ### Security (1)
 
@@ -32,8 +32,9 @@
 - The Sync Devices link code screens have a new look: the code shows as large letter tiles in two rows, each three letters, a small gap and three more, with a bar counting down to when it expires, the code you type fills matching tiles, a pulsing dot shows while it looks for the other device, and the file transfer screens show each step with a tick as it's done.
 - Error messages in dialogs (Sync Devices, Add Account, groups, alerts, Google AI Studio) now stay for 10 seconds instead of 6, and have an X in the top right corner to close them sooner.
 
-### Fixed (5)
+### Fixed (6)
 
+- On phones and tablets, dialogs (such as Sync Devices when it finishes) no longer show a purple outline around the whole dialog or around a button. That outline marks keyboard focus, and a touch screen has no Tab key to move it.
 - When Sync Devices fails, the reason now stays on screen until you close it with its X, press Back or press Try Again. Before, it disappeared after 10 seconds and left "The reason is below" pointing at nothing.
 - On desktop, the usage bars in compact account cards are now centered in the card, with the same space above and below. Before, they sat slightly low.
 - When you type a link code, it now fills two rows of three-letter groups, matching the code on the other device.

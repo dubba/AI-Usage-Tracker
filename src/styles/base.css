@@ -10,6 +10,20 @@
   outline: 2px solid var(--purple);
 }
 
+/* A dialog's own box takes focus only so a screen reader starts inside it; it is not in the Tab
+   order, so it never gets the ring (it showed around the whole Sync Devices dialog). */
+.modal-card:focus-visible {
+  outline: none;
+}
+
+/* Touch screens (phones, tablets) have no Tab key, so the keyboard ring would only ever show for
+   focus the app moved itself. */
+@media (hover: none) and (pointer: coarse) {
+  :focus-visible {
+    outline: none;
+  }
+}
+
 /* The element defaults live in the base layer, so a component stylesheet in `@layer components`
    overrides them with an ordinary rule and no !important (see docs/CSS_ARCHITECTURE.md). The ring's
    color and width above stay unlayered: a few single-class rules written before this file
