@@ -652,7 +652,8 @@ describe("transfer by file", () => {
     // Asked in the dialog itself, with no popup over it.
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
     expect(title()).toBe("Receiving by AirDrop");
-    expect(text()).toContain("Are you sure you want to add these 2 accounts from the other device to this one?");
+    expect(text()).toContain("Are you sure you want to add these 2 accounts from the other device?");
+    expect(text()).toContain("File received via AirDrop");
     expect(api.importFile).not.toHaveBeenCalled();
     await press("Add Accounts");
     expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
@@ -678,7 +679,7 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     await press("Use AirDrop");
     await press("Received it but nothing happened? Open the file");
-    expect(text()).toContain("Are you sure you want to add this account from the other device to this one?");
+    expect(text()).toContain("Are you sure you want to add this account from the other device?");
   });
 
   it("adds a file opened by hand once confirmed", async () => {

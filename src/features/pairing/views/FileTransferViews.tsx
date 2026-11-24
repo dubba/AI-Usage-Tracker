@@ -156,7 +156,7 @@ export function FileReceiveView({
   onBack: () => void;
 }) {
   const steps = [
-    <>File received by {nearbyName}</>,
+    <>File received via {nearbyName}</>,
     preview ? `Adding ${accounts(preview.accountCount)}` : "Adding the accounts",
   ];
   if (awaitingConfirm && preview) {
@@ -165,7 +165,7 @@ export function FileReceiveView({
         <TransferSteps steps={steps} current={1} />
         <p className="pairing-add-question">
           Are you sure you want to add {preview.accountCount === 1 ? "this account" : `these ${accounts(preview.accountCount)}`}{" "}
-          from the other device to this one?
+          from the other device?
         </p>
         <div className="pairing-nav-row is-end">
           <button type="button" className="button ghost" onClick={onCancel}>
