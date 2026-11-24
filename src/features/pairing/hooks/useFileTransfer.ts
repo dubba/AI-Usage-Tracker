@@ -6,7 +6,7 @@ import type { ViewMode } from "../lib/view-model";
 import type { PairingActionContext } from "./usePairingSession";
 
 /** The sender's file: being made, then made and handed to the share menu. */
-export type FileSendState = { made: boolean; automatic: boolean };
+export type FileSendState = { made: boolean; notOnNetwork: boolean };
 
 /**
  * Transfer by file, for two devices that are not on one network. The sender, with the link code
@@ -116,12 +116,11 @@ export function useFileTransfer({
     canShare,
     /**
      * Sender: make the file for `code` and send it, which also stops looking for the other device
-     * on the network. `automatic` when the Wi-Fi search found nothing, rather than the user
-     * choosing AirDrop or Quick Share.
+     * on the network. `notOnNetwork` when the Wi-Fi search had already found no one.
      */
-    send: (code: string, automatic = false) => {
+    send: (code: string, notOnNetwork = false) => {
       codeRef.current = code;
-      setSendState({ made: false, automatic });
+      setSendState({ made: false, notOnNetwork });
       showView("file-send");
       afterViewChange(() => void makeFile());
     },

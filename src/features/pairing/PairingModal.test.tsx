@@ -847,18 +847,25 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await settle();
   }
 
-  it("counts down the search, and sends by Quick Share by itself once it finds no one", async () => {
+  it("counts down the search, then offers Quick Share, which sends only when tapped", async () => {
     await searchForCode();
     expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
     expect(text()).toContain("Looking for the other device on Wi-Fi…");
-    expect(text()).toContain("Not found within 15 seconds? Quick Share takes over by itself.");
+    expect(text()).toContain("Not found within 15 seconds? You can send by Quick Share instead.");
     await searchSeconds(3);
     expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("12 seconds");
     await searchSeconds(12);
-    // The countdown is only shown: the search's own end decides.
     expect(text()).toContain("Finishing the search on Wi-Fi…");
-    expect(api.sendFile).not.toHaveBeenCalled();
     await notFound();
+    // Nothing goes until the user taps it.
+    expect(api.sendFile).not.toHaveBeenCalled();
+    expect(title()).toBe("Enter Link Code");
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(text()).toContain("The other device isn't on this Wi-Fi network.");
+    expect(button("Use Quick Share").className).toContain("is-suggested");
+    await searchSeconds(30);
+    expect(api.sendFile).not.toHaveBeenCalled();
+    await press("Use Quick Share");
     expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(api.shareFile).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".modal-error")).toBeNull();
@@ -903,29 +910,46 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
 
   it("keeps an older version's six digits to Wi-Fi", async () => {
     await searchForCode("123456");
-    expect(text()).not.toContain("takes over by itself");
+    expect(text()).not.toContain("You can send by");
     await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
     expect(text()).toContain(NOT_FOUND);
   });
 
+  it("tries Wi-Fi again from Connect, and forgets the not-found note when the code changes", async () => {
+    await searchForCode();
+    await notFound();
+    expect(text()).toContain("isn't on this Wi-Fi network");
+    await press("Connect");
+    expect(api.startClientByCode).toHaveBeenCalledTimes(2);
+    expect(text()).not.toContain("isn't on this Wi-Fi network");
+    await notFound();
+    typeInto(codeInput(), "KTQMP");
+    expect(text()).not.toContain("isn't on this Wi-Fi network");
+  });
+
   it("names AirDrop on iPhone", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     await searchForCode();
-    expect(text()).toContain("AirDrop takes over by itself");
+    expect(text()).toContain("You can send by AirDrop instead");
     expect(text()).toContain("Use AirDrop now");
     await notFound();
+    expect(api.sendFile).not.toHaveBeenCalled();
+    await press("Use AirDrop");
     expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(text()).toContain("Choose the other device in AirDrop");
   });
 
-  it("falls back by itself on a Mac and on Windows too", async () => {
-    for (const userAgent of ["Mozilla/5.0 (Macintosh)", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"]) {
+  it("offers the file on a Mac and on Windows too", async () => {
+    for (const [userAgent, name] of [
+      ["Mozilla/5.0 (Macintosh)", "AirDrop"],
+      ["Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Quick Share"],
+    ]) {
       Object.defineProperty(navigator, "userAgent", { value: userAgent, configurable: true });
-      api.sendFile.mockClear();
       await searchForCode();
       await notFound();
-      expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
+      expect(text()).toContain(`Tap Use ${name} to send the accounts as a file instead`);
+      expect(api.sendFile).not.toHaveBeenCalled();
       mounted.unmount();
     }
   });

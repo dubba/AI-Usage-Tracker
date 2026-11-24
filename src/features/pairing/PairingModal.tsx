@@ -54,10 +54,9 @@ import {
 /** Wait after a view change before moving keyboard focus into it, so the new view has rendered. */
 const FOCUS_DELAY_MS = 50;
 /**
- * How long the sender's search for the receiver on the network lasts (`discovery::DISCOVERY_TIMEOUT`).
- * Only when it ends with no one found do the accounts go out by Quick Share or AirDrop by themselves:
- * making the file stops the search, so a timer of its own would cut off a phone that answers late.
- * The countdown on the code screen shows this.
+ * How long the sender's search for the receiver on the network lasts (`discovery::DISCOVERY_TIMEOUT`),
+ * counted down on the code screen. When it ends with no one found, the screen says so and offers
+ * Quick Share or AirDrop; the file goes only when the user taps it (making the file stops the search).
  */
 const WIFI_SEARCH_SECS = 15;
 export function PairingModal({
@@ -72,6 +71,8 @@ export function PairingModal({
   const [{ viewMode, activeFlow, intendedRole }, dispatchFlow] = useReducer(flowReducer, INITIAL_FLOW);
   const { status, setStatus, remainingSecs, hasCompletedRef } = usePairingStatus(open);
   const [joinCodeInput, setJoinCodeInput] = useState("");
+  /** The Wi-Fi search for the typed link code ended without finding the other device. */
+  const [wifiNotFound, setWifiNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
   // After a failure the reason is the screen's content ("The reason is below"), so it stays.
   const { error: errorMessage, setError: setErrorMessage } = useAutoDismissedError(
@@ -198,8 +199,8 @@ export function PairingModal({
   // Busy on the code screen with nothing connected yet: the network search for the typed code.
   const searchingForCode =
     fileFallback && open && viewMode === "code" && busy && status.status === "idle" && isLinkCode(joinCodeInput);
-  // Seconds left in the search, counted down on the code screen. The search's own end (not found)
-  // sends the file; see `onSubmit` below.
+  // Seconds left in the search, counted down on the code screen. Its own end (not found) offers the
+  // file; see `onSubmit` below.
   const [searchSecsLeft, setSearchSecsLeft] = useState(WIFI_SEARCH_SECS);
   useEffect(() => {
     if (!searchingForCode) return;
@@ -424,6 +425,7 @@ export function PairingModal({
     }
     showView("code", "wifi");
     setJoinCodeInput("");
+    setWifiNotFound(false);
   };
 
   // On close: forget everything, so the next open starts at step 1.
@@ -432,6 +434,7 @@ export function PairingModal({
     discardSession();
     clearAllErrors();
     setJoinCodeInput("");
+    setWifiNotFound(false);
     dispatchFlow({ type: "reset" });
     roleAutoSelectedRef.current = false;
     setBusy(false);
@@ -608,19 +611,25 @@ export function PairingModal({
           <CodeEntryView
             value={joinCodeInput}
             busy={busy}
-            onChange={setJoinCodeInput}
-            onSubmit={(code) =>
+            onChange={(code) => {
+              setJoinCodeInput(code);
+              setWifiNotFound(false);
+            }}
+            onSubmit={(code) => {
+              setWifiNotFound(false);
               void handleConnectByCode(code, () => {
-                // Not found on the network (or no network): the file goes by itself.
+                // Not found on the network (or no network): say so and offer the file, which the
+                // user sends with Use AirDrop / Use Quick Share.
                 if (!fileFallback || !isLinkCode(code)) return false;
-                fileTransfer.send(code, true);
+                setWifiNotFound(true);
                 return true;
-              })
-            }
+              });
+            }}
             onBack={goBack}
             onOtherWays={() => leaveAttempt("select-mode")}
             nearbyName={nearbyName}
-            onUseNearby={() => fileTransfer.send(joinCodeInput)}
+            notFound={wifiNotFound}
+            onUseNearby={() => fileTransfer.send(joinCodeInput, wifiNotFound)}
             fallback={searchingForCode ? { secsLeft: searchSecsLeft, totalSecs: WIFI_SEARCH_SECS } : undefined}
             setKeyboardOpen={setIsKeyboardOpen}
           />
