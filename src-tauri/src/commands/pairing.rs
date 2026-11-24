@@ -627,6 +627,7 @@ async fn open_tapped_on_ios(
 }
 
 /// Where a file that was not chosen in the open dialog came from, for the sync log.
+#[cfg(any(target_os = "android", target_os = "ios"))]
 const TAPPED: &str = "tapped in another app";
 const PICKED_UP: &str = "picked up from Downloads";
 
