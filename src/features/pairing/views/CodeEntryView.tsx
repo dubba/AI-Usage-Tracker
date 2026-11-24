@@ -80,10 +80,16 @@ export function CodeEntryView({
       <p id="pairing-code-help" className="pairing-code-help">
         {searchingWithFallback
           ? secsLeft > 0
-            ? `Looking for the other device on this network. If it isn't found in ${secsLeft} ${
-                secsLeft === 1 ? "second" : "seconds"
-              }, the share menu opens to send a request by Quick Share.`
-            : "The other device wasn't found on this network. Opening the share menu…"
+            ? (
+                <>
+                  If the other device isn't found{" "}
+                  <strong>
+                    within {secsLeft} {secsLeft === 1 ? "second" : "seconds"}
+                  </strong>
+                  , the share menu will open so you can sync your account data via Quick Share.
+                </>
+              )
+            :"The other device wasn't found on this network. Opening the share menu…"
           : onUseFile
             ? "Works when both devices are on the same Wi-Fi. If they aren't, use a file instead."
             : "Both devices must be connected to the same Wi-Fi network."}

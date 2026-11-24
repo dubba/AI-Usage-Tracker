@@ -785,11 +785,12 @@ describe("Quick Share when the code finds no one on the network (Android)", () =
 
   it("says the share menu opens if the search finds nothing, then sends the request by itself after 10 s", async () => {
     await searchForCode();
-    expect(text()).toContain("If it isn't found in 10 seconds, the share menu opens");
+    expect(text()).toContain("If the other device isn't found within 10 seconds, the share menu will open so you can sync your account data via Quick Share");
     await searchSeconds(3);
-    expect(text()).toContain("If it isn't found in 7 seconds");
+    expect(text()).toContain("isn't found within 7 seconds");
+    expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("within 7 seconds");
     await searchSeconds(6);
-    expect(text()).toContain("If it isn't found in 1 second,");
+    expect(text()).toContain("isn't found within 1 second,");
     expect(api.makeFileRequest).not.toHaveBeenCalled();
     await searchSeconds(1);
     expect(api.makeFileRequest).toHaveBeenCalledWith("123456");
@@ -836,7 +837,7 @@ describe("Quick Share when the code finds no one on the network (Android)", () =
     await press("Receive Accounts on This Device");
     typeInto(codeInput(), "123456");
     await press("Connect to Device");
-    expect(text()).toContain("If it isn't found in 10 seconds");
+    expect(text()).toContain("isn't found within 10 seconds");
   });
 
   it("waits for a click on desktop, where the share menu needs one", async () => {
