@@ -132,7 +132,7 @@ async function emit(status: PairingStatus) {
   });
 }
 
-const CODE = "KTQMPRXDHW";
+const CODE = "KTQMPRXDHWAB";
 const HOST_INIT = { sessionId: "s1", joinCode: CODE, expiresAt: Math.floor(Date.now() / 1000) + 125 };
 const PREVIEW = { accountCount: 2, ticket: "ticket-1" };
 const CONFIRM = (role: "sender" | "receiver", extra: object = {}) =>
@@ -207,7 +207,7 @@ describe("choosing a role and a way to connect", () => {
     await press("Send Accounts from This Device");
     expect(title()).toBe("Enter Link Code");
     expect(api.startHost).not.toHaveBeenCalled();
-    expect(text()).toContain("Type the 10-letter link code shown on the receiving device.");
+    expect(text()).toContain("Type the 12-letter link code shown on the receiving device.");
   });
 
   it("lists every way to connect under the other ways when sending, ending the code session", async () => {
@@ -295,8 +295,14 @@ describe("showing a link code", () => {
     await openHost();
     expect(api.startHost).toHaveBeenCalledTimes(1);
     expect(title()).toBe("Your Link Code");
-    expect(document.querySelector(".pairing-code-hero")?.getAttribute("aria-label")).toBe("Link code KTQMP RXDHW");
+    expect(document.querySelector(".pairing-code-hero")?.getAttribute("aria-label")).toBe("Link code KTQ MPR XDH WAB");
     expect(Array.from(document.querySelectorAll(".pairing-code-digit"), (d) => d.textContent).join("")).toBe(CODE);
+    expect(document.querySelector(".pairing-code-digits")?.className).toContain("is-long");
+    expect(
+      Array.from(document.querySelectorAll(".pairing-code-digit"), (d, i) => (d.classList.contains("group-start") ? i : -1)).filter(
+        (i) => i >= 0,
+      ),
+    ).toEqual([3, 9]);
     expect(text()).toMatch(/Expires in\s*2:0\d/);
     expect(text()).toContain("Waiting for the other device on Wi-Fi or AirDrop…");
   });
@@ -352,23 +358,28 @@ describe("entering a link code", () => {
   }
   const input = () => document.getElementById("pairing-join-code-input") as HTMLInputElement;
 
-  it("keeps a code's letters, capitalized, in two groups of five, and connects by itself at ten", async () => {
+  it("keeps a code's letters, capitalized, in groups of three, and connects by itself at twelve", async () => {
     await openCodeEntry();
     expect(title()).toBe("Enter Link Code");
     expect(button("Connect").disabled).toBe(true);
-    expect(document.querySelectorAll(".pairing-code-tile")).toHaveLength(10);
+    expect(document.querySelectorAll(".pairing-code-tile")).toHaveLength(12);
     typeInto(input(), "kt1");
     expect(input().value).toBe("KT");
     // I, L and O are never in a code: they read as 1 and 0.
     typeInto(input(), "ktq-mp rxILO");
-    expect(input().value).toBe("KTQMP RX");
+    expect(input().value).toBe("KTQ MPR X");
     expect(button("Connect").disabled).toBe(true);
     expect(api.startClientByCode).not.toHaveBeenCalled();
-    typeInto(input(), "ktqmprxdhwab");
-    expect(input().value).toBe("KTQMP RXDHW");
+    typeInto(input(), "ktqmprxdhwabcd");
+    expect(input().value).toBe("KTQ MPR XDH WAB");
     await settle();
     expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
     expect(Array.from(document.querySelectorAll(".pairing-code-tile"), (t) => t.textContent).join("")).toBe(CODE);
+    // Two rows of three, a gap, and three: the gap goes before the fourth tile of each row.
+    const gapBefore = Array.from(document.querySelectorAll(".pairing-code-tile"), (t, i) =>
+      t.classList.contains("group-start") ? i : -1,
+    ).filter((i) => i >= 0);
+    expect(gapBefore).toEqual([3, 9]);
   });
 
   it("takes an older version's six digits, in two groups of three, and connects by itself at six", async () => {
@@ -388,8 +399,8 @@ describe("entering a link code", () => {
 
   it("sends a code pasted with its space as its letters only", async () => {
     await openCodeEntry();
-    typeInto(input(), "KTQMP RXDHW");
-    expect(input().value).toBe("KTQMP RXDHW");
+    typeInto(input(), "KTQ MPR XDH WAB");
+    expect(input().value).toBe("KTQ MPR XDH WAB");
     await settle();
     expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
   });
@@ -618,7 +629,7 @@ describe("transfer by file", () => {
     await press("Use AirDrop");
     await press("Back");
     expect(title()).toBe("Enter Link Code");
-    expect(codeInput().value).toBe("KTQMP RXDHW");
+    expect(codeInput().value).toBe("KTQ MPR XDH WAB");
   });
 
   it("adds the accounts of a file that arrives while showing the code, with no tap", async () => {
@@ -681,7 +692,7 @@ describe("transfer by file", () => {
     expect(title()).toBe("Send or Receive Accounts");
   });
 
-  it("watches Downloads only while a ten-letter code is shown", async () => {
+  it("watches Downloads only while a twelve-letter code is shown", async () => {
     render();
     await press("Receive Accounts on This Device");
     expect(api.watchForFile).toHaveBeenCalledTimes(1);

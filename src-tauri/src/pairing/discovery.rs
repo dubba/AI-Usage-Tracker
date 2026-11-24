@@ -30,13 +30,13 @@ pub const SERVICE_TYPE: &str = "_aiut-pair._tcp.local.";
 #[cfg_attr(not(any(target_os = "ios", test)), allow(dead_code))]
 pub(crate) const DNSSD_REGTYPE: &str = "_aiut-pair._tcp";
 pub const NOT_FOUND: &str = "No device is showing a link code on this Wi-Fi network. Check that both devices are on the same Wi-Fi and that the other device is showing its code. If a VPN is on, turn it off on both devices and try again.";
-pub const INVALID_CODE: &str = "Enter the code shown on the other device: 10 letters, or 6 digits from an older version of the app.";
+pub const INVALID_CODE: &str = "Enter the code shown on the other device: 12 letters, or 6 digits from an older version of the app.";
 pub const OLDER_VERSION: &str = "The other device has an older version of AI Usage Tracker that can't pair with this one. Update the app on both devices and try again.";
 /// The digits of the link code kept for devices with an older version: Wi-Fi only.
 const LEGACY_CODE_DIGITS: usize = 6;
 /// The letters of a link code. It also keys a transfer file (`file_transfer`), which can be
-/// tested offline, so it is long: 23^10, about 2^45 codes.
-pub const LINK_CODE_LEN: usize = 10;
+/// tested offline, so it is long: 23^12, about 2^54 codes.
+pub const LINK_CODE_LEN: usize = 12;
 /// Capital letters without I, L and O, which are read as 1 and 0. Letters only, so a phone types
 /// the code on one keyboard.
 pub const LINK_CODE_ALPHABET: &[u8; 23] = b"ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -65,7 +65,7 @@ pub fn is_valid_join_code(code: &str) -> bool {
     is_link_code(code) || is_legacy_code(code)
 }
 
-/// A ten-letter link code, as [`normalize_code`] leaves it.
+/// A twelve-letter link code, as [`normalize_code`] leaves it.
 pub fn is_link_code(code: &str) -> bool {
     code.len() == LINK_CODE_LEN && code.bytes().all(|b| LINK_CODE_ALPHABET.contains(&b))
 }
@@ -113,7 +113,7 @@ pub fn generate_legacy_code() -> String {
     }
 }
 
-/// A random ten-letter link code from the operating system's random source.
+/// A random twelve-letter link code from the operating system's random source.
 pub fn generate_link_code() -> String {
     let mut rng = rand::rngs::OsRng;
     (0..LINK_CODE_LEN)
@@ -442,7 +442,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn link_code_is_ten_unambiguous_letters() {
+    fn link_code_is_twelve_unambiguous_letters() {
         for _ in 0..100 {
             let code = generate_link_code();
             assert!(is_link_code(&code), "{code}");
@@ -490,11 +490,11 @@ mod tests {
             "1234567",
             "abcdef",
             "12345x",
-            "KTQMPRXDH",
             "KTQMPRXDHWA",
-            "KTQMPRXDHO",
-            "ktqmprxdhw",
-            "KTQMP RXDHW",
+            "KTQMPRXDHWABC",
+            "KTQMPRXDHWAO",
+            "ktqmprxdhwab",
+            "KTQMPR XDHWAB",
         ] {
             assert!(!is_valid_join_code(code), "{code}");
         }
@@ -502,9 +502,9 @@ mod tests {
 
     #[test]
     fn a_typed_code_is_normalized() {
-        assert_eq!(normalize_code(" ktqmp-rxdhw "), "KTQMPRXDHW");
+        assert_eq!(normalize_code(" ktq-mpr xdh-wab "), "KTQMPRXDHWAB");
         assert_eq!(normalize_code("482 913"), "482913");
-        assert!(is_link_code(&normalize_code("ktqmp rxdhw")));
+        assert!(is_link_code(&normalize_code("ktq mpr xdh wab")));
     }
 
     /// The announcement must never carry the link code or a key: the code is

@@ -106,7 +106,7 @@ export const pairingApi = {
   /** Whether the phone is on Wi-Fi; Rust records it in the Sync Devices log. */
   wifiEnabled: () => invoke<boolean>("pairing_wifi_enabled"),
   /**
-   * Shows a ten-letter link code, or six digits for a device with an older version (`legacyCode`,
+   * Shows a twelve-letter link code, or six digits for a device with an older version (`legacyCode`,
    * Wi-Fi only). `acceptSettings`: this device's "Also Sync Settings and Layout" choice, used if
    * it receives.
    */

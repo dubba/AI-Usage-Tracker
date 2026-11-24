@@ -187,7 +187,7 @@ export function PairingModal({
   // network sends the accounts that way by itself, and the receiver picks up the file that comes.
   const fileFallback = hasNearbyShare();
   const nearbyName = fileFallback ? nearbyShareName() : undefined;
-  // The receiver waits for the file while it shows a ten-letter code (six digits are Wi-Fi only).
+  // The receiver waits for the file while it shows a twelve-letter code (six digits are Wi-Fi only).
   const watchingForFile =
     open &&
     fileFallback &&

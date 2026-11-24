@@ -47,7 +47,7 @@ export function ModeSelectView({
               <span className="pairing-mode-badge enter">On same Wi-Fi</span>
             </div>
             <p className="pairing-mode-card-desc">
-              Type the code shown on the other device: 10 letters, or 6 digits from an older version.
+              Type the code shown on the other device: 12 letters, or 6 digits from an older version.
             </p>
           </div>
         </button>

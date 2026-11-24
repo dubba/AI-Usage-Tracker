@@ -1,11 +1,12 @@
 import {
+  CODE_GROUP_SIZE,
   cleanCode,
-  codeGroupSize,
   codeLength,
   formatJoinCode,
   isCompleteCode,
   isLegacyCode,
   isLinkCode,
+  startsGroupInRow,
 } from "../lib/view-model";
 
 import { ChevronIcon, NearbyShareIcon } from "../../../shared/ui/icons";
@@ -13,8 +14,8 @@ import { isMobileDevice } from "../../../shared/lib/platform";
 import { OtherWaysLink, SearchingRow } from "./HostCodeView";
 
 /**
- * Typing in the link code shown on the other device: ten letters, or six digits from a device with
- * an older version. The last character connects by itself over Wi-Fi. For a ten-letter code where
+ * Typing in the link code shown on the other device: twelve letters, or six digits from a device with
+ * an older version. The last character connects by itself over Wi-Fi. For a twelve-letter code where
  * there is AirDrop or Quick Share, a button sends the accounts that way instead, offered above all
  * when the search finds no one.
  */
@@ -54,11 +55,10 @@ export function CodeEntryView({
   const complete = isCompleteCode(value);
   const legacy = isLegacyCode(value);
   const length = codeLength(value);
-  const group = codeGroupSize(value);
   const searching = busy && fallback != null;
   const tiles = Array.from({ length }, (_, index) => value[index] ?? "");
   const activeIndex = Math.min(value.length, length - 1);
-  // Only a ten-letter code can go by file.
+  // Only a twelve-letter code can go by file.
   const nearby = legacy ? undefined : nearbyName;
 
   return (
@@ -73,7 +73,7 @@ export function CodeEntryView({
           autoCorrect="off"
           autoComplete="off"
           spellCheck={false}
-          maxLength={length + 2}
+          maxLength={length + length / CODE_GROUP_SIZE}
           value={formatJoinCode(value)}
           autoFocus
           disabled={busy}
@@ -108,7 +108,7 @@ export function CodeEntryView({
             aria-hidden="true"
             className={`pairing-code-tile${digit ? " is-filled" : ""}${
               !busy && index === activeIndex && !complete ? " is-active" : ""
-            }${index === group ? " group-start" : ""}`}
+            }${startsGroupInRow(index) ? " group-start" : ""}`}
           >
             {digit}
           </span>

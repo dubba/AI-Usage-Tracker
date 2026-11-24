@@ -387,7 +387,7 @@
   line-height: 1.4 !important;
 }
 
-/* The code field: ten tiles in two rows (six in a row for an older version's digits) drawn over by one real input,
+/* The code field: twelve tiles in two rows (six in a row for an older version's digits) drawn over by one real input,
    transparent, so typing and pasting work as in any field while the tiles show the code. */
 .pairing-code-tiles {
   position: relative;
@@ -476,13 +476,16 @@
 .pairing-code-tiles.is-busy .pairing-code-tile:nth-child(9) { animation-delay: 0.7s; }
 .pairing-code-tiles.is-busy .pairing-code-tile:nth-child(10) { animation-delay: 0.8s; }
 .pairing-code-tiles.is-busy .pairing-code-tile:nth-child(11) { animation-delay: 0.9s; }
+.pairing-code-tiles.is-busy .pairing-code-tile:nth-child(12) { animation-delay: 1s; }
+.pairing-code-tiles.is-busy .pairing-code-tile:nth-child(13) { animation-delay: 1.1s; }
 
-/* Ten letters: two rows of five, one row per group. */
+/* Twelve letters: two rows, each three tiles, a small gap, and three more. The fourth column is
+   only that gap: a group's first tile is placed past it, and the rest of the row follows. */
 .pairing-code-tiles.is-long {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 48px));
+  grid-template-columns: repeat(3, minmax(0, 46px)) 4px repeat(3, minmax(0, 46px));
   justify-content: center;
-  gap: 8px;
+  gap: 8px 6px;
 }
 
 .pairing-code-tiles.is-long .pairing-code-tile {
@@ -491,6 +494,7 @@
 }
 
 .pairing-code-tiles.is-long .pairing-code-tile.group-start {
+  grid-column: 5;
   margin-left: 0;
 }
 
@@ -1755,12 +1759,12 @@
   margin-left: 12px;
 }
 
-/* A ten-letter code: two rows of five, as in the code field. */
+/* A twelve-letter code: two rows of three, a small gap, and three, as in the code field. */
 .pairing-code-digits.is-long {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 46px));
+  grid-template-columns: repeat(3, minmax(0, 44px)) 4px repeat(3, minmax(0, 44px));
   justify-content: center;
-  gap: 8px;
+  gap: 8px 6px;
 }
 
 .pairing-code-digits.is-long .pairing-code-digit {
@@ -1769,6 +1773,7 @@
 }
 
 .pairing-code-digits.is-long .pairing-code-digit.group-start {
+  grid-column: 5;
   margin-left: 0;
 }
 

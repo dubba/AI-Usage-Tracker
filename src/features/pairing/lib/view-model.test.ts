@@ -175,11 +175,11 @@ describe("confirmFields", () => {
 });
 
 describe("formatting", () => {
-  it("groups a link code in fives, capitalized, keeping only the letters a code has", () => {
-    expect(formatJoinCode("KTQMPRXDHW")).toBe("KTQMP RXDHW");
-    expect(formatJoinCode("ktqmp-rxdhw")).toBe("KTQMP RXDHW");
+  it("groups a link code in threes, capitalized, keeping only the letters a code has", () => {
+    expect(formatJoinCode("KTQMPRXDHWAB")).toBe("KTQ MPR XDH WAB");
+    expect(formatJoinCode("ktq-mpr xdh-wab")).toBe("KTQ MPR XDH WAB");
     expect(formatJoinCode("KTQ")).toBe("KTQ");
-    expect(formatJoinCode("KTQMPRXDHWZZ")).toBe("KTQMP RXDHW");
+    expect(formatJoinCode("KTQMPRXDHWABZZ")).toBe("KTQ MPR XDH WAB");
   });
 
   it("groups an older version's code in threes and ignores non-digits", () => {
@@ -193,13 +193,13 @@ describe("formatting", () => {
   it("tells a link code from an older version's six digits by its first character", () => {
     expect(cleanCode(" kt-1qmILOp ")).toBe("KTQMP");
     expect(cleanCode("1a2 3")).toBe("123");
-    expect(codeLength("")).toBe(10);
-    expect(codeLength("K")).toBe(10);
+    expect(codeLength("")).toBe(12);
+    expect(codeLength("K")).toBe(12);
     expect(codeLength("4")).toBe(6);
-    expect(isCompleteCode("KTQMPRXDHW")).toBe(true);
-    expect(isCompleteCode("KTQMPRXDH")).toBe(false);
+    expect(isCompleteCode("KTQMPRXDHWAB")).toBe(true);
+    expect(isCompleteCode("KTQMPRXDHWA")).toBe(false);
     expect(isCompleteCode("123456")).toBe(true);
-    expect(isLinkCode("KTQMPRXDHW")).toBe(true);
+    expect(isLinkCode("KTQMPRXDHWAB")).toBe(true);
     expect(isLinkCode("123456")).toBe(false);
     expect(isLinkCode("KTQMP")).toBe(false);
   });

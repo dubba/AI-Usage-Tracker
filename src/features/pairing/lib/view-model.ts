@@ -91,7 +91,7 @@ export function pairingHeader(input: {
     subtitle = "The accounts arrived as a small file, encrypted with the code.";
   } else if (waiting && viewMode === "code") {
     title = "Enter Link Code";
-    subtitle = "Type the 10-letter link code shown on the receiving device.";
+    subtitle = "Type the 12-letter link code shown on the receiving device.";
   } else if (status === "roleSelection") {
     title = intendedRole ? "Connecting" : "Send or Receive Accounts";
     subtitle = intendedRole ? "Applying send or receive on this device." : "Choose what this device should do.";
@@ -184,11 +184,11 @@ export function confirmFields(status: PairingStatus): {
 }
 
 /**
- * A link code: ten capital letters without I, L and O, which read as 1 and 0
+ * A link code: twelve capital letters without I, L and O, which read as 1 and 0
  * (`discovery::LINK_CODE_ALPHABET` on the backend). It also keys the file sent by AirDrop or
  * Quick Share, so it is long.
  */
-export const LINK_CODE_LENGTH = 10;
+export const LINK_CODE_LENGTH = 12;
 export const LINK_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ";
 /** The six digits a device with an older version shows and types: Wi-Fi only. */
 export const LEGACY_CODE_LENGTH = 6;
@@ -216,9 +216,14 @@ export function codeLength(code: string): number {
   return isLegacyCode(code) ? LEGACY_CODE_LENGTH : LINK_CODE_LENGTH;
 }
 
-/** Characters per group as the code is shown: "KTQMP RXDHW", "123 456". */
-export function codeGroupSize(code: string): number {
-  return isLegacyCode(code) ? 3 : 5;
+/** Characters per group as a code is shown, for either kind: "KTQ MPR XDH WAB", "123 456". */
+export const CODE_GROUP_SIZE = 3;
+/** Groups per row of tiles: a link code fills two rows, six digits one. */
+const GROUPS_PER_ROW = 2;
+
+/** Whether the tile at `index` starts a group partway along its row, so a small gap goes before it. */
+export function startsGroupInRow(index: number): boolean {
+  return index % CODE_GROUP_SIZE === 0 && index % (CODE_GROUP_SIZE * GROUPS_PER_ROW) !== 0;
 }
 
 export function isCompleteCode(code: string): boolean {
@@ -230,11 +235,9 @@ export function isLinkCode(code: string): boolean {
   return !isLegacyCode(code) && code.length === LINK_CODE_LENGTH;
 }
 
-/** "KTQMPRXDHW" -> "KTQMP RXDHW", "123456" -> "123 456", after `cleanCode`. */
+/** "KTQMPRXDHWAB" -> "KTQ MPR XDH WAB", "123456" -> "123 456", after `cleanCode`. */
 export function formatJoinCode(code: string): string {
-  const clean = cleanCode(code);
-  const group = codeGroupSize(clean);
-  return clean.length > group ? `${clean.slice(0, group)} ${clean.slice(group)}` : clean;
+  return cleanCode(code).match(new RegExp(`.{1,${CODE_GROUP_SIZE}}`, "g"))?.join(" ") ?? "";
 }
 
 /** 125 -> "2:05". */

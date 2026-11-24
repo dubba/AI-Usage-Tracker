@@ -1,7 +1,7 @@
 //! Pairing by file, for two devices that cannot reach each other on a network: one file, carried
 //! by AirDrop, Quick Share or anything else, holding the accounts encrypted with the link code.
 //!
-//! 1. The receiver shows a ten-letter link code (`discovery::generate_link_code`) and waits, on
+//! 1. The receiver shows a twelve-letter link code (`discovery::generate_link_code`) and waits, on
 //!    Wi-Fi and for the file.
 //! 2. The sender, once its user typed the code and the other device wasn't found on the network,
 //!    makes the **file** ([`seal`]): the export payload, compressed and encrypted under a key
@@ -12,7 +12,7 @@
 //!
 //! The Wi-Fi route's key exchange (`crypto::PakeExchange`) allows one guess at the code per
 //! connection. A file allows more: whoever gets a copy can try codes offline. So the code is long
-//! (23^10, about 2^45 codes) and each try costs Argon2id with 64 MiB and three passes. The
+//! (23^12, about 2^54 codes) and each try costs Argon2id with 64 MiB and three passes. The
 //! six-digit codes kept for older versions never make or open a file. Everything in the header is
 //! bound into the encryption, so a changed byte anywhere stops the file opening.
 //!
@@ -72,10 +72,10 @@ pub const OLDER_FORMAT: &str =
 pub const NO_CODE_SHOWN: &str =
     "Choose Receive on this device to show a link code, then open the file again.";
 pub const WIFI_ONLY_CODE: &str =
-    "A 6-digit code works only on the same Wi-Fi. To use a file, choose Receive on the other device and enter its 10-letter code.";
+    "A 6-digit code works only on the same Wi-Fi. To use a file, choose Receive on the other device and enter its 12-letter code.";
 pub const CODE_ALREADY_USED: &str =
     "This link code has already received a file. Show a new code to receive again.";
-pub const INVALID_CODE: &str = "Enter the 10-letter code shown on the other device.";
+pub const INVALID_CODE: &str = "Enter the 12-letter code shown on the other device.";
 pub const FILE_DOES_NOT_OPEN: &str =
     "This file doesn't match the code shown here, or it is damaged. Check the code on the sending device and send it again.";
 pub const STALE_PREVIEW: &str = "This isn't the file that was checked. Open the file again.";

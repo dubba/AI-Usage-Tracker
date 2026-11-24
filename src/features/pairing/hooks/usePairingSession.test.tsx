@@ -160,8 +160,8 @@ describe("usePairingSession: showing a link code", () => {
 describe("usePairingSession: joining with a typed code", () => {
   it("sends a link code's letters only, capitalized", async () => {
     render();
-    await act(() => session.handleConnectByCode("ktqmp-rxdhw"));
-    expect(api.startClientByCode).toHaveBeenCalledWith("KTQMPRXDHW", false);
+    await act(() => session.handleConnectByCode("ktq-mpr xdh-wab"));
+    expect(api.startClientByCode).toHaveBeenCalledWith("KTQMPRXDHWAB", false);
     expect(spies.setBusy.mock.calls).toEqual([[true], [false]]);
   });
 
@@ -180,7 +180,7 @@ describe("usePairingSession: joining with a typed code", () => {
   it("ignores a code that is too short, and any code while busy", async () => {
     render();
     await act(() => session.handleConnectByCode("12345"));
-    await act(() => session.handleConnectByCode("KTQMPRXDH"));
+    await act(() => session.handleConnectByCode("KTQMPRXDHWA"));
     mounted?.rerender(<Harness busy />);
     await act(() => session.handleConnectByCode("123456"));
     expect(api.startClientByCode).not.toHaveBeenCalled();
@@ -200,11 +200,11 @@ describe("usePairingSession: joining with a typed code", () => {
     api.startClientByCode.mockRejectedValue({ code: "not_found", message: "No device is showing a link code." });
     render();
     const takeOver = vi.fn(() => true);
-    await act(() => session.handleConnectByCode("KTQMPRXDHW", takeOver));
+    await act(() => session.handleConnectByCode("KTQMPRXDHWAB", takeOver));
     expect(takeOver).toHaveBeenCalledTimes(1);
     expect(spies.showError).not.toHaveBeenCalled();
     const decline = vi.fn(() => false);
-    await act(() => session.handleConnectByCode("KTQMPRXDHW", decline));
+    await act(() => session.handleConnectByCode("KTQMPRXDHWAB", decline));
     expect(spies.showError).toHaveBeenCalledTimes(1);
   });
 
@@ -213,7 +213,7 @@ describe("usePairingSession: joining with a typed code", () => {
     api.startClientByCode.mockRejectedValue(cause);
     render();
     const takeOver = vi.fn(() => true);
-    await act(() => session.handleConnectByCode("KTQMPRXDHW", takeOver));
+    await act(() => session.handleConnectByCode("KTQMPRXDHWAB", takeOver));
     expect(takeOver).not.toHaveBeenCalled();
     expect(spies.showError).toHaveBeenCalledWith("Couldn't connect with that code", cause);
   });

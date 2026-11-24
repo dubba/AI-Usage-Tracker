@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import type { PairingStatus } from "../../../types";
 import { NearbyShareIcon } from "../../../shared/ui/icons";
-import { codeGroupSize, formatCountdown, formatJoinCode, hostWaitingFields, isLegacyCode } from "../lib/view-model";
+import { formatCountdown, formatJoinCode, hostWaitingFields, isLegacyCode, startsGroupInRow } from "../lib/view-model";
 
 /** How long a link code lasts (`transport::SESSION_TIMEOUT_SECS`), for the bar under it. */
 const CODE_LIFETIME_SECS = 300;
@@ -118,14 +118,16 @@ export function HostCodeView({
   );
 }
 
-/** The code as tiles in two groups: ten letters in fives, or an older version's six digits in threes. */
+/**
+ * The code as tiles in groups of three, two groups to a row: twelve letters fill two rows, an
+ * older version's six digits one.
+ */
 function CodeDigits({ code }: { code: string }) {
-  const characters = formatJoinCode(code).replace(" ", "").split("");
-  const group = codeGroupSize(code);
+  const characters = formatJoinCode(code).replace(/ /g, "").split("");
   return (
     <div className={`pairing-code-digits${isLegacyCode(code) ? "" : " is-long"}`} aria-hidden="true">
       {characters.map((character, index) => (
-        <span key={index} className={`pairing-code-digit${index === group ? " group-start" : ""}`}>
+        <span key={index} className={`pairing-code-digit${startsGroupInRow(index) ? " group-start" : ""}`}>
           {character}
         </span>
       ))}

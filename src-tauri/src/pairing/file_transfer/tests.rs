@@ -3,7 +3,7 @@ use crate::model::{Account, OAuthSecret, Provider, ProviderSecret};
 use crate::pairing::PairingStatus;
 use tempfile::TempDir;
 
-const CODE: &str = "KTQMPRXDHW";
+const CODE: &str = "KTQMPRXDHWAB";
 const ACCESS_TOKEN: &str = "file-transfer-access-token";
 
 fn new_state() -> (TempDir, Arc<AppState>) {
@@ -87,7 +87,7 @@ async fn one_file_moves_the_accounts() {
 async fn the_code_may_be_typed_in_lower_case_with_spaces_or_a_dash() {
     let (_s, sender) = sender().await;
     let (_r, receiver) = receiver(CODE).await;
-    let file = seal(&sender, " ktqmp-rxdhw ").await.unwrap();
+    let file = seal(&sender, " ktq-mpr xdh-wab ").await.unwrap();
     assert_eq!(open(&receiver, file).await.unwrap().account_count, 1);
 }
 
@@ -109,7 +109,7 @@ async fn a_file_that_opens_uses_the_code_up_and_ends_the_wifi_session() {
 async fn a_file_for_another_code_does_not_open_and_the_code_still_works() {
     let (_s, sender) = sender().await;
     let (_r, receiver) = receiver(CODE).await;
-    let typo = seal(&sender, "KTQMPRXDHX").await.unwrap();
+    let typo = seal(&sender, "KTQMPRXDHWAC").await.unwrap();
     assert_eq!(open(&receiver, typo).await.unwrap_err(), FILE_DOES_NOT_OPEN);
     assert!(receiver.store.list().is_empty());
     assert!(matches!(
@@ -139,7 +139,13 @@ async fn only_a_device_showing_a_link_code_opens_a_file() {
 async fn a_six_digit_code_or_a_mistyped_one_makes_no_file() {
     let (_s, sender) = sender().await;
     assert_eq!(seal(&sender, "482019").await.unwrap_err(), WIFI_ONLY_CODE);
-    for code in ["", "KTQMPRXDH", "KTQMPRXDHWA", "KTQMPRXDHO", "KTQMP1XDHW"] {
+    for code in [
+        "",
+        "KTQMPRXDHWA",
+        "KTQMPRXDHWABC",
+        "KTQMPRXDHWAO",
+        "KTQMP1XDHWAB",
+    ] {
         assert_eq!(
             seal(&sender, code).await.unwrap_err(),
             INVALID_CODE,
