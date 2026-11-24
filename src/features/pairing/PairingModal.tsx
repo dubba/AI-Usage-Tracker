@@ -762,9 +762,15 @@ export function PairingModal({
     <ConfirmDialog
       open={askQuickShareVisibility && open && viewMode === "host" && status.status === "hostWaiting"}
       kicker="Sync devices"
-      title="Let the other phone find this one"
-      body="Unless both phones are signed in to the same Google account, Quick Share on this phone has to let everyone nearby share with it. Tap Open Quick Share Settings, choose Everyone for 10 minutes, then come back here."
-      note="Apps can't change this setting themselves. If Settings opens instead, search for Quick Share."
+      title="Allow This Device to Be Discovered"
+      richBody
+      body={
+        <>
+          <p>Unless both phones use the same Google account, Quick Share must allow everyone nearby to share with this device.</p>
+          <p>Tap Open Quick Share Settings, select Everyone for 10 minutes, then return here.</p>
+        </>
+      }
+      note="If Settings page opens instead, search for Quick Share."
       cancelLabel="Not Now"
       confirmLabel="Open Quick Share Settings"
       confirmDanger={false}

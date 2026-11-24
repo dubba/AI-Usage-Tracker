@@ -809,9 +809,12 @@ describe("transfer by file", () => {
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
     await press("Use Quick Share");
     const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
-    expect(popup?.textContent).toContain("Let the other phone find this one");
-    expect(popup?.textContent).toContain("choose Everyone for 10 minutes");
-    expect(popup?.textContent).toContain("Apps can't change this setting themselves.");
+    expect(popup?.textContent).toContain("Allow This Device to Be Discovered");
+    expect(popup?.textContent).toContain(
+      "Unless both phones use the same Google account, Quick Share must allow everyone nearby to share with this device.",
+    );
+    expect(popup?.textContent).toContain("Tap Open Quick Share Settings, select Everyone for 10 minutes, then return here.");
+    expect(popup?.textContent).toContain("If Settings page opens instead, search for Quick Share.");
     await press("Open Quick Share Settings");
     expect(api.openQuickShareSettings).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
@@ -827,7 +830,7 @@ describe("transfer by file", () => {
     await press("Use Quick Share");
     // File access first: the visibility comes on the next tap, once access is allowed.
     expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
-    expect(text()).not.toContain("Let the other phone find this one");
+    expect(text()).not.toContain("Allow This Device to Be Discovered");
     api.watchForFile.mockResolvedValue({ watching: true, needsAccess: false });
     mounted.unmount();
     render();
