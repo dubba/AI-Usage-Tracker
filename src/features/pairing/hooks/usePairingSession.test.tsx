@@ -196,8 +196,8 @@ describe("usePairingSession: joining with a typed code", () => {
     expect(spies.setBusy).toHaveBeenLastCalledWith(false);
   });
 
-  it("leaves a failure to find the device to onUnreachable when it takes over", async () => {
-    api.startClientByCode.mockRejectedValue(new Error("not found"));
+  it("leaves a search that found no one to onUnreachable when it takes over", async () => {
+    api.startClientByCode.mockRejectedValue({ code: "not_found", message: "No device is showing a link code." });
     render();
     const takeOver = vi.fn(() => true);
     await act(() => session.handleConnectByCode("KTQMPRXDHW", takeOver));
@@ -206,6 +206,16 @@ describe("usePairingSession: joining with a typed code", () => {
     const decline = vi.fn(() => false);
     await act(() => session.handleConnectByCode("KTQMPRXDHW", decline));
     expect(spies.showError).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows any other failure itself, without asking onUnreachable", async () => {
+    const cause = { code: "unclassified", message: "mDNS unavailable" };
+    api.startClientByCode.mockRejectedValue(cause);
+    render();
+    const takeOver = vi.fn(() => true);
+    await act(() => session.handleConnectByCode("KTQMPRXDHW", takeOver));
+    expect(takeOver).not.toHaveBeenCalled();
+    expect(spies.showError).toHaveBeenCalledWith("Couldn't connect with that code", cause);
   });
 });
 

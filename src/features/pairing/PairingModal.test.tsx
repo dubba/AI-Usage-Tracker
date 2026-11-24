@@ -845,7 +845,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
       () =>
         new Promise((_resolve, reject) => {
           notFound = async () => {
-            await act(async () => reject(new Error(NOT_FOUND)));
+            await act(async () => reject({ code: "not_found", message: NOT_FOUND }));
             await settle();
           };
         }),
@@ -878,7 +878,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     expect(title()).toBe("Enter Link Code");
     expect(document.querySelector(".modal-error")).toBeNull();
     expect(text()).toContain(
-      "Couldn't find the other device on the same Wi-Fi network. Tap Use Quick Share to sync accounts instead, or connect both devices to the same Wi-Fi and tap Connect.",
+      "Couldn't find the other device on the same Wi-Fi network. Tap Use Quick Share to sync accounts instead, or connect both devices to the same Wi-Fi and tap Connect. If a VPN is on, turn it off on both devices.",
     );
     expect(button("Use Quick Share").className).toContain("is-suggested");
     await searchSeconds(30);
@@ -932,6 +932,14 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
     expect(text()).toContain(NOT_FOUND);
+  });
+
+  it("shows any other failure of the search as it is, without offering the file in its place", async () => {
+    api.startClientByCode.mockRejectedValue({ code: "unclassified", message: "mDNS unavailable: no network interface" });
+    await searchForCode();
+    expect(document.querySelector(".modal-error")?.textContent).toContain("mDNS unavailable: no network interface");
+    expect(text()).not.toContain("Couldn't find the other device");
+    expect(api.sendFile).not.toHaveBeenCalled();
   });
 
   it("tries Wi-Fi again from Connect, and forgets the not-found note when the code changes", async () => {

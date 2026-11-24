@@ -29,7 +29,7 @@ pub const SERVICE_TYPE: &str = "_aiut-pair._tcp.local.";
 /// The service type without its domain, as DNS-SD registers and resolves it.
 #[cfg_attr(not(any(target_os = "ios", test)), allow(dead_code))]
 pub(crate) const DNSSD_REGTYPE: &str = "_aiut-pair._tcp";
-pub const NOT_FOUND: &str = "No device is showing a link code on this Wi-Fi network. Check that both devices are on the same Wi-Fi and that the other device is showing its code.";
+pub const NOT_FOUND: &str = "No device is showing a link code on this Wi-Fi network. Check that both devices are on the same Wi-Fi and that the other device is showing its code. If a VPN is on, turn it off on both devices and try again.";
 pub const INVALID_CODE: &str = "Enter the code shown on the other device: 10 letters, or 6 digits from an older version of the app.";
 pub const OLDER_VERSION: &str = "The other device has an older version of AI Usage Tracker that can't pair with this one. Update the app on both devices and try again.";
 /// The digits of the link code kept for devices with an older version: Wi-Fi only.

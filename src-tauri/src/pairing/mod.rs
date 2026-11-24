@@ -506,8 +506,24 @@ impl PairingSessionManager {
                 )
             })
             .await;
-            let Ok(Ok(adv)) = advertised else {
-                return;
+            // Logged either way: a code never announced and one announced but not heard look the
+            // same from the other device ("not found").
+            let adv = match advertised {
+                Ok(Ok(adv)) => {
+                    sync_log::note("link code: announced on the local network");
+                    adv
+                }
+                Ok(Err(error)) => {
+                    sync_log::failed_text("link code: announcing on the local network", &error);
+                    return;
+                }
+                Err(_) => {
+                    sync_log::failed_text(
+                        "link code: announcing on the local network",
+                        "the announcement task stopped",
+                    );
+                    return;
+                }
             };
             let mut guard = advertise_active.write().await;
             match guard.as_mut() {

@@ -6,6 +6,11 @@ import type { PairingStatus } from "../../../types";
 import { collectUiState } from "../../layout/ui-state";
 import { cleanCode, isCompleteCode, type IntendedRole } from "../lib/view-model";
 
+/** A failure the backend marked `not_found`: the search for the code found no device. */
+function isNotFound(cause: unknown): boolean {
+  return typeof cause === "object" && cause !== null && (cause as { code?: unknown }).code === "not_found";
+}
+
 /** What the session actions share with the dialog around them. */
 export interface PairingActionContext {
   request: ReturnType<typeof useLatestRequest>;
@@ -61,8 +66,9 @@ export function usePairingSession({
   };
 
   /**
-   * Join the session whose link code was typed. `onUnreachable`, if it handles a failure to find
-   * or reach the other device (returns true), replaces the error message.
+   * Join the session whose link code was typed. `onUnreachable` gets a search that found no one on
+   * the network (the backend's `not_found`) and, if it handles it (returns true), replaces the error
+   * message. Any other failure is shown as it is.
    */
   const handleConnectByCode = async (typed: string, onUnreachable?: () => boolean) => {
     const code = cleanCode(typed);
@@ -74,7 +80,7 @@ export function usePairingSession({
       await pairingApi.startClientByCode(code, includeSettings);
     } catch (err) {
       if (!request.isLatest(ticket)) return;
-      if (onUnreachable?.()) return;
+      if (isNotFound(err) && onUnreachable?.()) return;
       showError("Couldn't connect with that code", err);
     } finally {
       if (request.isLatest(ticket)) {

@@ -139,7 +139,8 @@ export function CodeEntryView({
         ) : notFound && nearby ? (
           <p className="pairing-code-help pairing-code-not-found" role="status">
             <strong>Couldn't find the other device on the same Wi-Fi network.</strong> Tap <strong>Use {nearby}</strong> to
-            sync accounts instead, or connect both devices to the same Wi-Fi and tap Connect.
+            sync accounts instead, or connect both devices to the same Wi-Fi and tap Connect. If a VPN is on, turn it off
+            on both devices.
           </p>
         ) : (
           <p className="pairing-code-help">

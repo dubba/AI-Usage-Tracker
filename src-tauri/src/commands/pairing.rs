@@ -60,7 +60,17 @@ pub async fn pairing_start_client_by_code(
         .pairing
         .start_client_by_code(state.inner().clone(), code, accept_settings)
         .await
-        .map_err(Into::into)
+        .map_err(join_error)
+}
+
+/// A failed join as the page gets it: a search that found no one is `not_found`, for which the
+/// page offers AirDrop or Quick Share; anything else is shown as it is.
+fn join_error(error: String) -> super::error::CommandError {
+    if error == pairing::discovery::NOT_FOUND {
+        super::error::CommandError::new(super::error::ErrorCode::NotFound, error)
+    } else {
+        error.into()
+    }
 }
 
 #[tauri::command]
@@ -750,3 +760,27 @@ pub async fn pairing_file_import(
 }
 
 pub static GLOBAL_APP_HANDLE: parking_lot::Mutex<Option<AppHandle>> = parking_lot::Mutex::new(None);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::error::ErrorCode;
+
+    #[test]
+    fn only_a_search_that_found_no_one_is_not_found() {
+        let found_no_one = join_error(pairing::discovery::NOT_FOUND.to_string());
+        assert_eq!(found_no_one.code, ErrorCode::NotFound);
+        assert!(found_no_one.message.contains("VPN"));
+        for other in [
+            pairing::discovery::OLDER_VERSION,
+            pairing::discovery::INVALID_CODE,
+            "mDNS unavailable: no network interface",
+        ] {
+            assert_ne!(
+                join_error(other.to_string()).code,
+                ErrorCode::NotFound,
+                "{other}"
+            );
+        }
+    }
+}
