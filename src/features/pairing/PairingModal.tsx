@@ -764,7 +764,12 @@ export function PairingModal({
           ))}
         </>
       }
-      note={visibilityHelp?.note}
+      note={visibilityHelp?.note.map((line, index) => (
+        <span key={line} className="confirm-dialog-note-line">
+          {index > 0 ? <br /> : null}
+          {line}
+        </span>
+      ))}
       cancelLabel="Not Now"
       confirmLabel={visibilityHelp?.openLabel ?? "Done"}
       confirmDanger={false}

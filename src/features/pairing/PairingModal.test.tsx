@@ -807,11 +807,13 @@ describe("transfer by file", () => {
     await press("Use Quick Share");
     const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
     expect(popup?.textContent).toContain("Allow This Device to Be Discovered");
-    expect(popup?.textContent).toContain(
-      "Unless both phones use the same Google account, Quick Share must allow everyone nearby to share with this device.",
+    expect(popup?.querySelector(".confirm-dialog-body")?.textContent).toBe(
+      "Unless both devices use the same Google Account, set Quick Share to Everyone for 10 Minutes.",
     );
-    expect(popup?.textContent).toContain("Tap Open Quick Share Settings, select Everyone for 10 minutes, then return here.");
-    expect(popup?.textContent).toContain("If Settings page opens instead, search for Quick Share.");
+    // The steps sit together in the box.
+    const box = popup?.querySelector(".confirm-dialog-note")?.textContent;
+    expect(box).toContain("Tap Open Quick Share Settings, select Everyone for 10 minutes, then return here.");
+    expect(box).toContain("If Settings opens instead, search for Quick Share.");
     await press("Open Quick Share Settings");
     expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
@@ -855,7 +857,12 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     await press("Use AirDrop");
     const popup = document.querySelector<HTMLElement>(".confirm-dialog-backdrop [role=alertdialog]");
-    expect(popup?.textContent).toContain("Open Settings → General → AirDrop, select Everyone for 10 Minutes, then return here.");
+    expect(popup?.querySelector(".confirm-dialog-body")?.textContent).toBe(
+      "Unless both devices use the same Apple Account, set AirDrop to Everyone for 10 Minutes.",
+    );
+    const box = popup?.querySelector(".confirm-dialog-note")?.textContent;
+    expect(box).toContain("Go to Settings → General → AirDrop, then return here.");
+    expect(box).toContain("If Settings opens instead, search for AirDrop.");
     await press("Done");
     expect(api.openReceiveSettings).not.toHaveBeenCalled();
     expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
