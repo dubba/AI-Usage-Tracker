@@ -756,6 +756,18 @@
   justify-content: center;
 }
 
+/* Cancel and the main action together on the right, like a dialog's own buttons. */
+.pairing-nav-row.is-end {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* The question before adding received accounts reads like the dialog's other text: left-aligned. */
+.pairing-file-view .pairing-add-question {
+  align-self: stretch;
+  text-align: left;
+}
+
 .pairing-panel-status .error-panel {
   margin: 4px 0;
 }

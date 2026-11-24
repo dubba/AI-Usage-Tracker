@@ -163,11 +163,11 @@ export function FileReceiveView({
     return (
       <div className="pairing-panel-status pairing-file-view">
         <TransferSteps steps={steps} current={1} />
-        <p>
+        <p className="pairing-add-question">
           Are you sure you want to add {preview.accountCount === 1 ? "this account" : `these ${accounts(preview.accountCount)}`}{" "}
           from the other device to this one?
         </p>
-        <div className="pairing-nav-row">
+        <div className="pairing-nav-row is-end">
           <button type="button" className="button ghost" onClick={onCancel}>
             Cancel
           </button>
