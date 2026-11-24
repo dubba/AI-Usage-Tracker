@@ -107,6 +107,10 @@
     "allow-pairing-file-open-reply",
     "allow-pairing-file-tapped-pending",
     "allow-pairing-file-open-tapped",
-    "allow-pairing-file-import-reply"
+    "allow-pairing-file-import-reply",
+    "allow-pairing-file-watch",
+    "allow-pairing-file-watch-stop",
+    "allow-pairing-file-poll",
+    "allow-pairing-file-request-access"
   ]
 }

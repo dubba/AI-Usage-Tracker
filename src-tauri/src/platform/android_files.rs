@@ -153,3 +153,50 @@ pub fn delete(uri: &str) {
         Ok(())
     });
 }
+
+/// Whether Sync Devices may read what Quick Share saves into Downloads (All files access, or
+/// storage read before Android 11). False if the check fails.
+pub fn downloads_access() -> bool {
+    crate::platform::android_context::with_activity("", |env, activity| {
+        let result = env.call_method(activity, "hasDownloadsAccess", "()Z", &[]);
+        if threw(env) {
+            return Ok(false);
+        }
+        Ok(result.and_then(|value| value.z()).unwrap_or(false))
+    })
+    .unwrap_or(false)
+}
+
+/// Opens the system page (or prompt) that grants [`downloads_access`].
+pub fn request_downloads_access() -> Result<(), String> {
+    const FAILED: &str = "Couldn't open the file access settings. Allow All files access for this app in Settings → Apps.";
+    crate::platform::android_context::with_activity(FAILED, |env, activity| {
+        let result = env.call_method(activity, "requestDownloadsAccess", "()V", &[]);
+        if threw(env) || result.is_err() {
+            return Err(FAILED.into());
+        }
+        Ok(())
+    })
+}
+
+/// The shared Downloads folder, where Quick Share saves what it receives. `None` if it cannot be
+/// found.
+pub fn downloads_dir() -> Option<std::path::PathBuf> {
+    crate::platform::android_context::with_activity("", |env, activity| {
+        let result = env.call_method(activity, "downloadsDir", "()Ljava/lang/String;", &[]);
+        if threw(env) {
+            return Err(String::new());
+        }
+        let object = result
+            .and_then(|value| value.l())
+            .map_err(|_| String::new())?;
+        let text: String = env
+            .get_string(&jni::objects::JString::from(object))
+            .map_err(|_| String::new())?
+            .into();
+        Ok(text)
+    })
+    .ok()
+    .filter(|path| !path.is_empty())
+    .map(std::path::PathBuf::from)
+}

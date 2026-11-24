@@ -1,9 +1,18 @@
 import type { PairingStatus } from "../../../types";
-import { isIOS } from "../../../shared/lib/platform";
+import { isAndroid, isIOS, isMac, isWindows } from "../../../shared/lib/platform";
 
-/** What this phone calls sending a file to a nearby device: AirDrop on iPhone and iPad. */
+/** What this device calls sending a file to a nearby device: AirDrop on Apple devices. */
 export function nearbyShareName(): "AirDrop" | "Quick Share" {
-  return isIOS() ? "AirDrop" : "Quick Share";
+  return isIOS() || isMac() ? "AirDrop" : "Quick Share";
+}
+
+/**
+ * Whether this device sends transfer files through AirDrop or Quick Share by itself when the other
+ * device isn't on the network. Elsewhere (Linux) a file is saved by hand, so the code screens keep
+ * to Wi-Fi unless asked.
+ */
+export function hasNearbyShare(): boolean {
+  return isAndroid() || isIOS() || isMac() || isWindows();
 }
 
 export type ViewMode =
@@ -75,11 +84,11 @@ export function pairingHeader(input: {
         ? "Point the camera at the animated QR code on the other device."
         : "Point the camera at the QR code on the other device.";
   } else if (waiting && viewMode === "file-send") {
-    title = "Send by File";
-    subtitle = "Answer the other device's request with a reply file.";
+    title = `Sending by ${nearbyShareName()}`;
+    subtitle = "The other device asked for the accounts. The reply goes back by itself.";
   } else if (waiting && viewMode === "file-receive") {
-    title = "Receive by File";
-    subtitle = "The other device answers your request with a reply file.";
+    title = `Receiving by ${nearbyShareName()}`;
+    subtitle = `The accounts come as a small encrypted file by ${nearbyShareName()}.`;
   } else if (waiting && viewMode === "code") {
     title = "Enter Link Code";
     subtitle = "Type the 6-digit link code shown on the sending device.";
@@ -90,10 +99,10 @@ export function pairingHeader(input: {
     title = "Connected";
     subtitle = "Waiting for the other device to finish connecting.";
   } else if (status === "confirmTransfer") {
-    title = input.isSender ? "Confirm the transfer" : "Devices connected";
+    title = input.isSender ? "Sending" : "Receiving";
     subtitle = input.isSender
-      ? "Step 3: Check what will be sent, then send it."
-      : "Step 3: Waiting for the other device to send.";
+      ? "Connected. Sending the accounts to the other device."
+      : "Connected. The other device is sending the accounts.";
   } else if (status === "transferring") {
     title = "Transferring";
     subtitle = "Encrypted accounts and groups are moving between devices.";

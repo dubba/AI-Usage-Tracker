@@ -227,3 +227,22 @@ export const KeyboardIcon = (props: IconProps) => (
     <path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M8 13h.01M12 13h.01M16 13h.01M7 16h10" />
   </Base>
 );
+
+/** Concentric waves from a point: sending to a nearby device (AirDrop, Quick Share). */
+export const NearbyShareIcon = (props: IconProps) => (
+  <Base {...props}>
+    <circle cx="12" cy="12" r="1.8" />
+    <path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6" />
+    <path d="M5.1 5.1a9.8 9.8 0 0 0 0 13.8M18.9 5.1a9.8 9.8 0 0 1 0 13.8" />
+  </Base>
+);
+
+/** A Wi-Fi fan: looking on the local network. */
+export const WifiIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M5 12.6a10 10 0 0 1 14 0" />
+    <path d="M8.5 16a5 5 0 0 1 7 0" />
+    <path d="M1.5 9a15 15 0 0 1 21 0" />
+    <path d="M12 19.5h.01" />
+  </Base>
+);

@@ -390,6 +390,13 @@ class MainActivity : TauriActivity() {
 
   fun writeTransferFile(uri: String, data: ByteArray) = transferFiles.write(uri, data)
 
+  /** Whether Sync Devices may pick up transfer files from Downloads by itself. */
+  fun hasDownloadsAccess(): Boolean = transferFiles.hasDownloadsAccess()
+
+  fun requestDownloadsAccess() = transferFiles.requestDownloadsAccess()
+
+  fun downloadsDir(): String = transferFiles.downloadsDir()
+
   /**
    * Keeps this window out of screenshots, screen recordings and the recent-apps preview while
    * the air-gap transfer codes are showing (capture_protection.rs).

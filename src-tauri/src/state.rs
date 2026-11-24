@@ -200,6 +200,8 @@ pub struct AppState {
     /// The transfer file this device made last (a request or a reply) and its suggested name, in
     /// the app's cache folder until it is shared or saved; either can be repeated.
     pub pairing_file_outgoing: Mutex<Option<(std::path::PathBuf, &'static str)>>,
+    /// While this device waits for a transfer file, what it watches Downloads for.
+    pub pairing_incoming: Mutex<Option<crate::pairing::incoming_files::IncomingWatch>>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
     in_flight_refreshes: Mutex<HashMap<String, InFlightRefreshReceiver>>,
     /// Caps how many accounts are refreshed at once so a large account list
@@ -265,6 +267,7 @@ impl AppState {
             airgap_import_ticket: Mutex::new(None),
             pairing_file_receiver: Mutex::new(None),
             pairing_file_outgoing: Mutex::new(None),
+            pairing_incoming: Mutex::new(None),
             account_locks: Mutex::new(HashMap::new()),
             in_flight_refreshes: Mutex::new(HashMap::new()),
             refresh_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_REFRESHES)),

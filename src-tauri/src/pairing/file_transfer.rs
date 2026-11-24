@@ -4,19 +4,21 @@
 //!
 //! 1. The receiver, after typing the sender's code, makes a **request**: its half of the key
 //!    exchange and a fresh nonce. It keeps its side of the exchange in memory only.
-//! 2. The sender, still showing that code, opens the request, its user agrees, and it makes the
-//!    **reply**: its half of the exchange, its own nonce, the number of accounts, and the export
-//!    payload, compressed and encrypted with the agreed key. A code answers one request.
+//! 2. The sender, still showing that code, opens the request and at once makes the **reply**: its
+//!    half of the exchange, its own nonce, the number of accounts, and the export payload,
+//!    compressed and encrypted with the agreed key. A code answers one request.
 //! 3. The receiver opens the reply, counts the accounts for its user (`preview_reply`, which hands
 //!    out a one-time ticket like the QR import), and imports them (`import_reply`).
 //!
 //! Neither file is secret. The request holds no key; the reply is ciphertext under a key that only
 //! a holder of the code derives, and SPAKE2 means someone with both files cannot test codes
-//! offline. A forged request is one guess at the code (1 in 10⁶), and it only gets a reply if the
-//! sender's user agrees to a request they did not expect. Everything in the reply's header is
-//! bound into the encryption, so a changed byte anywhere makes it fail to open.
+//! offline. A forged request is one guess at the code (1 in 10⁶): the sender answers the first
+//! request it gets, so a forged one can use the code up, but its reply opens only with the code.
+//! Everything in the reply's header is bound into the encryption, so a changed byte anywhere makes
+//! it fail to open.
 //!
-//! The files reach this module through native open and save dialogs (`commands::pairing`); the
+//! The files reach this module through native open and save dialogs, a tap in another app, or
+//! Downloads (`incoming_files`), all read by `commands::pairing`; the
 //! page never chooses a path. Between steps the bytes stay here: the sender's opened request with
 //! its pairing session, the receiver's opened reply with its request.
 
@@ -130,9 +132,9 @@ pub struct FileRequestInfo {
     pub account_count: usize,
 }
 
-/// A transfer file tapped in another app (Android's Quick Share notification), opened as what
-/// its header says it is: a request on the sending device, a reply on the receiving one.
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+/// A transfer file tapped in another app (Android's Quick Share notification, AirDrop) or picked
+/// up from Downloads, opened as what its header says it is: a request on the sending device, a
+/// reply on the receiving one.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]
@@ -142,7 +144,6 @@ pub enum TappedFile {
 }
 
 /// The largest file [`open_tapped`] reads: a reply (a request is far smaller).
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
 pub const MAX_TAPPED_LEN: usize = MAX_REPLY_LEN;
 
 struct ParsedRequest<'a> {
@@ -183,8 +184,7 @@ fn body(bytes: &[u8], kind: u8) -> Result<&[u8], String> {
 }
 
 /// Whether `bytes` is a request (true) or a reply (false), from the header alone.
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
-fn is_request(bytes: &[u8]) -> Result<bool, String> {
+pub fn is_request(bytes: &[u8]) -> Result<bool, String> {
     if bytes.len() < HEADER_LEN || &bytes[..MAGIC.len()] != MAGIC {
         return Err(NOT_A_PAIRING_FILE.into());
     }
@@ -396,7 +396,6 @@ pub async fn answer_request(state: &AppState) -> Result<Vec<u8>, String> {
 /// ([`preview_reply`]), whichever its header says. Each fails as it would from the open dialog,
 /// for example when this device is not at that step ([`NO_CODE_SHOWN`], [`NO_REQUEST_OUT`]); any
 /// other file is [`NOT_A_PAIRING_FILE`].
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
 pub async fn open_tapped(state: &AppState, bytes: Vec<u8>) -> Result<TappedFile, String> {
     if is_request(&bytes)? {
         open_request(state, bytes)

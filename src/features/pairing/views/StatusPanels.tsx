@@ -61,8 +61,9 @@ export function RoleFallbackView({ busy, onChoose }: { busy: boolean; onChoose: 
 }
 
 /**
- * The devices are connected and each proved it knows the link code. The sending device asks once
- * before anything moves; the receiving device has nothing to confirm and waits.
+ * The devices are connected and each proved it knows the link code. The sending device sends by
+ * itself (`PairingModal` confirms at once), so it shows the send under way; its Send button only
+ * appears if that failed. The receiving device waits.
  */
 export function ConfirmTransferCard({
   isSender,
@@ -86,19 +87,25 @@ export function ConfirmTransferCard({
     return (
       <div className="pairing-sas-card">
         <div className="pairing-sas-icon"><ShieldIcon /></div>
-        <h3>Waiting for the other device</h3>
-        <div className="pairing-transfer-info receiver">
-          Ready to <strong>receive {accounts}</strong> and groups
-        </div>
+        <h3>Receiving {accounts}</h3>
         <div className="pairing-sas-waiting-note">
           <span className="spinner button-spinner" />
-          <span>Press Send on the other device to start the transfer.</span>
+          <span>The other device is sending them now.</span>
         </div>
         <div className="pairing-sas-actions">
           <button type="button" className="button ghost" onClick={onCancel}>
             Cancel
           </button>
         </div>
+      </div>
+    );
+  }
+  if (confirmed) {
+    return (
+      <div className="pairing-panel-status transferring">
+        <span className="spinner large" />
+        <h3>Sending {accounts}…</h3>
+        <p>Encrypted end to end with the link code.</p>
       </div>
     );
   }

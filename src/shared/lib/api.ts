@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logIgnored } from "./log";
 import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
-import type { Account, AccountBucket, AirgapExport, AirgapPreview, AppSettings, FilePreview, FileRequestInfo, TappedFile, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
+import type { Account, AccountBucket, AirgapExport, AirgapPreview, AppSettings, FilePreview, FileRequestInfo, TappedFile, IncomingWatchInfo, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
 
 export function rememberLoginAttempt(attemptId: string) {
   storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
@@ -103,8 +103,6 @@ export const bridgeApi = {
 
 export const pairingApi = {
   ensureCameraPermission: () => invoke<void>("ensure_camera_permission"),
-  wifiEnabled: () => invoke<boolean>("pairing_wifi_enabled"),
-  openWifiSettings: () => invoke<void>("pairing_open_wifi_settings"),
   /** `acceptSettings`: this device's "Also Sync Settings and Layout" choice, used if it receives. */
   startHost: (acceptSettings: boolean) =>
     invoke<PairingHostInit>("pairing_start_host", { acceptSettings }),
@@ -150,7 +148,17 @@ export const pairingApi = {
   tappedFilePending: () => invoke<boolean>("pairing_file_tapped_pending"),
   /** Android: opens that file as a request or a reply, whichever it is; null when none waits. */
   openTappedFile: () => invoke<TappedFile | null>("pairing_file_open_tapped"),
-  /** Receiver, after its user agreed: imports the opened reply, with its preview's ticket. */
+  /**
+   * Starts looking in Downloads for the file this device waits for (where AirDrop and Quick Share
+   * save it); files already there are left alone. Android needs file access first.
+   */
+  watchForFile: (expect: "request" | "reply") => invoke<IncomingWatchInfo>("pairing_file_watch", { expect }),
+  stopWatchingForFile: () => invoke<void>("pairing_file_watch_stop"),
+  /** The file that arrived since `watchForFile`, opened as a request or reply; null while none has. */
+  pollForFile: () => invoke<TappedFile | null>("pairing_file_poll"),
+  /** Android: opens the system page that allows file access, for `watchForFile`. */
+  requestFileAccess: () => invoke<void>("pairing_file_request_access"),
+  /** Receiver: imports the opened reply, with its preview's ticket. */
   importFileReply: (ticket: string, acceptSettings: boolean) =>
     invoke<SyncSummary>("pairing_file_import_reply", { ticket, acceptSettings }),
 };

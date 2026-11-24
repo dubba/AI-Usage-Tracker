@@ -14,6 +14,7 @@
 //! `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract`.
 
 use crate::commands::error::{CommandError, ErrorCode};
+use crate::commands::pairing::IncomingWatchInfo;
 use crate::{
     health::{AccountHealth, GoogleSetup},
     history::{
@@ -103,6 +104,7 @@ fn generated_bindings() -> String {
         FileRequestInfo,
         FilePreview,
         TappedFile,
+        IncomingWatchInfo,
         ErrorCode,
         CommandError,
     );

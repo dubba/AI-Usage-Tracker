@@ -1,8 +1,9 @@
-import { ChevronIcon } from "../../../shared/ui/icons";
+import type { ReactNode } from "react";
+import { CheckIcon, ChevronIcon, NearbyShareIcon } from "../../../shared/ui/icons";
 import type { FilePreview } from "../../../types";
 import type { FileSendState } from "../hooks/useFileTransfer";
 import { isIOS } from "../../../shared/lib/platform";
-import { nearbyShareName } from "../lib/view-model";
+import { FileAccessNote, SearchingRow } from "./HostCodeView";
 
 function accounts(count: number): string {
   return count === 1 ? "1 account" : `${count} accounts`;
@@ -17,42 +18,65 @@ function BackButton({ onClick, disabled }: { onClick: () => void; disabled?: boo
   );
 }
 
+/** The steps of the file route, the ones done ticked and the current one marked. */
+function TransferSteps({ steps, current }: { steps: ReactNode[]; current: number }) {
+  return (
+    <ol className="pairing-transfer-steps">
+      {steps.map((step, index) => (
+        <li key={index} className={index < current ? "is-done" : index === current ? "is-current" : ""}>
+          <span className="pairing-transfer-step-mark" aria-hidden="true">
+            {index < current ? <CheckIcon /> : index + 1}
+          </span>
+          <span>{step}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 /**
  * Ways to send the file made last again: the share menu (where there is one) and a saved copy. An
  * iPhone saves from the share sheet (Save to Files), so it gets no separate Save.
  */
 function SendAgainLinks({
   what,
+  nearbyName,
   canShare,
   busy,
   onShare,
   onSave,
+  children,
 }: {
   what: "request" | "reply";
+  nearbyName: string;
   canShare: boolean;
   busy: boolean;
   onShare: () => void;
   onSave: () => void;
+  children?: ReactNode;
 }) {
   return (
     <div className="pairing-file-links">
       {canShare ? (
-        <button type="button" className="pairing-other-ways" disabled={busy} onClick={onShare}>
-          Share the {what} again
+        <button type="button" className="button pairing-nearby-btn" disabled={busy} onClick={onShare}>
+          <NearbyShareIcon />
+          <span>Send the {what} again by {nearbyName}</span>
         </button>
       ) : null}
       {isIOS() ? null : (
         <button type="button" className="pairing-other-ways" disabled={busy} onClick={onSave}>
-          Save the {what} to a file
+          Save the {what} to a file instead
         </button>
       )}
+      {children}
     </div>
   );
 }
 
-/** Sender: agree to answer the opened request, then the reply goes out. */
+/** Sender: a request arrived; the reply is made and sent by itself. */
 export function FileSendView({
   state,
+  nearbyName,
   canShare,
   busy,
   onSendReply,
@@ -62,8 +86,10 @@ export function FileSendView({
   onDone,
 }: {
   state: FileSendState;
+  nearbyName: string;
   canShare: boolean;
   busy: boolean;
+  /** Makes and sends the reply again, after it failed. */
   onSendReply: () => void;
   onShare: () => void;
   onSave: () => void;
@@ -71,15 +97,19 @@ export function FileSendView({
   onBack: () => void;
   onDone: () => void;
 }) {
+  const steps = [
+    "Request received",
+    <>Sending {accounts(state.accountCount)} by {nearbyName}</>,
+    "Accept on the other device",
+  ];
   if (state.replyMade) {
     return (
       <div className="pairing-panel-status pairing-file-view">
-        <h3>Reply ready</h3>
+        <TransferSteps steps={steps} current={2} />
         <p>
-          Send the reply to the other device the same way the request came, by AirDrop, Quick Share or email. On
-          that device, choose <strong>Open Reply</strong>.
+          Choose the other device in {nearbyName}. Once it accepts, the accounts are added there by themselves.
         </p>
-        <SendAgainLinks what="reply" canShare={canShare} busy={busy} onShare={onShare} onSave={onSave} />
+        <SendAgainLinks what="reply" nearbyName={nearbyName} canShare={canShare} busy={busy} onShare={onShare} onSave={onSave} />
         <div className="pairing-nav-row is-single">
           <button type="button" className="button settings-update-action button-green" onClick={onDone}>
             Done
@@ -90,81 +120,86 @@ export function FileSendView({
   }
   return (
     <div className="pairing-panel-status pairing-file-view">
-      <h3>Send {accounts(state.accountCount)}?</h3>
-      <p>
-        The other device asked for this device's accounts. The reply opens only on the device that entered the
-        link code shown here.
-      </p>
-      <div className="pairing-nav-row">
-        <BackButton onClick={onBack} disabled={busy} />
-        <button type="button" className="button primary" onClick={onSendReply} disabled={busy}>
-          {busy ? "Preparing…" : "Send Reply"}
-        </button>
-      </div>
+      <TransferSteps steps={steps} current={1} />
+      {busy ? (
+        <SearchingRow>Encrypting the accounts for the other device…</SearchingRow>
+      ) : (
+        <div className="pairing-nav-row">
+          <BackButton onClick={onBack} />
+          <button type="button" className="button primary" onClick={onSendReply}>
+            Try Again
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-/** Receiver: the request went out; open the reply when it arrives, then agree to add it. */
+/** Receiver: the request went out; the reply is picked up and its accounts added by themselves. */
 export function FileReceiveView({
   preview,
+  nearbyName,
   automatic,
   openingReply,
   canShare,
   busy,
+  fileAccess,
   onOpenReply,
-  onImport,
   onShare,
   onSave,
   onBack,
 }: {
   preview: FilePreview | null;
+  nearbyName: string;
   /** The request went out by itself because the Wi-Fi search found nothing. */
   automatic: boolean;
-  /** The open dialog for the reply is up (other steps leave the button's label alone). */
+  /** The open dialog for the reply is up (other steps leave the link's label alone). */
   openingReply: boolean;
   canShare: boolean;
   busy: boolean;
+  /** Android, until the app may read Downloads: the way to allow it. */
+  fileAccess?: { needed: boolean; onAllow: () => void };
   onOpenReply: () => void;
-  onImport: () => void;
   onShare: () => void;
   onSave: () => void;
   /** Back to the code entry. */
   onBack: () => void;
 }) {
+  const steps = [
+    <>Request sent by {nearbyName}</>,
+    "Waiting for the other device's reply",
+    preview ? `Adding ${accounts(preview.accountCount)}` : "Adding the accounts",
+  ];
   if (preview) {
     return (
       <div className="pairing-panel-status pairing-file-view">
-        <h3>Add {accounts(preview.accountCount)}?</h3>
-        <p>The reply opened with your link code. Accounts already on this device are skipped.</p>
-        <div className="pairing-nav-row">
-          <BackButton onClick={onBack} disabled={busy} />
-          <button type="button" className="button primary" onClick={onImport} disabled={busy}>
-            {busy ? "Adding…" : "Add Accounts"}
-          </button>
-        </div>
+        <TransferSteps steps={steps} current={2} />
+        {busy ? (
+          <SearchingRow>Adding {accounts(preview.accountCount)}…</SearchingRow>
+        ) : (
+          <div className="pairing-nav-row is-single">
+            <BackButton onClick={onBack} />
+          </div>
+        )}
       </div>
     );
   }
   return (
     <div className="pairing-panel-status pairing-file-view">
-      <h3>{automatic ? "Not on the same network" : "Request ready"}</h3>
-      {automatic ? (
-        <p>
-          The other device wasn't found on this network, so the share menu opened with a request. Choose the other
-          device in {nearbyShareName()}.
-        </p>
-      ) : null}
+      <TransferSteps steps={steps} current={1} />
       <p>
-        Send the request to the other device by AirDrop, Quick Share or email. On that device, choose{" "}
-        <strong>Open a request file</strong> under its link code. When its reply comes back, open it here.
+        {automatic ? `The other device isn't on this network, so the request went by ${nearbyName}. ` : ""}
+        Choose the other device in {nearbyName}. Its reply comes back the same way: tap <strong>Accept</strong> and
+        the accounts are added by themselves.
       </p>
-      <SendAgainLinks what="request" canShare={canShare} busy={busy} onShare={onShare} onSave={onSave} />
-      <div className="pairing-nav-row">
-        <BackButton onClick={onBack} disabled={busy} />
-        <button type="button" className="button primary" onClick={onOpenReply} disabled={busy}>
-          {openingReply ? "Opening…" : "Open Reply…"}
+      {fileAccess?.needed ? <FileAccessNote name={nearbyName} onAllow={fileAccess.onAllow} /> : null}
+      <SendAgainLinks what="request" nearbyName={nearbyName} canShare={canShare} busy={busy} onShare={onShare} onSave={onSave}>
+        <button type="button" className="pairing-other-ways" disabled={busy} onClick={onOpenReply}>
+          {openingReply ? "Opening…" : "Received the reply but nothing happened? Open it"}
         </button>
+      </SendAgainLinks>
+      <div className="pairing-nav-row is-single">
+        <BackButton onClick={onBack} disabled={busy} />
       </div>
     </div>
   );

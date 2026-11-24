@@ -90,6 +90,10 @@ const APP_COMMANDS: &[&str] = &[
     "pairing_file_tapped_pending",
     "pairing_file_open_tapped",
     "pairing_file_import_reply",
+    "pairing_file_watch",
+    "pairing_file_watch_stop",
+    "pairing_file_poll",
+    "pairing_file_request_access",
 ];
 
 fn main() {

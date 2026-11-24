@@ -178,6 +178,10 @@ pub fn run() {
             commands::pairing::pairing_file_tapped_pending,
             commands::pairing::pairing_file_open_tapped,
             commands::pairing::pairing_file_import_reply,
+            commands::pairing::pairing_file_watch,
+            commands::pairing::pairing_file_watch_stop,
+            commands::pairing::pairing_file_poll,
+            commands::pairing::pairing_file_request_access,
         ])
         .build(tauri::generate_context!())
         .expect("error while building AI Usage Tracker")

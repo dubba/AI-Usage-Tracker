@@ -441,8 +441,9 @@ export type FilePreview = {
 };
 
 /**
- * A transfer file tapped in another app (Android's Quick Share notification), opened as what
- * its header says it is: a request on the sending device, a reply on the receiving one.
+ * A transfer file tapped in another app (Android's Quick Share notification, AirDrop) or picked
+ * up from Downloads, opened as what its header says it is: a request on the sending device, a
+ * reply on the receiving one.
  */
 export type TappedFile = {
   "kind": "request",
@@ -450,6 +451,21 @@ export type TappedFile = {
 } | {
   "kind": "reply",
   preview: FilePreview,
+};
+
+/**
+ * What the page learns when it starts waiting for a transfer file.
+ */
+export type IncomingWatchInfo = {
+  /**
+   * Files arriving in Downloads are picked up by themselves ([`pairing_file_poll`]).
+   */
+  watching: boolean,
+  /**
+   * Android: picking them up needs the user to allow file access first
+   * ([`pairing_file_request_access`]).
+   */
+  needsAccess: boolean,
 };
 
 /**

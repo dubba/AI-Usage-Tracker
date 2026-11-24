@@ -73,38 +73,6 @@
   margin: 0 !important;
 }
 
-.pairing-join-code-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  width: 100%;
-  max-width: 320px;
-  padding: 8px 14px;
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.28);
-  border-radius: 12px;
-  background: rgb(var(--purple-accent-rgb) / 0.08);
-  color: inherit;
-  user-select: text;
-}
-
-.pairing-join-code-tag {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--obsidian-purple);
-}
-
-.pairing-join-code-val {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 1.95rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  line-height: 1.15;
-  color: var(--c-ffffff);
-}
-
 .pairing-qr-card {
   display: flex;
   align-items: center;
@@ -121,55 +89,6 @@
   display: block;
   width: 165px;
   height: 165px;
-}
-
-/* Horizontal Meta Row (Session & Expiration) */
-.pairing-meta-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: -4px 0;
-}
-
-.pairing-meta-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  border-radius: 14px;
-  padding: 3px 10px;
-}
-
-.pairing-meta-tag.session {
-  background: rgb(var(--purple-accent-rgb) / 0.08);
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.22);
-  color: var(--obsidian-purple);
-}
-
-.pairing-meta-tag.session strong {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  letter-spacing: 0.06em;
-  color: var(--c-ffffff);
-}
-
-.pairing-meta-tag.timer {
-  background: rgb(var(--tint-amber-rgb) / 0.08);
-  border: 1px solid rgb(var(--tint-amber-rgb) / 0.22);
-  color: var(--obsidian-amber);
-}
-
-/* Action Switcher (Scan QR / Enter Code) */
-
-.pairing-waiting-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 0.775rem;
-  color: var(--obsidian-muted);
-  margin-top: 0;
 }
 
 /* Camera Scanner View */
@@ -468,31 +387,135 @@
   line-height: 1.4 !important;
 }
 
-.pairing-code-input {
+/* The code field: six tiles drawn over by one real input, transparent, so typing, pasting and
+   one-time-code autofill work as in any field while the tiles show the digits. */
+.pairing-code-tiles {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
-  max-width: 280px;
-  background: var(--obsidian-surface-low);
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.35);
-  color: var(--c-ffffff);
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 1.85rem;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-align: center;
-  padding: 10px 14px;
-  border-radius: 10px;
+  cursor: text;
+}
+
+.pairing-code-tiles .pairing-code-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 16px; /* below 16px iOS zooms into the field */
+  letter-spacing: 0;
+  opacity: 0.01;
   outline: none;
-  transition: all 0.18s ease;
+  z-index: 1;
 }
 
-.pairing-code-input::placeholder {
-  color: var(--obsidian-muted);
-  opacity: 0.7;
+.pairing-code-input::selection {
+  background: transparent;
 }
 
-.pairing-code-input:focus {
+.pairing-code-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 56px;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.22);
+  background: var(--obsidian-surface-low);
+  color: var(--text);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  font-weight: 700;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.pairing-code-tile.group-start {
+  margin-left: 12px;
+}
+
+.pairing-code-tile.is-filled {
+  border-color: rgb(var(--purple-accent-rgb) / 0.5);
+  background: rgb(var(--purple-accent-rgb) / 0.08);
+}
+
+.pairing-code-tiles:focus-within .pairing-code-tile.is-active {
   border-color: var(--obsidian-purple-strong);
-  box-shadow: 0 0 0 3px rgb(var(--purple-accent-rgb) / 0.2);
+  box-shadow: 0 0 0 3px rgb(var(--purple-accent-rgb) / 0.22);
+}
+
+/* A blinking caret in the tile the next digit goes into. */
+.pairing-code-tiles:focus-within .pairing-code-tile.is-active:empty::after {
+  content: "";
+  width: 2px;
+  height: 26px;
+  border-radius: 1px;
+  background: var(--obsidian-purple-strong);
+  animation: pairing-caret 1s steps(1) infinite;
+}
+
+.pairing-code-tiles.is-busy .pairing-code-tile {
+  border-color: rgb(var(--purple-accent-rgb) / 0.35);
+  animation: pairing-tile-wait 1.6s ease-in-out infinite;
+}
+
+.pairing-code-tiles.is-busy .pairing-code-tile:nth-child(3) { animation-delay: 0.1s; }
+.pairing-code-tiles.is-busy .pairing-code-tile:nth-child(4) { animation-delay: 0.2s; }
+.pairing-code-tiles.is-busy .pairing-code-tile:nth-child(5) { animation-delay: 0.3s; }
+.pairing-code-tiles.is-busy .pairing-code-tile:nth-child(6) { animation-delay: 0.4s; }
+.pairing-code-tiles.is-busy .pairing-code-tile:nth-child(7) { animation-delay: 0.5s; }
+
+@keyframes pairing-caret {
+  50% { opacity: 0; }
+}
+
+@keyframes pairing-tile-wait {
+  0%, 100% { background: rgb(var(--purple-accent-rgb) / 0.06); }
+  50% { background: rgb(var(--purple-accent-rgb) / 0.16); }
+}
+
+@media (max-width: 360px) {
+  .pairing-code-tiles { gap: 6px; }
+  .pairing-code-tile { width: 38px; height: 50px; font-size: 1.4rem; }
+  .pairing-code-tile.group-start { margin-left: 8px; }
+}
+
+/* Under the tiles: what is happening, with the countdown to AirDrop or Quick Share. */
+.pairing-code-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+}
+
+.pairing-fallback-track,
+.pairing-code-expiry-track {
+  width: 100%;
+  max-width: 260px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(var(--purple-accent-rgb) / 0.14);
+  overflow: hidden;
+}
+
+.pairing-fallback-fill,
+.pairing-code-expiry-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--obsidian-purple-strong), rgb(var(--purple-accent-rgb) / 0.6));
+  transform-origin: left center;
+  transition: transform 1s linear;
 }
 
 .pairing-code-help,
@@ -528,14 +551,6 @@
 .pairing-other-ways:disabled {
   color: var(--obsidian-muted);
   cursor: default;
-}
-
-/* The file link and "Other ways to connect" on a code screen: one pair, close together. */
-.pairing-code-links {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
 }
 
 .pairing-security-note {
@@ -974,9 +989,6 @@
   .modal-card.pairing-modal p.pairing-subtitle {
     font-size: 0.81rem !important;
   }
-  .pairing-join-code-val {
-    font-size: 1.75rem;
-  }
   .pairing-qr-card svg {
     width: 150px;
     height: 150px;
@@ -1209,12 +1221,11 @@
     gap: 24px !important;
   }
 
-  .modal-card.pairing-modal.keyboard-open .pairing-code-input,
-  html.keyboard-active .modal-card.pairing-modal .pairing-code-input,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-input {
-    font-size: 1.6rem !important;
-    padding: 8px 12px !important;
-    max-width: 250px !important;
+  .modal-card.pairing-modal.keyboard-open .pairing-code-tile,
+  html.keyboard-active .modal-card.pairing-modal .pairing-code-tile,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-tile {
+    height: 48px;
+    font-size: 1.4rem;
   }
 
   .modal-card.pairing-modal.keyboard-open .pairing-code-help,
@@ -1658,4 +1669,324 @@
 .pairing-scanner-box:focus-visible {
   outline: 2px solid var(--obsidian-purple);
   outline-offset: -2px;
+}
+
+/* ---- Link code screens: the code, the search, and AirDrop / Quick Share ---- */
+
+.pairing-code-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.3);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgb(var(--purple-accent-rgb) / 0.16), transparent 70%),
+    var(--obsidian-surface-low);
+  box-shadow: 0 10px 30px rgb(var(--purple-accent-rgb) / 0.08);
+  box-sizing: border-box;
+  user-select: text;
+}
+
+.pairing-code-hero-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--obsidian-purple);
+}
+
+.pairing-code-digits {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.pairing-code-digit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 52px;
+  border-radius: 10px;
+  background: rgb(var(--purple-accent-rgb) / 0.1);
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.22);
+  color: var(--text);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.pairing-code-digit.group-start {
+  margin-left: 12px;
+}
+
+@media (max-width: 360px) {
+  .pairing-code-digit { width: 34px; height: 46px; font-size: 1.5rem; }
+  .pairing-code-digit.group-start { margin-left: 8px; }
+}
+
+.pairing-code-expiry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  font-size: 0.75rem;
+  color: var(--obsidian-muted);
+}
+
+.pairing-code-expiry strong {
+  color: var(--obsidian-amber);
+  font-variant-numeric: tabular-nums;
+}
+
+.pairing-code-expiry-track {
+  max-width: 200px;
+  height: 3px;
+}
+
+/* A soft pulsing dot beside what this device is waiting for. */
+.pairing-searching-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--obsidian-muted);
+}
+
+.pairing-pulse {
+  position: relative;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--obsidian-purple-strong);
+}
+
+.pairing-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--obsidian-purple-strong);
+  animation: pairing-pulse 1.6s ease-out infinite;
+}
+
+@keyframes pairing-pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+
+/* Use AirDrop / Use Quick Share: a full-width secondary action with its own icon. */
+.button.pairing-nearby-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.45);
+  background: rgb(var(--purple-accent-rgb) / 0.12);
+  color: var(--obsidian-purple);
+  font-weight: 600;
+  transition: background 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.button.pairing-nearby-btn:hover:not(:disabled) {
+  background: rgb(var(--purple-accent-rgb) / 0.2);
+  border-color: var(--obsidian-purple-strong);
+}
+
+.button.pairing-nearby-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.button.pairing-nearby-btn svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+/* After Use AirDrop / Quick Share on the sender: what happens next, with the manual open below. */
+.pairing-nearby-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.25);
+  background: rgb(var(--purple-accent-rgb) / 0.07);
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.pairing-nearby-note > svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  color: var(--obsidian-purple);
+}
+
+.pairing-nearby-note p,
+.modal-card.pairing-modal .pairing-nearby-note p {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--obsidian-text);
+}
+
+.pairing-nearby-note .pairing-other-ways {
+  padding: 2px 0;
+  align-self: flex-start;
+}
+
+/* Android: allow file access once so Quick Share files open by themselves. */
+.pairing-access-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--tint-amber-rgb) / 0.3);
+  background: rgb(var(--tint-amber-rgb) / 0.08);
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.pairing-access-note p,
+.modal-card.pairing-modal .pairing-access-note p {
+  flex: 1;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--obsidian-text);
+}
+
+.button.pairing-access-btn {
+  flex: none;
+  min-height: 34px;
+  padding: 0 14px;
+  border-color: rgb(var(--tint-amber-rgb) / 0.45);
+  color: var(--obsidian-amber);
+}
+
+/* "Other ways to connect": the quietest link on the screen. */
+.pairing-other-ways.pairing-other-ways-quiet {
+  color: var(--obsidian-muted);
+  font-size: 0.75rem;
+}
+
+.pairing-other-ways.pairing-other-ways-quiet:hover:not(:disabled) {
+  color: var(--obsidian-purple);
+}
+
+.pairing-host-content {
+  gap: 14px;
+}
+
+.pairing-code-entry-view {
+  gap: 14px;
+}
+
+.pairing-code-entry-view .pairing-code-actions {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* The file route's steps: done ones ticked, the current one highlighted. */
+.pairing-transfer-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  margin: 4px 0 6px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.pairing-transfer-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.84rem;
+  color: var(--obsidian-muted);
+}
+
+.pairing-transfer-step-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.25);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pairing-transfer-step-mark svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.6;
+}
+
+.pairing-transfer-steps li.is-done {
+  color: var(--obsidian-text);
+}
+
+.pairing-transfer-steps li.is-done .pairing-transfer-step-mark {
+  border-color: transparent;
+  background: rgb(var(--tint-green-rgb) / 0.16);
+  color: var(--obsidian-green);
+}
+
+.pairing-transfer-steps li.is-current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pairing-transfer-steps li.is-current .pairing-transfer-step-mark {
+  border-color: var(--obsidian-purple-strong);
+  background: rgb(var(--purple-accent-rgb) / 0.16);
+  color: var(--obsidian-purple);
+  box-shadow: 0 0 0 4px rgb(var(--purple-accent-rgb) / 0.1);
+}
+
+.pairing-file-view .pairing-file-links {
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  gap: 6px;
+  margin: 2px 0 10px;
+}
+
+.pairing-file-view .pairing-file-links .pairing-other-ways {
+  align-self: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pairing-pulse::after,
+  .pairing-code-tiles.is-busy .pairing-code-tile,
+  .pairing-code-tiles:focus-within .pairing-code-tile.is-active:empty::after {
+    animation: none;
+  }
+  .pairing-fallback-fill,
+  .pairing-code-expiry-fill {
+    transition: none;
+  }
 }

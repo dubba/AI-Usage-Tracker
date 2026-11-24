@@ -51,8 +51,8 @@ describe("pairingHeader titles", () => {
     ["peer connected", { status: "peerConnected" }, "Connected"],
     ["asking for a role", { status: "roleSelection" }, "Send or Receive Accounts"],
     ["applying a chosen role", { status: "roleSelection", intendedRole: "send" }, "Connecting"],
-    ["confirming as the sender", { status: "confirmTransfer", isSender: true }, "Confirm the transfer"],
-    ["waiting as the receiver", { status: "confirmTransfer", isSender: false }, "Devices connected"],
+    ["sending once connected", { status: "confirmTransfer", isSender: true }, "Sending"],
+    ["receiving once connected", { status: "confirmTransfer", isSender: false }, "Receiving"],
     ["transferring", { status: "transferring" }, "Transferring"],
     ["done", { status: "completed" }, "Devices linked"],
     ["failed", { status: "failed" }, "Pairing Failed"],
@@ -75,11 +75,11 @@ describe("pairingHeader subtitles and steps", () => {
     expect(header({ viewMode: "airgap-sender" }).subtitle).toContain("Scan QR Code (under Other Ways to Connect)");
   });
 
-  it("tells the sender to send and the receiver to wait, with no code to compare", () => {
+  it("says the sender is sending and the receiver receiving, with no code to compare", () => {
     const sender = header({ status: "confirmTransfer", isSender: true }).subtitle;
     const receiver = header({ status: "confirmTransfer", isSender: false }).subtitle;
-    expect(sender).toContain("send it");
-    expect(receiver).toContain("Waiting for the other device");
+    expect(sender).toContain("Sending the accounts");
+    expect(receiver).toContain("The other device is sending");
     // No flow compares a code any more.
     const airgap = header({ viewMode: "scanner", airgapVerifyPrompt: true }).subtitle;
     for (const subtitle of [sender, receiver, airgap]) expect(subtitle).not.toContain("same code");

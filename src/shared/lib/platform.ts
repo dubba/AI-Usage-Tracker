@@ -24,3 +24,12 @@ export function isIOS(): boolean {
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1))
   );
 }
+
+/** A Mac (not an iPad, which can also report "Macintosh"). */
+export function isMac(): boolean {
+  return typeof navigator !== "undefined" && /Macintosh|Mac OS X/.test(navigator.userAgent) && !isIOS();
+}
+
+export function isWindows(): boolean {
+  return typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
+}

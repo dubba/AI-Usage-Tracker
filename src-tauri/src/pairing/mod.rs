@@ -2,6 +2,7 @@ pub mod airgap;
 pub mod crypto;
 pub mod discovery;
 pub mod file_transfer;
+pub mod incoming_files;
 // Bonjour discovery for iOS; also built into macOS tests to check it
 // interoperates with mdns-sd.
 #[cfg(any(target_os = "ios", all(test, target_os = "macos")))]

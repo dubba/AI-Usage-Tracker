@@ -1,9 +1,17 @@
 package com.dubba.ai.usage.tracker
 
+import android.Manifest
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.provider.DocumentsContract
+import android.provider.Settings
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -110,6 +118,47 @@ internal class TransferFiles(private val activity: Activity) {
     output.use { it.write(data) }
   }
 
+  /**
+   * Whether the app may read what Quick Share saves into Downloads, so Sync Devices can pick a
+   * transfer file up by itself (pairing/incoming_files.rs): All files access from Android 11,
+   * storage read before that.
+   */
+  fun hasDownloadsAccess(): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      Environment.isExternalStorageManager()
+    } else {
+      ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE) ==
+        PackageManager.PERMISSION_GRANTED
+    }
+
+  /** Asks for [hasDownloadsAccess]: the All files access page in Settings, or the permission prompt. */
+  fun requestDownloadsAccess() {
+    activity.runOnUiThread {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val forThisApp = Intent(
+          Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+          Uri.parse("package:${activity.packageName}"),
+        )
+        try {
+          activity.startActivity(forThisApp)
+        } catch (e: ActivityNotFoundException) {
+          // Some phones only have the list of every app.
+          activity.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+        }
+      } else {
+        ActivityCompat.requestPermissions(
+          activity,
+          arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE),
+          DOWNLOADS_PERMISSION_REQUEST,
+        )
+      }
+    }
+  }
+
+  /** The shared Downloads folder Quick Share saves into. */
+  fun downloadsDir(): String =
+    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
+
   companion object {
     /**
      * The files' own type (the same in `AndroidManifest.xml`'s VIEW filter). Quick Share sends it
@@ -120,5 +169,7 @@ internal class TransferFiles(private val activity: Activity) {
      */
     const val MIME_TYPE = "application/vnd.aiut.pair"
     private const val BUFFER_BYTES = 64 * 1024
+    /** Request code of the storage prompt before Android 11 (the result is read by polling). */
+    private const val DOWNLOADS_PERMISSION_REQUEST = 4711
   }
 }
