@@ -308,10 +308,16 @@ fn read_picked(path: tauri_plugin_dialog::FilePath, max_len: usize) -> CommandRe
             }
             Ok(bytes)
         }
-        // iOS hands back the picked file's copy as a `file://` address.
+        // iOS hands back a copy of the picked file, as a `file://` address in the app's inbox.
+        // It is deleted once read, so it is never taken for a file opened from another app.
         #[cfg(not(target_os = "android"))]
         tauri_plugin_dialog::FilePath::Url(url) => match url.to_file_path() {
-            Ok(path) => read_capped(&path, max_len),
+            Ok(path) => {
+                let read = read_capped(&path, max_len);
+                #[cfg(target_os = "ios")]
+                let _ = std::fs::remove_file(&path);
+                read
+            }
             Err(()) => Err(file_error(FILE_READ_FAILED)),
         },
     }
