@@ -265,12 +265,16 @@
     color: var(--obsidian-text);
   }
 
-  /* Presets (back to the grid) on the left, Done on the right. */
-  .accent-custom-actions {
+  /* Done on the right in both views; Presets (back to the grid) on the left in the custom view. */
+  .accent-modal-actions {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 10px;
-    margin-top: 2px;
+    margin-top: 22px;
+  }
+
+  .accent-modal-actions .accent-presets-btn {
+    margin-right: auto;
   }
 
   .accent-presets-btn {

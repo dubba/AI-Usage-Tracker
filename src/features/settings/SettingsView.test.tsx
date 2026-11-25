@@ -169,6 +169,9 @@ describe("General", () => {
 
       const modalSwatches = [...modal.querySelectorAll<HTMLButtonElement>('.accent-color-grid button[role="radio"]')];
       expect(modalSwatches).toHaveLength(11);
+      // Done is offered with the grid too, without Presets.
+      expect(modal.querySelector(".accent-done-btn")).not.toBeNull();
+      expect(modal.querySelector(".accent-presets-btn")).toBeNull();
 
       // Select Emerald, then tap Emerald a second time to toggle Dark -> Light.
       const emerald = modalSwatches.find((el) => el.getAttribute("aria-label") === "Emerald")!;
@@ -213,7 +216,7 @@ describe("General", () => {
       expect(resetBtn.disabled).toBe(true);
 
       // Presets goes back to the grid, with focus on the + circle.
-      click(customBox.querySelector<HTMLButtonElement>(".accent-presets-btn")!);
+      click(modal.querySelector<HTMLButtonElement>(".accent-modal-actions .accent-presets-btn")!);
       expect(modal.querySelector(".accent-custom-view")).toBeNull();
       expect(modal.querySelectorAll('.accent-color-grid button[role="radio"]')).toHaveLength(11);
       expect(document.activeElement?.getAttribute("aria-label")).toBe("Custom color picker");
