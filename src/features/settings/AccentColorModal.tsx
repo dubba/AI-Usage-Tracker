@@ -71,14 +71,14 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
   useModalA11y(dialogRef, true, requestClose);
 
   const isCustomActive = !MODAL_ACCENT_PRESETS.some((preset) => preset.hex === accentColor);
-  const presetsButtonRef = useRef<HTMLButtonElement>(null);
+  const hexInputRef = useRef<HTMLInputElement>(null);
   const customTileRef = useRef<HTMLButtonElement>(null);
   const viewSwitched = useRef(false);
 
-  // Switching views removes the focused button: put focus on the matching control of the new view.
+  // Switching views removes the focused button: move focus into the new view.
   useEffect(() => {
     if (!viewSwitched.current) return;
-    (customOpen ? presetsButtonRef : customTileRef).current?.focus();
+    (customOpen ? hexInputRef : customTileRef).current?.focus();
   }, [customOpen]);
 
   const showView = (custom: boolean) => {
@@ -208,8 +208,8 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
       describedBy={customOpen ? undefined : subtitleId}
       className="accent-color-modal"
       backdropClassName="accent-color-modal-backdrop"
-      // Focus starts on the ×, not on the first color.
-      focusCloseFirst
+      // Focus starts on the hex input in Custom Color, and on the × in Presets.
+      focusCloseFirst={!customOpen}
       onClose={requestClose}
     >
       <h2 id={titleId} className="accent-color-modal-title">
@@ -267,6 +267,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
               Hex color
             </label>
             <input
+              ref={hexInputRef}
               id="accent-custom-hex-input"
               type="text"
               className="text-input accent-hex-input"
@@ -275,6 +276,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
               spellCheck={false}
               autoComplete="off"
               aria-label="Hex color"
+              data-autofocus
               onChange={(event) => onHexChange(event.target.value)}
             />
             <button
@@ -331,7 +333,6 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
       <div className="accent-modal-actions">
         {customOpen ? (
           <button
-            ref={presetsButtonRef}
             type="button"
             className="button ghost accent-presets-btn"
             onClick={() => showView(false)}

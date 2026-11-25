@@ -205,8 +205,8 @@
     position: relative;
     display: inline-grid;
     place-items: center;
-    width: 54px;
-    height: 54px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: 0;
     border-radius: 999px;
@@ -375,17 +375,6 @@
     flex: 0 0 auto;
     height: 40px;
     padding: 0 12px;
-  }
-
-  @media (max-width: 400px) {
-    .accent-color-tile {
-      width: 46px;
-      height: 46px;
-    }
-
-    .accent-color-grid {
-      gap: 14px 10px;
-    }
   }
 }
 

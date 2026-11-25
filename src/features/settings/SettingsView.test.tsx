@@ -197,6 +197,7 @@ describe("General", () => {
       expect(customBox.querySelector('[role="slider"][aria-label="Hue"]')).not.toBeNull();
 
       const hexInput = customBox.querySelector<HTMLInputElement>("#accent-custom-hex-input")!;
+      expect(document.activeElement).toBe(hexInput);
       act(() => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
         setter.call(hexInput, "#c22222");
@@ -251,6 +252,13 @@ describe("General", () => {
       click(document.querySelector<HTMLButtonElement>(".accent-done-btn")!);
       expect(document.querySelector(".accent-color-modal")).toBeNull();
       expect(getAccentColor()).toBe(chosen);
+
+      // Reopening with a custom color active opens Custom Color with focus on the hex input.
+      click(trigger);
+      const reopened = document.querySelector(".accent-color-modal")!;
+      expect(reopened.querySelector(".accent-custom-view")).not.toBeNull();
+      expect(document.activeElement).toBe(reopened.querySelector("#accent-custom-hex-input"));
+      click(reopened.querySelector<HTMLButtonElement>(".accent-done-btn")!);
     } finally {
       setThemePreference("dark");
       setAccentColor(DEFAULT_ACCENT_COLOR);
