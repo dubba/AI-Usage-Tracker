@@ -1244,7 +1244,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
     expect(app.container.querySelector(".account-card-name-input")).not.toBeNull();
   });
 
-  it("uses two-per-row layout (.is-two-col) when compact account has more than 4 windows", () => {
+  it("uses two-per-row layout (.is-two-col) when compact account has more than 2 windows", () => {
     const fiveWindows = [1, 2, 3, 4, 5].map((n) => ({
       id: `w-${n}`,
       label: `Model ${n} · Weekly`,
@@ -1269,7 +1269,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
     app = mount(
       <AccountDashboardCard
         pageId="compact-page"
-        account={{ ...account, id: "acct-compact-4", lastUsage: { ...manyUsage, windows: fiveWindows.slice(0, 4) }, health: "live" }}
+        account={{ ...account, id: "acct-compact-2", provider: "antigravity", lastUsage: { ...manyUsage, windows: fiveWindows.slice(0, 2) }, health: "live" }}
         compact
         busy={new Set()}
         onRefresh={() => undefined}
@@ -1281,6 +1281,23 @@ describe("AccountDashboardCard compact mode (L7)", () => {
       />,
     );
     expect(app.container.querySelector(".compact-card-metrics")?.classList.contains("is-two-col")).toBe(false);
+
+    app.rerender(
+      <AccountDashboardCard
+        pageId="compact-page"
+        account={{ ...account, id: "acct-compact-4", provider: "antigravity", lastUsage: { ...manyUsage, windows: fiveWindows.slice(0, 4) }, health: "live" }}
+        compact
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+    expect(app.container.querySelector(".compact-card-metrics")?.classList.contains("is-two-col")).toBe(true);
+    expect(app.container.querySelectorAll(".compact-card-metrics .compact-metric-item")).toHaveLength(4);
 
     app.rerender(
       <AccountDashboardCard

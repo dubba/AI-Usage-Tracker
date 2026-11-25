@@ -280,7 +280,7 @@ export function AccountDashboardCard({
             {plan ? <span className="account-plan-badge">{plan}</span> : null}
           </div>
 
-          <div className={`compact-card-metrics${windows.length > 4 ? " is-two-col" : ""}`}>
+          <div className={`compact-card-metrics${windows.length > 2 ? " is-two-col" : ""}`}>
             {windows.length ? windows.map((window) => {
               const expired = expiredWindows.has(window.id);
               const remaining = expired ? null : window.remainingPercent;
