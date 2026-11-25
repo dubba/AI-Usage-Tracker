@@ -29,7 +29,7 @@ export const MODAL_ACCENT_PRESETS: readonly AccentPreset[] = [
   { id: "sky", label: "Sky", hex: "#56b6c2" },
   { id: "lavender", label: "Lavender", hex: "#a78bfa" },
   { id: "forest", label: "Forest", hex: "#3f5940" },
-  { id: "burgundy", label: "Burgundy", hex: "#7c2d52" },
+  { id: "plum", label: "Plum", hex: "#7c2d52" },
   { id: "teal", label: "Teal", hex: "#0f766e" },
   { id: "purple", label: "Purple", hex: DEFAULT_ACCENT_COLOR },
   { id: "coral", label: "Coral", hex: "#f96b59" },
