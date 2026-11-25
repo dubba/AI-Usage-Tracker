@@ -172,6 +172,9 @@ describe("General", () => {
 
       // Select Emerald, then tap Emerald a second time to toggle Dark -> Light.
       const emerald = modalSwatches.find((el) => el.getAttribute("aria-label") === "Emerald")!;
+      // The app's own tooltip (name and hex), not the browser's title tooltip.
+      expect(emerald.getAttribute("data-tooltip")).toBe("Emerald · #0EA472");
+      expect(modal.querySelector("[title]")).toBeNull();
       click(emerald);
       expect(getAccentColor()).toBe("#0ea472");
       expect(trigger.textContent?.trim()).toBe("Emerald");

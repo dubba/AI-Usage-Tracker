@@ -314,7 +314,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
                 role="radio"
                 aria-checked={selected}
                 aria-label={preset.label}
-                title={preset.label}
+                data-tooltip={`${preset.label} · ${preset.hex.toUpperCase()}`}
                 className={`accent-color-tile${selected ? " is-selected" : ""}`}
                 style={{ backgroundColor: preset.hex }}
                 onClick={() => handlePresetClick(preset.hex)}
@@ -325,7 +325,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
             ref={customTileRef}
             type="button"
             aria-label="Custom color picker"
-            title="Pick a custom color"
+            data-tooltip={isCustomActive ? `Custom color · ${accentColor.toUpperCase()}` : "Pick a custom color"}
             className={`accent-color-tile accent-color-tile-wheel${isCustomActive ? " is-selected" : ""}`}
             style={
               isCustomActive
