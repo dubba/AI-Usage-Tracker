@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
-import { ChevronIcon } from "../../shared/ui/icons";
 import { SettingsToggleRow } from "./SettingsToggleRow";
 import { useAccentColor, useBottomNavLabels, useThemePreference } from "../../shared/hooks/usePreferences";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
@@ -100,7 +99,6 @@ export function GeneralSection() {
                 <span className="settings-accent-trigger-dot" style={{ backgroundColor: accentColor }} aria-hidden="true" />
                 <span>{activeAccentLabel}</span>
               </span>
-              <ChevronIcon className="custom-dropdown-chevron" />
             </button>
           </div>
         </div>
