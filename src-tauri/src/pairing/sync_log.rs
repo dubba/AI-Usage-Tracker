@@ -154,12 +154,20 @@ pub(crate) fn accounts(count: usize) -> String {
 }
 
 /// "4 KB" for a transfer file's size.
-pub(crate) fn size(bytes: usize) -> String {
-    if bytes < 1024 {
-        format!("{bytes} bytes")
-    } else {
-        format!("{} KB", bytes.div_ceil(1024))
-    }
+/// A transfer file's exact length and a short fingerprint of its bytes, which are ciphertext only.
+/// The sender's "made" line and the receiver's "opening" line carry it, so the two devices' logs
+/// show whether the file that arrived is the one that was made, byte for byte.
+pub(crate) fn file_fingerprint(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(bytes);
+    format!(
+        "{} bytes, id {:02x}{:02x}{:02x}{:02x}",
+        bytes.len(),
+        digest[0],
+        digest[1],
+        digest[2],
+        digest[3]
+    )
 }
 
 #[cfg(test)]
@@ -233,8 +241,8 @@ mod tests {
 
     #[test]
     fn sizes_and_counts() {
-        assert_eq!(size(500), "500 bytes");
-        assert_eq!(size(4000), "4 KB");
+        // SHA-256 of "abc" starts ba7816bf.
+        assert_eq!(file_fingerprint(b"abc"), "3 bytes, id ba7816bf");
         assert_eq!(accounts(1), "1 account");
         assert_eq!(accounts(0), "0 accounts");
     }

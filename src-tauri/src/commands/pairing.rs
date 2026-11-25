@@ -373,7 +373,7 @@ async fn keep_outgoing(app: &AppHandle, state: &AppState, bytes: Vec<u8>) -> Com
         .map_err(|_| file_error(FILE_SAVE_FAILED))?
         .join("transfer-files");
     let path = dir.join(TRANSFER_FILE_NAME);
-    let len = bytes.len();
+    let fingerprint = sync_log::file_fingerprint(&bytes);
     let written = tauri::async_runtime::spawn_blocking(move || {
         // Only the newest file is kept.
         let _ = std::fs::remove_dir_all(&dir);
@@ -391,8 +391,7 @@ async fn keep_outgoing(app: &AppHandle, state: &AppState, bytes: Vec<u8>) -> Com
     })?;
     *state.pairing_file_outgoing.lock() = Some(written);
     sync_log::note(&format!(
-        "file: made the transfer file ({}), ready to share or save",
-        sync_log::size(len)
+        "file: made the transfer file ({fingerprint}), ready to share or save"
     ));
     Ok(crate::platform::share_sheet::AVAILABLE)
 }
@@ -607,19 +606,18 @@ async fn open_received(
     bytes: Vec<u8>,
     source: &str,
 ) -> CommandResult<pairing::file_transfer::FilePreview> {
-    let len = bytes.len();
+    let fingerprint = sync_log::file_fingerprint(&bytes);
     let opened = pairing::file_transfer::open(state, bytes)
         .await
         .map_err(|error| {
             sync_log::failed_text(
-                &format!("file: opening a file {source} ({})", sync_log::size(len)),
+                &format!("file: opening a file {source} ({fingerprint})"),
                 &error,
             );
             file_error(error)
         })?;
     sync_log::note(&format!(
-        "file: opened a file {source} ({}), holding {}",
-        sync_log::size(len),
+        "file: opened a file {source} ({fingerprint}), holding {}",
         sync_log::accounts(opened.account_count)
     ));
     Ok(opened)
