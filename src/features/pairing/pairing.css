@@ -65,7 +65,9 @@
 }
 
 .modal-card.pairing-modal:has(.airgap-sender-view) .pairing-subtitle,
-.modal-card.pairing-modal:has(.airgap-sender-view) p.pairing-subtitle {
+.modal-card.pairing-modal:has(.airgap-sender-view) p.pairing-subtitle,
+.modal-card.pairing-modal:has(.pairing-file-send-view) .pairing-subtitle,
+.modal-card.pairing-modal:has(.pairing-file-send-view) p.pairing-subtitle {
   margin-bottom: 16px !important;
 }
 
@@ -393,7 +395,7 @@
   position: relative;
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   cursor: text;
 }
@@ -425,26 +427,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 56px;
-  border-radius: 12px;
+  width: 40px;
+  height: 52px;
+  border-radius: 10px;
   border: 1px solid rgb(var(--purple-accent-rgb) / 0.22);
-  background: var(--obsidian-surface-low);
+  background: rgb(var(--purple-accent-rgb) / 0.1);
   color: var(--text);
   font-family: inherit;
   font-variant-numeric: tabular-nums;
-  font-size: 1.6rem;
+  font-size: 1.75rem;
   font-weight: 700;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .pairing-code-tile.group-start {
   margin-left: 12px;
-}
-
-.pairing-code-tile.is-filled {
-  border-color: rgb(var(--purple-accent-rgb) / 0.5);
-  background: rgb(var(--purple-accent-rgb) / 0.08);
 }
 
 .pairing-code-tiles:focus-within .pairing-code-tile.is-active {
@@ -483,7 +480,7 @@
    only that gap: a group's first tile is placed past it, and the rest of the row follows. */
 .pairing-code-tiles.is-long {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 46px)) 4px repeat(3, minmax(0, 46px));
+  grid-template-columns: repeat(3, minmax(0, 44px)) 4px repeat(3, minmax(0, 44px));
   justify-content: center;
   gap: 8px 6px;
 }
@@ -509,10 +506,10 @@
 
 @media (max-width: 360px) {
   .pairing-code-tiles { gap: 6px; }
-  .pairing-code-tile { width: 38px; height: 50px; font-size: 1.4rem; }
+  .pairing-code-tile { width: 34px; height: 46px; font-size: 1.5rem; }
   .pairing-code-tile.group-start { margin-left: 8px; }
   .pairing-code-tiles.is-long { gap: 6px; }
-  .pairing-code-tiles.is-long .pairing-code-tile { height: 48px; }
+  .pairing-code-tiles.is-long .pairing-code-tile { height: 46px; }
   .pairing-code-tiles.is-long .pairing-code-tile.group-start { margin-left: 0; }
 }
 
@@ -1883,35 +1880,19 @@
   100% { transform: scale(3.2); opacity: 0; }
 }
 
-/* Use AirDrop / Use Quick Share: a full-width secondary action with its own icon. */
+/* Use AirDrop / Use Quick Share: primary action with its own icon. */
 .button.pairing-nearby-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 46px;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.45);
-  background: rgb(var(--purple-accent-rgb) / 0.12);
-  color: var(--obsidian-purple);
+  gap: 8px;
+  min-height: 44px;
   font-weight: 600;
-  transition: background 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
-}
-
-.button.pairing-nearby-btn:hover:not(:disabled) {
-  background: rgb(var(--purple-accent-rgb) / 0.2);
-  border-color: var(--obsidian-purple-strong);
-}
-
-.button.pairing-nearby-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
 }
 
 .button.pairing-nearby-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex: none;
 }
 
@@ -2031,12 +2012,138 @@
   flex-direction: column;
   align-items: stretch;
   width: 100%;
-  gap: 6px;
-  margin: 2px 0 10px;
+  gap: 10px;
+  margin: 0;
 }
 
 .pairing-file-view .pairing-file-links .pairing-other-ways {
   align-self: center;
+}
+
+.pairing-file-send-view {
+  padding: 0;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+}
+
+.pairing-send-steps {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--c-171616);
+  border: 1px solid var(--obsidian-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pairing-send-steps li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.pairing-send-steps li + li {
+  border-top: 1px solid var(--c-2d2c2c);
+}
+
+.pairing-send-step-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--obsidian-surface-container);
+  border: 1px solid var(--obsidian-border);
+  color: var(--obsidian-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pairing-send-step-mark svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.8;
+}
+
+.pairing-send-steps li.is-done .pairing-send-step-mark {
+  border-color: transparent;
+  background: var(--obsidian-green);
+  color: var(--c-000000);
+}
+
+.pairing-send-steps li.is-current .pairing-send-step-mark {
+  border-color: transparent;
+  background: var(--purple-fill);
+  color: var(--purple-on-fill);
+}
+
+.pairing-send-step-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pairing-send-step-title {
+  color: var(--obsidian-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pairing-send-step-desc {
+  color: var(--obsidian-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.pairing-why-card {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--c-171616);
+  border: 1px solid var(--obsidian-border);
+  border-radius: 10px;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.pairing-why-title {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--obsidian-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.modal-card.pairing-modal .pairing-why-card p.pairing-why-body {
+  margin: 0;
+  color: var(--obsidian-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.pairing-file-send-view .pairing-file-save-link {
+  align-self: center;
+  color: var(--obsidian-text);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--obsidian-purple);
+  font-size: 0.84rem;
+}
+
+.pairing-file-send-view .pairing-file-send-actions {
+  width: 100%;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

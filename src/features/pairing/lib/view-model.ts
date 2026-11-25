@@ -144,7 +144,7 @@ export function pairingHeader(input: {
         : "Point the camera at the QR code on the other device.";
   } else if (waiting && viewMode === "file-send") {
     title = `Sending by ${nearbyShareName()}`;
-    subtitle = "The accounts go as a small file, encrypted with the code.";
+    subtitle = "Your accounts are encrypted and ready to send.";
   } else if (waiting && viewMode === "file-receive") {
     title = `Receiving by ${nearbyShareName()}`;
     subtitle = "The accounts arrived as a small file, encrypted with the code.";

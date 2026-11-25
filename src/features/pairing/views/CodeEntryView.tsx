@@ -126,8 +126,8 @@ export function CodeEntryView({
                 />
               </div>
               <p className="pairing-code-help">
-                Not found within <strong>{fallback.secsLeft} {fallback.secsLeft === 1 ? "second" : "seconds"}</strong>?{" "}
-                It uses <strong>{nearby}</strong>.
+                If not found within <strong>{fallback.secsLeft} {fallback.secsLeft === 1 ? "second" : "seconds"}</strong>,{" "}
+                <strong>{nearby}</strong> will be used instead.
               </p>
             </>
           ) : (

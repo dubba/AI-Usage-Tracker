@@ -38,33 +38,27 @@ function TransferSteps({ steps, current }: { steps: ReactNode[]; current: number
  * Ways to send the file again: the share menu (where there is one) and a saved copy. An iPhone
  * saves from the share sheet (Save to Files), so it gets no separate Save.
  */
-function SendAgainLinks({
-  nearbyName,
-  canShare,
-  busy,
-  onShare,
-  onSave,
-}: {
-  nearbyName: string;
-  canShare: boolean;
-  busy: boolean;
-  onShare: () => void;
-  onSave: () => void;
-}) {
+type SendStep = { title: string; desc: string };
+
+function SendStepsCard({ steps, current }: { steps: SendStep[]; current: number }) {
   return (
-    <div className="pairing-file-links">
-      {canShare ? (
-        <button type="button" className="button pairing-nearby-btn" disabled={busy} onClick={onShare}>
-          <NearbyShareIcon />
-          <span>Send again by {nearbyName}</span>
-        </button>
-      ) : null}
-      {isIOS() ? null : (
-        <button type="button" className="pairing-other-ways" disabled={busy} onClick={onSave}>
-          Save to a file instead
-        </button>
-      )}
-    </div>
+    <ol className="pairing-send-steps">
+      {steps.map((step, index) => {
+        const done = index < current;
+        const active = index === current;
+        return (
+          <li key={step.title} className={done ? "is-done" : active ? "is-current" : ""}>
+            <span className="pairing-send-step-mark" aria-hidden="true">
+              {done ? <CheckIcon /> : index + 1}
+            </span>
+            <div className="pairing-send-step-copy">
+              <strong className="pairing-send-step-title">{step.title}</strong>
+              <span className="pairing-send-step-desc">{step.desc}</span>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -92,23 +86,35 @@ export function FileSendView({
   onBack: () => void;
   onDone: () => void;
 }) {
-  const steps = [
-    "Accounts encrypted with the code",
-    <>Choose the other device in {nearbyName}</>,
-    "Accept on the other device",
+  const steps: SendStep[] = [
+    { title: "Accounts encrypted", desc: "Protected with your link code" },
+    { title: "Select the other device", desc: `Choose it in the ${nearbyName} menu` },
+    { title: "Accept and confirm", desc: "Complete syncing on the other device" },
   ];
   if (state.made) {
     return (
-      <div className="pairing-panel-status pairing-file-view">
-        <TransferSteps steps={steps} current={1} />
-        <p>
-          {state.notOnNetwork
-            ? `The other device wasn't found on this Wi-Fi network (a VPN on either device can hide it), so the accounts go by ${nearbyName}. `
-            : ""}
-          Once the other device accepts the file and confirms, the accounts are added there.
-        </p>
-        <SendAgainLinks nearbyName={nearbyName} canShare={canShare} busy={busy} onShare={onShare} onSave={onSave} />
-        <div className="pairing-nav-row is-single">
+      <div className="pairing-panel-status pairing-file-view pairing-file-send-view">
+        <SendStepsCard steps={steps} current={1} />
+        {state.notOnNetwork ? (
+          <div className="pairing-why-card">
+            <strong className="pairing-why-title">Why {nearbyName}?</strong>
+            <p className="pairing-why-body">
+              The other device wasn&apos;t found on this Wi-Fi network. A VPN may also prevent local discovery. {nearbyName} lets you sync instead.
+            </p>
+          </div>
+        ) : null}
+        {isIOS() ? null : (
+          <button type="button" className="pairing-other-ways pairing-file-save-link" disabled={busy} onClick={onSave}>
+            Save to a file instead
+          </button>
+        )}
+        <div className={`pairing-nav-row pairing-file-send-actions${canShare ? "" : " is-single"}`}>
+          {canShare ? (
+            <button type="button" className="button primary pairing-nearby-btn" disabled={busy} onClick={onShare}>
+              <NearbyShareIcon />
+              <span>Send again via {nearbyName}</span>
+            </button>
+          ) : null}
           <button type="button" className="button settings-update-action button-green" onClick={onDone}>
             Done
           </button>
@@ -117,8 +123,8 @@ export function FileSendView({
     );
   }
   return (
-    <div className="pairing-panel-status pairing-file-view">
-      <TransferSteps steps={steps} current={0} />
+    <div className="pairing-panel-status pairing-file-view pairing-file-send-view">
+      <SendStepsCard steps={steps} current={0} />
       {busy ? (
         <SearchingRow>Encrypting the accounts with the code…</SearchingRow>
       ) : (

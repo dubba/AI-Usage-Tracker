@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (33 changes)
+## Unreleased (35 changes)
 
 ### Security (1)
 
@@ -11,7 +11,10 @@
 - Settings > Sync Options (under Advanced) has an "Other Ways to Connect" switch. It is off by default, which hides the "Other ways to connect" link in Sync Devices; turn it on to reach the 6-digit code for older app versions and the QR codes. While it is off, the code field ignores digits, so a stray one doesn't switch it to a 6-digit code. The choice is kept on each device.
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens. Its text is a soft light gray instead of bright white, so it is easier on the eyes; text on colored buttons stays white.
 
-### Improved (23)
+### Improved (25)
+
+- Sync Devices file-sending screens ("Sending by AirDrop" and "Sending by Quick Share") now display a three-step progress card, a "Why AirDrop?" / "Why Quick Share?" card, and side-by-side "Send again via ..." and "Done" buttons.
+- In Sync Devices, the Enter Link Code letter boxes now match the host link code tiles, and the search countdown reads "If not found within ... seconds, AirDrop / Quick Share will be used instead."
 
 - Sync Devices screens and discoverability prompts (Mac AirDrop popup with an amber instruction box, iPhone AirDrop note, Android Quick Share note, and link code screens) now use clearer, consistent wording.
 - On Android, the Sync Devices "Allow File Access" dialog now explains why access is needed and that only Sync Devices files are opened inside a two-part card, with matching modal title and subtitle sizing.

@@ -598,8 +598,17 @@ describe("transfer by file", () => {
     expect(title()).toBe("Sending by AirDrop");
     // On a phone the share sheet covers the lower half: this dialog sits at the top instead.
     expect(document.querySelector(".pairing-modal")?.className).toContain("view-file-send");
-    expect(text()).toContain("Choose the other device in AirDrop");
-    expect(text()).toContain("Once the other device accepts the file and confirms, the accounts are added there.");
+    expect(text()).toContain("Your accounts are encrypted and ready to send.");
+    expect(text()).toContain("Accounts encrypted");
+    expect(text()).toContain("Protected with your link code");
+    expect(text()).toContain("Select the other device");
+    expect(text()).toContain("Choose it in the AirDrop menu");
+    expect(text()).toContain("Accept and confirm");
+    expect(text()).toContain("Complete syncing on the other device");
+    expect(text()).toContain("Why AirDrop?");
+    expect(text()).toContain(
+      "The other device wasn't found on this Wi-Fi network. A VPN may also prevent local discovery. AirDrop lets you sync instead.",
+    );
     // Nothing comes back: the sender waits for no file.
     expect(api.watchForFile).not.toHaveBeenCalled();
     await press("Done");
@@ -619,7 +628,7 @@ describe("transfer by file", () => {
 
   it("sends the file again or saves a copy", async () => {
     await sendWithCode();
-    await press("Send again by AirDrop");
+    await press("Send again via AirDrop");
     expect(api.shareFile).toHaveBeenCalledTimes(2);
     await press("Save to a file instead");
     expect(api.saveFile).toHaveBeenCalledTimes(1);
@@ -631,7 +640,7 @@ describe("transfer by file", () => {
     await sendWithCode();
     expect(api.saveFile).toHaveBeenCalledTimes(1);
     expect(api.shareFile).not.toHaveBeenCalled();
-    expect(text()).not.toContain("Send again by");
+    expect(text()).not.toContain("Send again via");
     expect(text()).toContain("Save to a file instead");
   });
 
@@ -969,7 +978,7 @@ describe("transfer by file", () => {
     typeInto(codeInput(), CODE);
     await settle();
     expect(api.shareFile).toHaveBeenCalledTimes(1);
-    expect(text()).toContain("Send again by AirDrop");
+    expect(text()).toContain("Send again via AirDrop");
     // Save to Files is in the share sheet.
     expect(text()).not.toContain("Save to a file");
   });
@@ -1017,7 +1026,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await searchForCode();
     expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
     expect(text()).toContain("Looking for the other device on Wi-Fi…");
-    expect(text()).toContain("Not found within 10 seconds? It uses Quick Share.");
+    expect(text()).toContain("If not found within 10 seconds, Quick Share will be used instead.");
     expect(Array.from(document.querySelectorAll("#pairing-code-help strong"), (b) => b.textContent)).toEqual([
       "10 seconds",
       "Quick Share",
@@ -1035,10 +1044,11 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     expect(api.shareFile).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".modal-error")).toBeNull();
     expect(title()).toBe("Sending by Quick Share");
+    expect(text()).toContain("Why Quick Share?");
     expect(text()).toContain(
-      "The other device wasn't found on this Wi-Fi network (a VPN on either device can hide it), so the accounts go by Quick Share.",
+      "The other device wasn't found on this Wi-Fi network. A VPN may also prevent local discovery. Quick Share lets you sync instead.",
     );
-    expect(text()).toContain("Send again by Quick Share");
+    expect(text()).toContain("Send again via Quick Share");
   });
 
   it("still connects over Wi-Fi to a device found late in the search", async () => {
@@ -1060,12 +1070,12 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await press("Send Accounts from This Device");
     typeInto(codeInput(), CODE);
     await settle();
-    expect(text()).toContain("within 10 seconds?");
+    expect(text()).toContain("within 10 seconds,");
   });
 
   it("keeps an older version's six digits to Wi-Fi", async () => {
     await searchForCode("123456");
-    expect(text()).not.toContain("It uses Quick Share");
+    expect(text()).not.toContain("Quick Share will be used instead");
     await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
     expect(text()).toContain(NOT_FOUND);
@@ -1086,14 +1096,14 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("AirDrop");
     typeInto(codeInput(), CODE);
     await settle();
-    expect(text()).toContain("It uses AirDrop.");
+    expect(text()).toContain("AirDrop will be used instead.");
     expect(Array.from(document.querySelectorAll("#pairing-code-help strong"), (b) => b.textContent)).toEqual([
       "10 seconds",
       "AirDrop",
     ]);
     await notFound();
     expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
-    expect(text()).toContain("Choose the other device in AirDrop");
+    expect(text()).toContain("Choose it in the AirDrop menu");
   });
 
   it("names Quick Share in bold before typing on Android", async () => {
