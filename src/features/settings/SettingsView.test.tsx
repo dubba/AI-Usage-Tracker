@@ -146,7 +146,7 @@ describe("General", () => {
     expect(settings.toggleAutostart).toHaveBeenCalledTimes(1);
   });
 
-  it("opens a custom Theme Accent Color modal without duplicate inline swatches and swaps the grid for the Custom Color view", () => {
+  it("opens a custom Accent Color modal without duplicate inline swatches and swaps the grid for the Custom Color view", () => {
     try {
       setAccentColor(DEFAULT_ACCENT_COLOR);
       setThemePreference("dark");
@@ -158,12 +158,12 @@ describe("General", () => {
       const trigger = document.querySelector<HTMLButtonElement>("#setting-accent-color")!;
       expect(trigger.textContent?.trim()).toBe("Purple");
 
-      // Open the custom "Pick a theme color" modal.
+      // Open the custom "Pick accent color" modal.
       click(trigger);
       expect(document.querySelector(".modal-backdrop.accent-color-modal-backdrop")).not.toBeNull();
       const modal = document.querySelector(".accent-color-modal")!;
       expect(modal).not.toBeNull();
-      expect(modal.textContent).toContain("Pick a theme color");
+      expect(modal.textContent).toContain("Pick accent color");
       expect(modal.textContent).toContain("Tap the color twice to toggle between Light and Dark mode");
       expect(modal.querySelector(".accent-custom-view")).toBeNull();
 

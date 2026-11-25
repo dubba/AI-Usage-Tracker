@@ -22,7 +22,7 @@ export const ACCENT_PRESETS: readonly AccentPreset[] = [
   { id: "amber", label: "Amber", hex: "#b45309" },
 ] as const;
 
-/** Extended 11-color grid shown inside the custom "Pick a theme color" modal (plus the custom + wheel). */
+/** Extended 11-color grid shown inside the custom "Pick accent color" modal (plus the custom + wheel). */
 export const MODAL_ACCENT_PRESETS: readonly AccentPreset[] = [
   { id: "emerald", label: "Emerald", hex: "#0ea472" },
   { id: "blue", label: "Blue", hex: "#2563eb" },

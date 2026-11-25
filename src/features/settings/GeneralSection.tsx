@@ -82,8 +82,8 @@ export function GeneralSection() {
         </div>
         <div className="settings-row">
           <div>
-            <strong id="setting-accent-color-label">Theme Accent Color</strong>
-            <small>Customize the app's accent color.</small>
+            <strong id="setting-accent-color-label">Accent Color</strong>
+            <small>Customize app's accent color.</small>
           </div>
           <div className="settings-account-refresh settings-appearance-dropdown">
             {/* In a closed dropdown container, so it gets the dropdowns' border, fill and label font

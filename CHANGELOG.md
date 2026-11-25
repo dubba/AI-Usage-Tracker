@@ -4,7 +4,7 @@
 
 ### Added (2)
 
-- Settings > General now includes a **Theme Accent Color** option with a custom "Pick a theme color" modal (11 preset colors, tap a selected color again to toggle Light and Dark mode, and an expandable **Custom Color** picker with a color square, hue slider, hex input, and Reset). Your chosen color applies across the app and desktop title bar and stays saved across restarts and synced devices.
+- Settings > General now includes an **Accent Color** option with a custom "Pick accent color" dialog (11 preset colors, tap a selected color again to toggle Light and Dark mode, and a **Custom Color** view with a color square, hue slider, hex input, and Reset). Your chosen color applies across the app and desktop title bar and stays saved across restarts and synced devices.
 - On iPhone and iPad, Sync Devices now asks once for Downloads folder access so AirDrop transfer files saved to Files are picked up automatically when you return to the app, and also offers an "Open File from Files" fallback button on the link code screen.
 
 ### Fixed (2)

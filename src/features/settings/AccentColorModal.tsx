@@ -40,7 +40,7 @@ function systemPrefersLight(): boolean {
 }
 
 /**
- * Custom in-app "Pick a theme color" dialog:
+ * Custom in-app "Pick accent color" dialog:
  * - Always shows the 4 × 3 circular swatch grid (11 curated presets + custom `+` circle).
  * - Tapping an already-selected preset, or the circle on the custom color square, toggles between
  *   Light and Dark mode. Dragging the circle picks a color.
@@ -210,7 +210,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
       onClose={requestClose}
     >
       <h2 id={titleId} className="accent-color-modal-title">
-        Pick a theme color
+        Pick accent color
       </h2>
       <p id={subtitleId} className="accent-color-modal-subtitle">
         Tap the color twice to toggle between Light and Dark mode

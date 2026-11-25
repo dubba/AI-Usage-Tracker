@@ -174,7 +174,7 @@
     margin: 0;
   }
 
-  /* ---- Theme Accent Color row trigger ---- */
+  /* ---- Accent Color row trigger ---- */
   /* Centered, so a short color name leaves the same gap on both sides. */
   .settings-accent-trigger {
     width: 100%;
@@ -196,7 +196,7 @@
     box-shadow: inset 0 0 0 1px var(--obsidian-border);
   }
 
-  /* ---- Custom "Pick a theme color" modal contents ---- */
+  /* ---- Custom "Pick accent color" modal contents ---- */
   .accent-color-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
