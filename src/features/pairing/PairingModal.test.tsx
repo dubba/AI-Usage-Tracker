@@ -1019,7 +1019,11 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     await searchForCode();
     expect(api.startClientByCode).toHaveBeenCalledWith(CODE, true);
     expect(text()).toContain("Looking for the other device on Wi-Fi…");
-    expect(text()).toContain("Not found within 10 seconds? Quick Share takes over by itself.");
+    expect(text()).toContain("Not found within 10 seconds? It uses Quick Share.");
+    expect(Array.from(document.querySelectorAll("#pairing-code-help strong"), (b) => b.textContent)).toEqual([
+      "10 seconds",
+      "Quick Share",
+    ]);
     // No button: Wi-Fi first, and the switch is automatic.
     expect(buttons().some((b) => b.textContent?.includes("Use Quick Share"))).toBe(false);
     await searchSeconds(3);
@@ -1063,7 +1067,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
 
   it("keeps an older version's six digits to Wi-Fi", async () => {
     await searchForCode("123456");
-    expect(text()).not.toContain("takes over by itself");
+    expect(text()).not.toContain("It uses Quick Share");
     await notFound();
     expect(api.sendFile).not.toHaveBeenCalled();
     expect(text()).toContain(NOT_FOUND);
@@ -1078,11 +1082,29 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
 
   it("names AirDrop on iPhone", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
-    await searchForCode();
-    expect(text()).toContain("AirDrop takes over by itself");
+    render();
+    await press("Send Accounts from This Device");
+    expect(text()).toContain("Connects over Wi-Fi or a hotspot. If the other device isn't on the same network, it uses AirDrop.");
+    expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("AirDrop");
+    typeInto(codeInput(), CODE);
+    await settle();
+    expect(text()).toContain("It uses AirDrop.");
+    expect(Array.from(document.querySelectorAll("#pairing-code-help strong"), (b) => b.textContent)).toEqual([
+      "10 seconds",
+      "AirDrop",
+    ]);
     await notFound();
     expect(api.sendFile).toHaveBeenCalledWith(CODE, true, { marker: true });
     expect(text()).toContain("Choose the other device in AirDrop");
+  });
+
+  it("names Quick Share in bold before typing on Android", async () => {
+    render();
+    await press("Send Accounts from This Device");
+    expect(text()).toContain(
+      "Connects over Wi-Fi or a hotspot. If the other device isn't on the same network, it uses Quick Share.",
+    );
+    expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("Quick Share");
   });
 
   it("sends by itself on a Mac and on Windows too", async () => {

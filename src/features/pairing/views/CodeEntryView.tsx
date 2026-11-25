@@ -127,7 +127,7 @@ export function CodeEntryView({
               </div>
               <p className="pairing-code-help">
                 Not found within <strong>{fallback.secsLeft} {fallback.secsLeft === 1 ? "second" : "seconds"}</strong>?{" "}
-                {nearby} takes over by itself.
+                It uses <strong>{nearby}</strong>.
               </p>
             </>
           ) : (
@@ -137,11 +137,16 @@ export function CodeEntryView({
           <SearchingRow>Looking for the other device on Wi-Fi…</SearchingRow>
         ) : (
           <p className="pairing-code-help">
-            {legacy
-              ? "A 6-digit code from an older version connects over Wi-Fi only."
-              : nearby
-                ? `Connects over Wi-Fi or a hotspot. If the other device isn't on the same network, ${nearby} takes over by itself.`
-                : "Both devices must be connected to the same Wi-Fi network."}
+            {legacy ? (
+              "A 6-digit code from an older version connects over Wi-Fi only."
+            ) : nearby ? (
+              <>
+                Connects over Wi-Fi or a hotspot. If the other device isn't on the same network, it uses{" "}
+                <strong>{nearby}</strong>.
+              </>
+            ) : (
+              "Both devices must be connected to the same Wi-Fi network."
+            )}
           </p>
         )}
       </div>

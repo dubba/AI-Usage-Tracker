@@ -134,6 +134,13 @@ describe("Button hover and active state invariants", () => {
     expect(PAIRING_CSS).toMatch(/@media\s*\(max-width:\s*480px\)\s*\{[\s\S]*?\.modal-card\.pairing-modal\s+h2[^{]*\{[^}]*font-size:\s*1\.2rem\s*!important/);
   });
 
+  it("shortens spacing instead of shrinking link code tiles when the mobile keyboard is open", () => {
+    expect(PAIRING_CSS).not.toMatch(/keyboard-(?:open|active)[^{]*\.pairing-code-tile/);
+    expect(PAIRING_CSS).toMatch(/\.modal-card\.pairing-modal\.view-code-entry\.keyboard-open\s+\.pairing-code-entry-view\s*\{\s*gap:\s*12px;/);
+    expect(PAIRING_CSS).toMatch(/\.modal-card\.pairing-modal\.view-code-entry\.keyboard-open\s+p\.pairing-subtitle\s*\{\s*margin:\s*0 0 12px 0;/);
+    expect(PAIRING_CSS).toMatch(/\.modal-card\.pairing-modal\.view-code-entry\.keyboard-open\s+\.pairing-step-dots\s*\{\s*margin:\s*8px auto;/);
+  });
+
   it("styles X buttons on mobile to match their desktop red hover appearance", () => {
     expect(MODAL_CLOSE_CSS).toMatch(
       /@media\s*\(max-width:\s*860px\),\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\.ui-modal-close:not\(:disabled\)\s*\{[^}]*color:\s*var\(--white\);[^}]*border-color:\s*var\(--danger-line-hover\);[^}]*background:\s*var\(--danger-fill-hover\);/,

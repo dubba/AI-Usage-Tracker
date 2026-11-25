@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (27 changes)
+## Unreleased (29 changes)
 
 ### Security (1)
 
@@ -11,7 +11,10 @@
 - Settings > Sync Options (under Advanced) has an "Other Ways to Connect" switch. It is off by default, which hides the "Other ways to connect" link in Sync Devices; turn it on to reach the 6-digit code for older app versions and the QR codes. While it is off, the code field ignores digits, so a stray one doesn't switch it to a 6-digit code. The choice is kept on each device.
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens. Its text is a soft light gray instead of bright white, so it is easier on the eyes; text on colored buttons stays white.
 
-### Improved (18)
+### Improved (20)
+
+- On phones, entering a link code with the on-screen keyboard open now keeps the letter tiles at full size and shortens the vertical gaps between elements instead.
+- In Sync Devices, the Enter Link Code screen now notes that if the other device isn't on the same network "it uses Quick Share" (or AirDrop on Apple devices), both before typing and during the 10-second countdown, with the method name in bold.
 
 - On a Mac, Sync Devices transfer files now show the app's icon and the kind "AI Usage Tracker transfer file" in the share menu and in Finder, instead of a generic icon.
 - In Settings, the Appearance description now reads "Choose your preferred app theme."

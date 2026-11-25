@@ -31,7 +31,7 @@
 .modal-card.pairing-modal.view-code-entry p.pairing-subtitle,
 .modal-card.pairing-modal:has(.pairing-code-entry-view) .pairing-subtitle,
 .modal-card.pairing-modal:has(.pairing-code-entry-view) p.pairing-subtitle {
-  margin: 0 0 24px 0 !important;
+  margin: 0 0 24px 0;
 }
 
 .pairing-body {
@@ -553,9 +553,10 @@
   color: var(--obsidian-muted);
 }
 
-/* The countdown ("within 8 seconds") stands out from the muted help text. */
+/* The countdown ("within 8 seconds") and "Quick Share" / "AirDrop" stand out from the muted help text. */
 .modal-card.pairing-modal .pairing-code-help strong {
   color: var(--text);
+  font-weight: 700;
 }
 
 /* The way from a code screen to the other ways to connect: a text link, not a third button. */
@@ -1086,7 +1087,7 @@
     margin-top: auto !important;
     margin-bottom: 0 !important;
     transform: translateY(0) !important;
-    padding: 16px 14px 18px !important;
+    padding: 14px 14px 16px !important;
     overflow: visible !important;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
@@ -1268,24 +1269,41 @@
     gap: 8px !important;
   }
 
-  /* Compact code entry elements so Back and Connect buttons remain comfortably visible above keyboard */
+  /* Shorten the gaps between elements when the keyboard pushes the modal up, keeping the 12 letter
+     tiles at their full size while Back and Connect stay comfortably visible above the keyboard. */
+  .modal-card.pairing-modal.keyboard-open h2,
+  html.keyboard-active .modal-card.pairing-modal h2,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open h2 {
+    margin: 4px 0 4px;
+  }
+
+  .modal-card.pairing-modal.keyboard-open .pairing-step-dots,
+  html.keyboard-active .modal-card.pairing-modal .pairing-step-dots,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-step-dots {
+    margin: 8px auto;
+  }
+
+  .modal-card.pairing-modal.keyboard-open .pairing-subtitle,
+  .modal-card.pairing-modal.keyboard-open p.pairing-subtitle,
+  .modal-card.pairing-modal.keyboard-open:has(.pairing-code-entry-view) p.pairing-subtitle,
+  html.keyboard-active .modal-card.pairing-modal .pairing-subtitle,
+  html.keyboard-active .modal-card.pairing-modal p.pairing-subtitle,
+  html.keyboard-active .modal-card.pairing-modal:has(.pairing-code-entry-view) p.pairing-subtitle,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-subtitle,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open p.pairing-subtitle {
+    margin: 0 0 12px 0;
+  }
+
   .modal-card.pairing-modal.keyboard-open .pairing-code-entry-view,
   html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-view,
   .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-view {
-    gap: 24px !important;
+    gap: 12px;
   }
 
-  .modal-card.pairing-modal.keyboard-open .pairing-code-tile,
-  html.keyboard-active .modal-card.pairing-modal .pairing-code-tile,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-tile {
-    height: 48px;
-    font-size: 1.4rem;
-  }
-
-  /* Ten letters take two rows: shorter tiles leave room above the keyboard. */
-  .modal-card.pairing-modal.keyboard-open .pairing-code-tiles.is-long .pairing-code-tile,
-  html.keyboard-active .modal-card.pairing-modal .pairing-code-tiles.is-long .pairing-code-tile {
-    height: 42px;
+  .modal-card.pairing-modal.keyboard-open .pairing-code-status,
+  html.keyboard-active .modal-card.pairing-modal .pairing-code-status,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-status {
+    min-height: 0;
   }
 
   .modal-card.pairing-modal.keyboard-open .pairing-code-help,
