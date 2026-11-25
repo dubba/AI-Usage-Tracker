@@ -15,7 +15,7 @@
 ### Fixed (4)
 
 - Sync Devices over Wi-Fi now works when an Android phone shows the code and an iPhone or Mac enters it. The iPhone could see the Android but never got its address back; the Android now puts its address in the name it announces, so the other device connects without that lookup. Both devices need this version.
-- After syncing, accounts on the receiving device are refreshed right away. They used to show the sending device's last results, including any errors it had at the time (such as "the connection could not be made" if it was offline), until the next refresh.
+- After syncing, accounts on the receiving device are refreshed right away. They used to show the sending device's last results, including any errors it had at the time (such as "the connection could not be made" if it was offline), until the next refresh. Accounts are also checked again as soon as the device is back online (for example after turning Wi-Fi back on following an AirDrop or Quick Share transfer), instead of staying "Out of date" until the next scheduled refresh.
 
 - On Android, Sync Devices now advertises link-code sessions through Android's native `NsdManager` and Apple devices prefer IPv4 during Bonjour address lookup, fixing iPhone-to-Android Wi-Fi discovery.
 - On iPhone and iPad, Sync Devices transfer files now support opening in place so tapping a `.aiutpair` file in Files hands it straight to the app.

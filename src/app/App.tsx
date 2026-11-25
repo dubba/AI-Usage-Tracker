@@ -165,6 +165,15 @@ export default function App() {
       .catch((cause) => reportError("open-link", cause, "Couldn't open the link"));
   }, [clearError, reportError]);
 
+  // A phone that was offline (Wi-Fi off to send by AirDrop or Quick Share, no cellular service)
+  // shows every account as out of date with "the connection could not be made". Check again as
+  // soon as it is back online instead of waiting for the next scheduled refresh.
+  useEffect(() => {
+    const onOnline = () => void refreshAll();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [refreshAll]);
+
   const handlePairingCompleted = useCallback(async () => {
     await load();
     await reloadFromBackend();
