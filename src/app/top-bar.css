@@ -79,7 +79,7 @@
   .top-bar-nav-item.is-active {
     border-color: var(--purple-fill);
     background: var(--purple-fill);
-    color: var(--white);
+    color: var(--purple-on-fill);
   }
 
   /* The Left / Used switch (on the Accounts page, AccountsView.tsx) and the Usage page's 7D / 30D
@@ -179,7 +179,7 @@
     border: 1px solid var(--purple-fill);
     border-radius: 10px;
     background: var(--purple-fill);
-    color: var(--white);
+    color: var(--purple-on-fill);
     font-size: 14px;
     font-weight: 650;
     white-space: nowrap;

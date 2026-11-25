@@ -1791,8 +1791,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .button.primary:focus-visible,
 :root[data-theme="light"] .button.primary:active:not(:disabled),
 :root[data-theme="light"] .button.primary svg,
-:root[data-theme="light"] .button.primary span,
-:root[data-theme="light"] .provider-window-toggle button.active {
+:root[data-theme="light"] .button.primary span {
   color: var(--white) !important;
 }
 
@@ -2000,17 +1999,17 @@ html::after {
 }
 
 /* The rename pen and group edit pen use the same solid purple fill and white icon as the primary
-   buttons, in both themes. */
+   buttons, in both themes (a dark icon on a light accent: --purple-on-fill). */
 :root .account-name-edit,
 :root .edit-bucket-title-btn {
-  color: var(--white) !important;
+  color: var(--purple-on-fill) !important;
   border-color: var(--purple-fill) !important;
   background: var(--purple-fill) !important;
 }
 
 :root .account-name-edit svg,
 :root .edit-bucket-title-btn svg {
-  color: var(--white) !important;
+  color: var(--purple-on-fill) !important;
 }
 
 :root .account-name-edit:hover:not(:disabled),
@@ -2019,7 +2018,7 @@ html::after {
 :root .edit-bucket-title-btn:hover:not(:disabled),
 :root .edit-bucket-title-btn:focus-visible,
 :root .edit-bucket-title-btn:active:not(:disabled) {
-  color: var(--white) !important;
+  color: var(--purple-on-fill) !important;
   border-color: var(--purple-fill-line) !important;
   background: var(--purple-fill-hover) !important;
   box-shadow: none !important;
@@ -2031,7 +2030,7 @@ html::after {
 :root .edit-bucket-title-btn:hover:not(:disabled) svg,
 :root .edit-bucket-title-btn:focus-visible svg,
 :root .edit-bucket-title-btn:active:not(:disabled) svg {
-  color: var(--white) !important;
+  color: var(--purple-on-fill) !important;
 }
 
 /* The group delete trashcan button uses a solid red fill and white icon, matching
@@ -2097,7 +2096,8 @@ html::after {
 
 /* Outlined buttons on the Settings page (View, Refresh, Clear, Copy) have off-white labels (#f7f4ff)
    in dark and turn dark in the light theme. Buttons on a colored fill (Sync Devices, Check Now, Delete)
-   use pure white (#ffffff), matching modal primary action buttons. */
+   use pure white (#ffffff), matching modal primary action buttons; a primary button on a light accent
+   fill sets --fill-label to a dark label (obsidian-dashboard.css). */
 :root body .settings-style-content .button.ghost:not(.bucket-delete-button),
 :root body .settings-style-content .button.ghost:not(.bucket-delete-button) :is(span, svg) {
   color: var(--c-f7f4ff) !important;
@@ -2105,5 +2105,5 @@ html::after {
 
 :root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button),
 :root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button) :is(span, svg) {
-  color: var(--white) !important;
+  color: var(--fill-label, var(--white)) !important;
 }

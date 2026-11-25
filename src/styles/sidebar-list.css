@@ -83,7 +83,7 @@
 .sidebar-section-button.is-primary {
   border-color: var(--purple-fill);
   background: var(--purple-fill);
-  color: var(--white) !important;
+  color: var(--purple-on-fill) !important;
 }
 
 .sidebar-section-button.is-primary svg {
@@ -592,7 +592,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-summary-row .s
   .provider-summary-row .sidebar-group-edit-btn:hover:not(:disabled) {
     border-color: var(--purple-fill);
     background: var(--purple-fill);
-    color: var(--white);
+    color: var(--purple-on-fill);
   }
 }
 
@@ -600,7 +600,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-summary-row .s
 .provider-summary-row .sidebar-group-edit-btn:active:not(:disabled) {
   border-color: var(--purple-fill);
   background: var(--purple-fill);
-  color: var(--white);
+  color: var(--purple-on-fill);
 }
 
 .sidebar-group-empty {

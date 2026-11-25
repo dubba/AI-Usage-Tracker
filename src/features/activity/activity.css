@@ -1315,7 +1315,7 @@
   .activity-pager-button:hover:not(:disabled) {
     border-color: var(--purple-fill);
     background: var(--purple-fill);
-    color: var(--white);
+    color: var(--purple-on-fill);
   }
 
   .activity-chart-stat {

@@ -872,7 +872,7 @@
 /* The plan badge (Pro/$200, Free, ...): the status bar purple, white text like the percentage. */
 .account-card-header-meta .account-plan-badge {
   background: var(--purple-fill);
-  color: #f5f1ef;
+  color: var(--purple-on-fill);
 }
 
 .account-card-provider-icon {
@@ -1062,7 +1062,7 @@
 .provider-account-card .limit-reset-use.button:hover:not(:disabled) {
   background: var(--purple-fill);
   border-color: var(--purple-fill);
-  color: var(--white);
+  color: var(--purple-on-fill);
 }
 
 .provider-account-card .limit-reset-use.button:disabled {
@@ -1213,13 +1213,13 @@
   .provider-account-card.desktop-card .account-name-edit:focus-visible {
     border-color: var(--purple-fill) !important;
     background: var(--purple-fill) !important;
-    color: var(--white) !important;
+    color: var(--purple-on-fill) !important;
   }
 
   .provider-account-card.desktop-card .account-name-edit:active:not(:disabled) {
     border-color: var(--purple-fill) !important;
     background: var(--purple-fill) !important;
-    color: var(--white) !important;
+    color: var(--purple-on-fill) !important;
   }
 
   .provider-account-card.desktop-card .account-card-email {
@@ -1389,7 +1389,7 @@
   .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action.more-action:not(:disabled):active {
     border-color: var(--purple-fill);
     background: var(--purple-fill);
-    color: var(--white);
+    color: var(--purple-on-fill);
   }
 
   /* The menu's chevron points down, and up while the menu is open, as on the phone layout. */
@@ -1511,13 +1511,13 @@
 :root .dashboard-header .edit-bucket-title-btn:focus-visible {
   border-color: var(--purple-fill) !important;
   background: var(--purple-fill) !important;
-  color: var(--white) !important;
+  color: var(--purple-on-fill) !important;
 }
 
 :root .dashboard-header .edit-bucket-title-btn:active:not(:disabled) {
   border-color: var(--purple-fill) !important;
   background: var(--purple-fill) !important;
-  color: var(--white) !important;
+  color: var(--purple-on-fill) !important;
 }
 
 /* ==========================================================================
@@ -1599,7 +1599,7 @@
   :root .provider-account-card .account-name-edit:active:not(:disabled) {
     border-color: var(--purple-fill) !important;
     background: var(--purple-fill) !important;
-    color: var(--white) !important;
+    color: var(--purple-on-fill) !important;
   }
 
   /* The plan chip: the desktop pill (same in expanded and compact cards). */
@@ -1746,7 +1746,7 @@
   .provider-account-card .limit-reset-use.button {
     background: var(--purple-fill);
     border-color: var(--purple-fill);
-    color: var(--white);
+    color: var(--purple-on-fill);
   }
 
   /* Renaming on the phone. The plan and status pills sit beside the name and would squeeze the

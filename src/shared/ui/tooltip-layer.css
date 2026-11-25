@@ -16,7 +16,7 @@
     border: 1px solid var(--purple-fill);
     border-radius: 6px;
     background: var(--purple-fill);
-    color: var(--white);
+    color: var(--purple-on-fill);
     font-family: inherit;
     font-size: 11px;
     font-weight: 600;

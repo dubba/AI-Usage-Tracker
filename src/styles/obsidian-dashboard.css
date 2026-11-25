@@ -201,7 +201,7 @@ body {
 
 /* Same solid purple fill and white label as the + Account / + Group primary buttons. */
 .provider-window-toggle button.active {
-  color: var(--white);
+  color: var(--purple-on-fill);
   background: var(--purple-fill);
 }
 
@@ -1930,7 +1930,9 @@ button.account-card-provider-icon:active {
 /* Primary buttons: the solid purple fill with a white label that light uses, in dark too
    (the shared dark primary above is a pale lavender with dark text). */
 :root:not([data-theme="light"]) .button.primary {
-  color: var(--white);
+  /* Settings forces its filled buttons' labels with this (ui-refinements.css). */
+  --fill-label: var(--purple-on-fill);
+  color: var(--purple-on-fill);
   background: var(--purple-fill);
   border-color: var(--purple-fill);
 }
@@ -1938,7 +1940,7 @@ button.account-card-provider-icon:active {
 :root:not([data-theme="light"]) .button.primary:hover:not(:disabled),
 :root:not([data-theme="light"]) .button.primary:focus-visible,
 :root:not([data-theme="light"]) .button.primary:active:not(:disabled) {
-  color: var(--white);
+  color: var(--purple-on-fill);
   background: var(--purple-fill-hover) !important;
   border-color: var(--purple-fill-line) !important;
 }
@@ -3679,7 +3681,7 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   .provider-window-toggle button.active:focus,
   .provider-window-toggle button.active:focus-visible {
     background: var(--purple-fill) !important;
-    color: var(--white) !important;
+    color: var(--purple-on-fill) !important;
   }
 
   .provider-window-toggle button:not(.active),

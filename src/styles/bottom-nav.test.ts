@@ -47,8 +47,8 @@ describe("bottom bar colors", () => {
     }
   });
 
-  it("marks the current page in the desktop top bar with the purple fill and white label", () => {
-    expect(TOP_BAR).toMatch(/\.top-bar-nav-item\.is-active \{\s*border-color: var\(--purple-fill\);\s*background: var\(--purple-fill\);\s*color: var\(--white\);/);
+  it("marks the current page in the desktop top bar with the purple fill and its on-fill label", () => {
+    expect(TOP_BAR).toMatch(/\.top-bar-nav-item\.is-active \{\s*border-color: var\(--purple-fill\);\s*background: var\(--purple-fill\);\s*color: var\(--purple-on-fill\);/);
   });
 
   it("keeps the selected and unselected labels readable in both themes (4.5:1)", () => {

@@ -183,22 +183,22 @@ describe("Button hover and active state invariants", () => {
 
   it("fills rename pen buttons on hover with plain purple like Use… rather than the brighter already-purple hover shade", () => {
     expect(CARD_RESPONSIVE_CSS).toMatch(
-      /\.provider-account-card\s+\.limit-reset-use\.button:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--purple-fill\);\s*border-color:\s*var\(--purple-fill\);\s*color:\s*var\(--white\);/,
+      /\.provider-account-card\s+\.limit-reset-use\.button:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--purple-fill\);\s*border-color:\s*var\(--purple-fill\);\s*color:\s*var\(--purple-on-fill\);/,
     );
     expect(CARD_RESPONSIVE_CSS).toMatch(
-      /\.provider-account-card\.desktop-card\s+\.account-name-edit:hover:not\(:disabled\),\s*\.provider-account-card\.desktop-card\s+\.account-card-name-hit:hover\s+\.account-name-edit:not\(:disabled\),\s*\.provider-account-card\.desktop-card\s+\.account-name-edit:focus-visible\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--white\)\s*!important;/,
+      /\.provider-account-card\.desktop-card\s+\.account-name-edit:hover:not\(:disabled\),\s*\.provider-account-card\.desktop-card\s+\.account-card-name-hit:hover\s+\.account-name-edit:not\(:disabled\),\s*\.provider-account-card\.desktop-card\s+\.account-name-edit:focus-visible\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--purple-on-fill\)\s*!important;/,
     );
     expect(CARD_RESPONSIVE_CSS).toMatch(
-      /:root\s+\.dashboard-header\s+\.edit-bucket-title-btn:hover:not\(:disabled\),\s*:root\s+\.dashboard-header\s+\.edit-bucket-title-btn:focus-visible\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--white\)\s*!important;/,
+      /:root\s+\.dashboard-header\s+\.edit-bucket-title-btn:hover:not\(:disabled\),\s*:root\s+\.dashboard-header\s+\.edit-bucket-title-btn:focus-visible\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--purple-on-fill\)\s*!important;/,
     );
     expect(CARD_RESPONSIVE_CSS).toMatch(
-      /:root\s+\.provider-account-card\s+\.account-name-edit:hover:not\(:disabled\),\s*:root\s+\.provider-account-card\s+\.account-name-edit:focus-visible,\s*:root\s+\.provider-account-card\s+\.account-name-edit:active:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--white\)\s*!important;/,
+      /:root\s+\.provider-account-card\s+\.account-name-edit:hover:not\(:disabled\),\s*:root\s+\.provider-account-card\s+\.account-name-edit:focus-visible,\s*:root\s+\.provider-account-card\s+\.account-name-edit:active:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--purple-on-fill\)\s*!important;/,
     );
   });
 
   it("matches the desktop chevron menu's interactive states to the rename pen", () => {
     expect(CARD_RESPONSIVE_CSS).toMatch(
-      /\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\.more-action:not\(:disabled\):hover,\s*\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\.more-action:focus-visible,\s*\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\.more-action:not\(:disabled\):active\s*\{[^}]*border-color:\s*var\(--purple-fill\);[^}]*background:\s*var\(--purple-fill\);[^}]*color:\s*var\(--white\);/,
+      /\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\.more-action:not\(:disabled\):hover,\s*\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\.more-action:focus-visible,\s*\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\.more-action:not\(:disabled\):active\s*\{[^}]*border-color:\s*var\(--purple-fill\);[^}]*background:\s*var\(--purple-fill\);[^}]*color:\s*var\(--purple-on-fill\);/,
     );
   });
 
@@ -213,7 +213,7 @@ describe("Button hover and active state invariants", () => {
 
   it("styles the limit reset Use button on mobile with the desktop hover purple fill", () => {
     expect(CARD_RESPONSIVE_CSS).toMatch(
-      /@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.provider-account-card\s+\.limit-reset-use\.button\s*\{[^}]*background:\s*var\(--purple-fill\);\s*border-color:\s*var\(--purple-fill\);\s*color:\s*var\(--white\);/,
+      /@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.provider-account-card\s+\.limit-reset-use\.button\s*\{[^}]*background:\s*var\(--purple-fill\);\s*border-color:\s*var\(--purple-fill\);\s*color:\s*var\(--purple-on-fill\);/,
     );
   });
 
