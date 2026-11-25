@@ -40,7 +40,7 @@ function systemPrefersLight(): boolean {
  * - Tapping an already-selected preset toggles between Light and Dark mode.
  * - Tapping the `+` circle swaps the grid for the "Custom Color" view in the same dialog
  *   (2D saturation/brightness square, hue slider, preview swatch, hex input, Reset) — no OS
- *   picker. "Presets" goes back to the grid; "Done" closes the dialog.
+ *   picker. "Presets" (left of "Done") goes back to the grid; "Done" closes the dialog.
  */
 export function AccentColorModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (!open) return null;
@@ -179,18 +179,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
 
       {customOpen ? (
         <div className="accent-custom-view">
-          <div className="accent-custom-header">
-            <button
-              ref={presetsButtonRef}
-              type="button"
-              className="button ghost accent-presets-btn"
-              onClick={() => showView(false)}
-            >
-              <ChevronIcon style={{ transform: "rotate(180deg)" }} />
-              <span>Presets</span>
-            </button>
-            <h3 className="accent-custom-title">Custom Color</h3>
-          </div>
+          <h3 className="accent-custom-title">Custom Color</h3>
 
           <div
             ref={svRef}
@@ -256,9 +245,20 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
             </button>
           </div>
 
-          <button type="button" className="button primary accent-done-btn" onClick={requestClose}>
-            Done
-          </button>
+          <div className="accent-custom-actions">
+            <button
+              ref={presetsButtonRef}
+              type="button"
+              className="button ghost accent-presets-btn"
+              onClick={() => showView(false)}
+            >
+              <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+              <span>Presets</span>
+            </button>
+            <button type="button" className="button primary accent-done-btn" onClick={requestClose}>
+              Done
+            </button>
+          </div>
         </div>
       ) : (
         <div className="accent-color-grid" role="radiogroup" aria-labelledby={titleId}>
