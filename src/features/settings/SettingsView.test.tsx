@@ -182,6 +182,7 @@ describe("General", () => {
       // Tapping the + circle swaps the 4×3 grid for the Custom Color view in the same dialog.
       click(modal.querySelector<HTMLButtonElement>('button[aria-label="Custom color picker"]')!);
       expect(modal.querySelector(".accent-color-grid")).toBeNull();
+      expect(modal.textContent).not.toContain("Tap the color twice");
       const customBox = modal.querySelector(".accent-custom-view")!;
       expect(customBox).not.toBeNull();
       expect(customBox.textContent).toContain("Custom Color");

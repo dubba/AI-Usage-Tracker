@@ -253,10 +253,12 @@
   }
 
   /* ---- "Custom Color" view, shown in place of the 4×3 grid ---- */
+  /* No subtitle above it here: the gap the subtitle left under the title (8px + 14px). */
   .accent-custom-view {
     display: flex;
     flex-direction: column;
     gap: 18px;
+    margin-top: 14px;
   }
 
   .accent-custom-title {

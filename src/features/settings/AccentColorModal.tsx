@@ -204,7 +204,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
     <ModalDialog
       dialogRef={dialogRef}
       labelledBy={titleId}
-      describedBy={subtitleId}
+      describedBy={customOpen ? undefined : subtitleId}
       className="accent-color-modal"
       backdropClassName="accent-color-modal-backdrop"
       onClose={requestClose}
@@ -212,9 +212,11 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
       <h2 id={titleId} className="accent-color-modal-title">
         Pick accent color
       </h2>
-      <p id={subtitleId} className="accent-color-modal-subtitle">
-        Tap the color twice to toggle between Light and Dark mode
-      </p>
+      {customOpen ? null : (
+        <p id={subtitleId} className="accent-color-modal-subtitle">
+          Tap the color twice to toggle between Light and Dark mode
+        </p>
+      )}
 
       {customOpen ? (
         <div className="accent-custom-view">
