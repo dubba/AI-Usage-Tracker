@@ -86,20 +86,24 @@ export function GeneralSection() {
             <small>Customize the app's accent color.</small>
           </div>
           <div className="settings-account-refresh settings-appearance-dropdown">
-            <button
-              id="setting-accent-color"
-              type="button"
-              className="custom-dropdown-trigger settings-accent-trigger"
-              aria-labelledby="setting-accent-color-label"
-              aria-haspopup="dialog"
-              aria-expanded={accentPickerOpen}
-              onClick={() => setAccentPickerOpen(true)}
-            >
-              <span className="settings-accent-trigger-value">
-                <span className="settings-accent-trigger-dot" style={{ backgroundColor: accentColor }} aria-hidden="true" />
-                <span>{activeAccentLabel}</span>
-              </span>
-            </button>
+            {/* In a closed dropdown container, so it gets the dropdowns' border, fill and label font
+                in every theme. */}
+            <div className="custom-dropdown-container">
+              <button
+                id="setting-accent-color"
+                type="button"
+                className="custom-dropdown-trigger settings-accent-trigger"
+                aria-labelledby="setting-accent-color-label"
+                aria-haspopup="dialog"
+                aria-expanded={accentPickerOpen}
+                onClick={() => setAccentPickerOpen(true)}
+              >
+                <span className="settings-accent-trigger-value">
+                  <span className="settings-accent-trigger-dot" style={{ backgroundColor: accentColor }} aria-hidden="true" />
+                  <span className="custom-dropdown-label">{activeAccentLabel}</span>
+                </span>
+              </button>
+            </div>
           </div>
         </div>
         <AccentColorModal open={accentPickerOpen} onClose={() => setAccentPickerOpen(false)} />
