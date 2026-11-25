@@ -24,6 +24,45 @@ use crate::pairing::{file_transfer::MAX_FILE_LEN, incoming_files::is_transfer_fi
 /// Magic header of a Sync Devices transfer file (`pairing::file_transfer::MAGIC`).
 const TRANSFER_MAGIC: &[u8; 8] = b"AIUTPAIR";
 
+/// Owner-only file inside the app data directory holding the iOS security-scoped bookmark for the
+/// user-chosen Downloads folder (so AirDrop files saved into Files → Downloads are picked up
+/// automatically on future transfers without picking them by hand).
+#[cfg(any(target_os = "ios", test))]
+const DOWNLOADS_BOOKMARK_FILE: &str = "ios-downloads-bookmark.bin";
+
+/// Cap on the saved iOS folder bookmark bytes so a corrupt file is ignored safely.
+#[cfg(any(target_os = "ios", test))]
+const MAX_BOOKMARK_LEN: usize = 64 * 1024;
+
+#[cfg(any(target_os = "ios", test))]
+fn bookmark_path(data_dir: &Path) -> PathBuf {
+    data_dir.join(DOWNLOADS_BOOKMARK_FILE)
+}
+
+#[cfg(any(target_os = "ios", test))]
+fn load_bookmark_bytes(data_dir: &Path) -> Option<Vec<u8>> {
+    let path = bookmark_path(data_dir);
+    let bytes = read_capped_bytes(&path, MAX_BOOKMARK_LEN).ok()?;
+    if bytes.is_empty() || bytes.len() > MAX_BOOKMARK_LEN {
+        return None;
+    }
+    Some(bytes)
+}
+
+#[cfg(any(target_os = "ios", test))]
+fn save_bookmark_bytes(data_dir: &Path, bytes: &[u8]) -> Result<(), String> {
+    if bytes.is_empty() || bytes.len() > MAX_BOOKMARK_LEN {
+        return Err("Invalid Downloads folder bookmark size".into());
+    }
+    crate::platform::fs_util::atomic_write_private(&bookmark_path(data_dir), bytes)
+}
+
+/// Deletes any saved iOS Downloads folder bookmark (used on revocation/expiry or Delete All Local Data).
+#[cfg(any(target_os = "ios", test))]
+pub fn clear_downloads_bookmark(data_dir: &Path) {
+    let _ = std::fs::remove_file(bookmark_path(data_dir));
+}
+
 type Stamp = (u64, Option<SystemTime>);
 
 struct QueuedFile {
@@ -96,8 +135,14 @@ pub fn note_opened(urls: &[url::Url]) -> bool {
             continue;
         };
         let name_matches = is_transfer_file(&path);
-        let Ok(bytes) = read_opened_url(url, &path, MAX_FILE_LEN) else {
-            continue;
+        let bytes = match read_opened_url(url, &path, MAX_FILE_LEN) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                if name_matches {
+                    crate::pairing::sync_log::note("file: could not read an opened transfer file");
+                }
+                continue;
+            }
         };
         let magic_matches = bytes.starts_with(TRANSFER_MAGIC);
         if !name_matches && !magic_matches {
@@ -229,6 +274,288 @@ pub fn take_tapped(max_len: usize) -> std::io::Result<Option<Vec<u8>>> {
     waiting.take(max_len, &inboxes())
 }
 
+#[cfg(target_os = "ios")]
+mod ios_downloads {
+    use super::{clear_downloads_bookmark, load_bookmark_bytes, save_bookmark_bytes};
+    use objc2::{
+        define_class, msg_send,
+        rc::{Allocated, Retained},
+        runtime::{AnyClass, AnyObject, Bool, ProtocolObject},
+        MainThreadMarker, MainThreadOnly,
+    };
+    use objc2_foundation::{
+        NSArray, NSData, NSObject, NSObjectProtocol, NSString, NSURLBookmarkCreationOptions,
+        NSURLBookmarkResolutionOptions, NSURL,
+    };
+    use objc2_ui_kit::{
+        UIDocumentPickerDelegate, UIDocumentPickerViewController, UIModalPresentationStyle,
+        UIViewController,
+    };
+    use std::{
+        cell::RefCell,
+        ffi::{c_char, c_int, c_void},
+        path::{Path, PathBuf},
+    };
+
+    extern "C" {
+        fn dlopen(path: *const c_char, mode: c_int) -> *mut c_void;
+    }
+    const RTLD_LAZY: c_int = 1;
+
+    /// Active security-scoped access to the user-selected iOS Downloads folder.
+    /// Calls `stopAccessingSecurityScopedResource` on drop so kernel grants never leak.
+    pub struct DownloadsScope {
+        url: Retained<NSURL>,
+        path: PathBuf,
+    }
+
+    // SAFETY: `NSURL` is thread-safe for `stopAccessingSecurityScopedResource` and `path` is owned.
+    unsafe impl Send for DownloadsScope {}
+
+    impl DownloadsScope {
+        pub fn path(&self) -> &Path {
+            &self.path
+        }
+    }
+
+    impl Drop for DownloadsScope {
+        fn drop(&mut self) {
+            unsafe {
+                self.url.stopAccessingSecurityScopedResource();
+            }
+        }
+    }
+
+    /// Resolves the saved Downloads folder bookmark, starts security-scoped access, verifies the
+    /// directory is still readable (catching post-reboot OS revocations), refreshes a stale
+    /// bookmark if needed, and returns a drop-guarded scope.
+    pub fn open_downloads_dir(data_dir: &Path) -> Option<DownloadsScope> {
+        let bytes = load_bookmark_bytes(data_dir)?;
+        let ns_data = NSData::with_bytes(&bytes);
+        let mut is_stale = Bool::NO;
+        let url = unsafe {
+            NSURL::URLByResolvingBookmarkData_options_relativeToURL_bookmarkDataIsStale_error(
+                &ns_data,
+                NSURLBookmarkResolutionOptions::empty(),
+                None,
+                &mut is_stale,
+            )
+        };
+        let url = match url {
+            Ok(url) => url,
+            Err(_) => {
+                clear_downloads_bookmark(data_dir);
+                crate::pairing::sync_log::note(
+                    "file: saved Downloads folder access expired; will ask again",
+                );
+                return None;
+            }
+        };
+        if !unsafe { url.startAccessingSecurityScopedResource() } {
+            clear_downloads_bookmark(data_dir);
+            crate::pairing::sync_log::note(
+                "file: saved Downloads folder access was revoked; will ask again",
+            );
+            return None;
+        }
+        let Some(ns_path) = url.path() else {
+            unsafe { url.stopAccessingSecurityScopedResource() };
+            clear_downloads_bookmark(data_dir);
+            return None;
+        };
+        let scope = DownloadsScope {
+            url,
+            path: PathBuf::from(ns_path.to_string()),
+        };
+        if std::fs::read_dir(&scope.path).is_err() {
+            drop(scope);
+            clear_downloads_bookmark(data_dir);
+            crate::pairing::sync_log::note(
+                "file: saved Downloads folder could not be read; will ask again",
+            );
+            return None;
+        }
+        if is_stale.as_bool() {
+            if let Ok(fresh) = scope
+                .url
+                .bookmarkDataWithOptions_includingResourceValuesForKeys_relativeToURL_error(
+                    NSURLBookmarkCreationOptions::MinimalBookmark,
+                    None,
+                    None,
+                )
+            {
+                let _ = save_bookmark_bytes(data_dir, &fresh.to_vec());
+            }
+        }
+        Some(scope)
+    }
+
+    struct ActivePicker {
+        _delegate: Retained<FolderPickerDelegate>,
+        data_dir: PathBuf,
+    }
+
+    thread_local! {
+        /// Retains the active folder picker's weak delegate and destination data dir on the main thread.
+        static ACTIVE_PICKER: RefCell<Option<ActivePicker>> = const { RefCell::new(None) };
+    }
+
+    define_class!(
+        #[unsafe(super(NSObject))]
+        #[thread_kind = MainThreadOnly]
+        #[name = "AIUsageTrackerDownloadsPickerDelegate"]
+        struct FolderPickerDelegate;
+
+        unsafe impl NSObjectProtocol for FolderPickerDelegate {}
+
+        unsafe impl UIDocumentPickerDelegate for FolderPickerDelegate {
+            #[unsafe(method(documentPicker:didPickDocumentsAtURLs:))]
+            fn did_pick_documents(
+                &self,
+                _controller: &UIDocumentPickerViewController,
+                urls: &NSArray<NSURL>,
+            ) {
+                let active = ACTIVE_PICKER.with(|slot| slot.borrow_mut().take());
+                let Some(active) = active else {
+                    return;
+                };
+                let Some(url) = urls.firstObject() else {
+                    return;
+                };
+                if !unsafe { url.startAccessingSecurityScopedResource() } {
+                    crate::pairing::sync_log::note(
+                        "file: could not access the selected Downloads folder",
+                    );
+                    return;
+                }
+                let Some(ns_path) = url.path() else {
+                    unsafe { url.stopAccessingSecurityScopedResource() };
+                    return;
+                };
+                let scope = DownloadsScope {
+                    url,
+                    path: PathBuf::from(ns_path.to_string()),
+                };
+                if std::fs::read_dir(&scope.path).is_err() {
+                    crate::pairing::sync_log::note(
+                        "file: selected Downloads folder could not be read",
+                    );
+                    return;
+                }
+                match scope
+                    .url
+                    .bookmarkDataWithOptions_includingResourceValuesForKeys_relativeToURL_error(
+                        NSURLBookmarkCreationOptions::MinimalBookmark,
+                        None,
+                        None,
+                    ) {
+                    Ok(bookmark) => {
+                        if save_bookmark_bytes(&active.data_dir, &bookmark.to_vec()).is_ok() {
+                            crate::pairing::sync_log::note(
+                                "file: allowed Downloads folder access for AirDrop",
+                            );
+                        } else {
+                            crate::pairing::sync_log::note(
+                                "file: could not save Downloads folder access",
+                            );
+                        }
+                    }
+                    Err(_) => {
+                        crate::pairing::sync_log::note(
+                            "file: could not create bookmark for Downloads folder",
+                        );
+                    }
+                }
+            }
+
+            #[unsafe(method(documentPickerWasCancelled:))]
+            fn was_cancelled(&self, _controller: &UIDocumentPickerViewController) {
+                ACTIVE_PICKER.with(|slot| {
+                    *slot.borrow_mut() = None;
+                });
+                crate::pairing::sync_log::note("file: Downloads folder picker was cancelled");
+            }
+        }
+    );
+
+    impl FolderPickerDelegate {
+        fn new(mtm: MainThreadMarker) -> Retained<Self> {
+            let this: Allocated<Self> = mtm.alloc();
+            unsafe { msg_send![super(this.set_ivars(())), init] }
+        }
+    }
+
+    fn folder_uttype() -> Option<Retained<AnyObject>> {
+        // Ensure UniformTypeIdentifiers is loaded, then resolve `UTType.folder` (`public.folder`).
+        unsafe {
+            let _ = dlopen(
+                c"/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers"
+                    .as_ptr(),
+                RTLD_LAZY,
+            );
+        }
+        let cls = AnyClass::get(c"UTType")?;
+        let id = NSString::from_str("public.folder");
+        unsafe { msg_send![cls, typeWithIdentifier: &*id] }
+    }
+
+    fn show_folder_picker(view_controller: *mut c_void, data_dir: PathBuf) -> Result<(), String> {
+        let mtm = MainThreadMarker::new().ok_or("not on the main thread")?;
+        let mut top: Retained<UIViewController> =
+            unsafe { Retained::retain(view_controller.cast::<UIViewController>()) }
+                .ok_or("the window has no view controller")?;
+        while let Some(presented) = top.presentedViewController() {
+            top = presented;
+        }
+        let folder_type =
+            folder_uttype().ok_or("folder picker is unavailable on this iOS version")?;
+        let types = NSArray::from_slice(&[&*folder_type]);
+        // SAFETY: `initForOpeningContentTypes:` gives direct security-scoped access to the folder.
+        let picker: Retained<UIDocumentPickerViewController> = unsafe {
+            let alloc = UIDocumentPickerViewController::alloc(mtm);
+            msg_send![alloc, initForOpeningContentTypes: &*types]
+        };
+        picker.setAllowsMultipleSelection(false);
+        picker.setModalPresentationStyle(UIModalPresentationStyle::FormSheet);
+        let delegate = FolderPickerDelegate::new(mtm);
+        let proto: &ProtocolObject<dyn UIDocumentPickerDelegate> =
+            ProtocolObject::from_ref(&*delegate);
+        picker.setDelegate(Some(proto));
+        ACTIVE_PICKER.with(|slot| {
+            *slot.borrow_mut() = Some(ActivePicker {
+                _delegate: delegate,
+                data_dir,
+            });
+        });
+        top.presentViewController_animated_completion(&picker, true, None);
+        Ok(())
+    }
+
+    /// Presents the iOS folder picker so the user can grant one-time persistent access to their
+    /// Downloads folder (whether in iCloud Drive or On My iPhone).
+    pub async fn request_downloads_access(
+        window: &tauri::WebviewWindow,
+        data_dir: PathBuf,
+    ) -> Result<(), String> {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        window
+            .with_webview(move |webview| {
+                let _ = sender.send(show_folder_picker(webview.view_controller(), data_dir));
+            })
+            .map_err(|_| "Couldn't open the folder picker.".to_string())?;
+        receiver
+            .await
+            .map_err(|_| "Couldn't open the folder picker.".to_string())?
+            .map_err(|error| {
+                crate::diagnostics::warn(&format!("iOS Downloads folder picker failed: {error}"));
+                "Couldn't open the folder picker.".to_string()
+            })
+    }
+}
+
+#[cfg(target_os = "ios")]
+pub use ios_downloads::{open_downloads_dir, request_downloads_access};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,5 +657,26 @@ mod tests {
             file_url(&pdf),
             "aiusage-signin://done".parse().unwrap(),
         ]));
+    }
+
+    #[test]
+    fn downloads_bookmark_round_trips_caps_size_and_clears() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(load_bookmark_bytes(dir.path()), None);
+        assert!(save_bookmark_bytes(dir.path(), &[]).is_err());
+        assert!(save_bookmark_bytes(dir.path(), &vec![0u8; MAX_BOOKMARK_LEN + 1]).is_err());
+
+        save_bookmark_bytes(dir.path(), b"bookmark-bytes").unwrap();
+        assert_eq!(
+            load_bookmark_bytes(dir.path()).as_deref(),
+            Some(&b"bookmark-bytes"[..])
+        );
+
+        clear_downloads_bookmark(dir.path());
+        assert_eq!(load_bookmark_bytes(dir.path()), None);
+
+        // Oversized corrupt file on disk is ignored cleanly.
+        std::fs::write(bookmark_path(dir.path()), vec![1u8; MAX_BOOKMARK_LEN + 5]).unwrap();
+        assert_eq!(load_bookmark_bytes(dir.path()), None);
     }
 }

@@ -67,6 +67,9 @@ pub struct UiStateSyncPayload {
     /// and peers from before "oled" drop that value (their allowlist below lacks it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub theme: Option<String>,
+    /// Theme accent color as lowercase `#rrggbb`. Older peers ignore it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accent_color: Option<String>,
     /// Whether usage percentages show the quota left or used ("left" | "used"). Older peers ignore it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_display_mode: Option<String>,
@@ -125,6 +128,14 @@ impl UiStateSyncPayload {
             .is_some_and(|theme| !matches!(theme, "dark" | "oled" | "light" | "system"))
         {
             self.theme = None;
+        }
+        // Accent color must be a strict `#rrggbb` hex value; normalized to lowercase.
+        if let Some(color) = self.accent_color.as_deref() {
+            if crate::platform::tray::parse_hex_rgb(color).is_some() {
+                self.accent_color = Some(color.to_ascii_lowercase());
+            } else {
+                self.accent_color = None;
+            }
         }
         // Same for the usage display mode.
         if self

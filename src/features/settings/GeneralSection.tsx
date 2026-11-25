@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
+import { ChevronIcon } from "../../shared/ui/icons";
 import { SettingsToggleRow } from "./SettingsToggleRow";
-import { useBottomNavLabels, useThemePreference } from "../../shared/hooks/usePreferences";
+import { useAccentColor, useBottomNavLabels, useThemePreference } from "../../shared/hooks/usePreferences";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
+import { MODAL_ACCENT_PRESETS } from "../../shared/lib/accent-color";
 import { isAndroid, isIOS } from "../../shared/lib/platform";
 import type { ThemePreference } from "../../shared/lib/theme";
 import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
+import { AccentColorModal } from "./AccentColorModal";
 import { useAppSettingsState } from "./settings-context";
 
 /**
@@ -25,10 +29,14 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 export function GeneralSection() {
   const { appSettings, autostart, toggleAutostart, refreshIntervalBusy, saveAccountRefreshMinutes } = useAppSettingsState();
   const [themePreference, setThemePreference] = useThemePreference();
+  const [accentColor] = useAccentColor();
+  const [accentPickerOpen, setAccentPickerOpen] = useState(false);
   const [navLabels, setNavLabels] = useBottomNavLabels();
   // The bottom bar only exists while the sidebar is an overlay: a phone, or a narrow window.
   const hasBottomNav = useMediaQuery(MOBILE_OVERLAY_QUERY);
   const minutes = appSettings?.accountRefreshMinutes;
+  const activeAccentLabel =
+    MODAL_ACCENT_PRESETS.find((preset) => preset.hex === accentColor)?.label ?? accentColor.toUpperCase();
 
   return (
     <section className="settings-card">
@@ -73,6 +81,30 @@ export function GeneralSection() {
             />
           </div>
         </div>
+        <div className="settings-row">
+          <div>
+            <strong id="setting-accent-color-label">Theme Accent Color</strong>
+            <small>Customize the app's accent color.</small>
+          </div>
+          <div className="settings-account-refresh settings-appearance-dropdown">
+            <button
+              id="setting-accent-color"
+              type="button"
+              className="custom-dropdown-trigger settings-accent-trigger"
+              aria-labelledby="setting-accent-color-label"
+              aria-haspopup="dialog"
+              aria-expanded={accentPickerOpen}
+              onClick={() => setAccentPickerOpen(true)}
+            >
+              <span className="settings-accent-trigger-value">
+                <span className="settings-accent-trigger-dot" style={{ backgroundColor: accentColor }} aria-hidden="true" />
+                <span>{activeAccentLabel}</span>
+              </span>
+              <ChevronIcon className="custom-dropdown-chevron" />
+            </button>
+          </div>
+        </div>
+        <AccentColorModal open={accentPickerOpen} onClose={() => setAccentPickerOpen(false)} />
         <div className="settings-row">
           <div>
             <strong>Account Refresh</strong>

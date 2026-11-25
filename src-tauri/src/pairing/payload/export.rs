@@ -84,6 +84,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
                     || ui.page_account_order.is_some()
                     || ui.sidebar_width.is_some()
                     || ui.theme.is_some()
+                    || ui.accent_color.is_some()
                     || ui.usage_display_mode.is_some()
                     || ui.bottom_nav_labels.is_some()
             });

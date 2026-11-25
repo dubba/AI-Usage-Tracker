@@ -429,6 +429,7 @@ fn ui_state_clamp_bounds_lists_pages_and_text() {
         page_account_order: None,
         sidebar_width: Some(u32::MAX),
         theme: Some("light".into()),
+        accent_color: Some("#2563EB".into()),
         usage_display_mode: Some("used".into()),
         bottom_nav_labels: Some("off".into()),
     };
@@ -450,18 +451,21 @@ fn ui_state_clamp_bounds_lists_pages_and_text() {
     assert!(cards.values().all(|ids| ids.len() == MAX_UI_LIST_ENTRIES));
     assert_eq!(ui.sidebar_width, Some(MAX_SIDEBAR_WIDTH));
     assert_eq!(ui.theme, Some("light".to_string()));
+    assert_eq!(ui.accent_color, Some("#2563eb".to_string()));
     assert_eq!(ui.usage_display_mode, Some("used".to_string()));
     assert_eq!(ui.bottom_nav_labels, Some("off".to_string()));
 
-    // Theme, usage display mode and menu bar labels are allowlists: anything else is dropped.
+    // Theme, accent color, usage display mode and menu bar labels are allowlists: anything else is dropped.
     let mut evil = UiStateSyncPayload {
         theme: Some("sepia'; DROP TABLE".into()),
+        accent_color: Some("red; background:url(x)".into()),
         usage_display_mode: Some("remaining<script>".into()),
         bottom_nav_labels: Some("maybe<script>".into()),
         ..Default::default()
     };
     evil.clamp();
     assert_eq!(evil.theme, None);
+    assert_eq!(evil.accent_color, None);
     assert_eq!(evil.usage_display_mode, None);
     assert_eq!(evil.bottom_nav_labels, None);
 
@@ -2540,6 +2544,7 @@ fn full_sync_payload() -> super::payload::SyncPayload {
             page_account_order: Some(pages()),
             sidebar_width: Some(300),
             theme: Some("dark".into()),
+            accent_color: Some("#2563eb".into()),
             usage_display_mode: Some("left".into()),
             bottom_nav_labels: Some("on".into()),
         }),

@@ -4,6 +4,7 @@ import { STORAGE_KEYS, storageGet } from "../../shared/lib/storage";
 import { captureEvents, installFakeWindow } from "../../test-utils/fakeWindow";
 import { getBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
 import { getCompactDashboardMode, setCompactDashboardMode } from "../../shared/lib/compact-dashboard";
+import { DEFAULT_ACCENT_COLOR, getAccentColor, setAccentColor } from "../../shared/lib/accent-color";
 import { getUsageDisplayMode, setUsageDisplayMode } from "../../shared/lib/usage-display";
 import { applyUiState, collectUiState } from "./ui-state";
 
@@ -14,6 +15,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setAccentColor(DEFAULT_ACCENT_COLOR);
   setUsageDisplayMode("left");
   setBottomNavLabels("on");
   setCompactDashboardMode("off");
@@ -41,6 +43,13 @@ describe("applyUiState", () => {
     applyUiState({ theme: "light" });
     expect(storageGet(STORAGE_KEYS.theme)).toBe("light");
     expect(env.attrs.get("data-theme")).toBe("light");
+  });
+
+  it("applies the accent color to storage and the page", () => {
+    applyUiState({ accent_color: "#0D9488" });
+    expect(storageGet(STORAGE_KEYS.accentColor)).toBe("#0d9488");
+    expect(getAccentColor()).toBe("#0d9488");
+    expect(env.cssVars.get("--purple-fill")).toBe("#0d9488");
   });
 
   it("applies the usage display mode to storage and the running app", () => {
@@ -73,6 +82,7 @@ describe("applyUiState", () => {
       sidebar_width: -5,
       sidebar_group_order: "nope",
       theme: "sepia",
+      accent_color: "not-hex",
       usage_display_mode: "remaining",
       bottom_nav_labels: "maybe<script>",
       compact_dashboard: "huge",
@@ -80,6 +90,7 @@ describe("applyUiState", () => {
     expect(storageGet(STORAGE_KEYS.sidebarWidthDesktop)).toBeNull();
     expect(storageGet(STORAGE_KEYS.sidebarGroupOrder)).toBeNull();
     expect(storageGet(STORAGE_KEYS.theme)).toBeNull();
+    expect(storageGet(STORAGE_KEYS.accentColor)).toBeNull();
     expect(storageGet(STORAGE_KEYS.usageDisplayMode)).toBeNull();
     expect(storageGet(STORAGE_KEYS.bottomNavLabels)).toBeNull();
     expect(storageGet(STORAGE_KEYS.compactDashboard)).toBeNull();
@@ -96,6 +107,7 @@ describe("collectUiState", () => {
   it("reports the default theme and display mode when nothing has been customized", () => {
     expect(collectUiState()).toEqual({
       theme: "dark",
+      accent_color: DEFAULT_ACCENT_COLOR,
       usage_display_mode: "left",
       bottom_nav_labels: "on",
       compact_dashboard: "off",
@@ -109,6 +121,7 @@ describe("collectUiState", () => {
       sidebar_width: 300,
       page_account_order: { "bucket:b1": ["a", "b"] },
       theme: "light",
+      accent_color: "#2563eb",
       usage_display_mode: "used",
       bottom_nav_labels: "off",
       compact_dashboard: "on",
@@ -119,6 +132,7 @@ describe("collectUiState", () => {
       sidebar_width: 300,
       page_account_order: { "bucket:b1": ["a", "b"] },
       theme: "light",
+      accent_color: "#2563eb",
       usage_display_mode: "used",
       bottom_nav_labels: "off",
       compact_dashboard: "on",

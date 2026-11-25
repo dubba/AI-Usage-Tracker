@@ -96,6 +96,22 @@ pub fn set_autostart(
     Ok(enabled)
 }
 
+/// Paints the desktop native title bar with the user's chosen `#rrggbb` accent color.
+#[tauri::command]
+pub fn set_title_bar_color(
+    #[allow(unused_variables)] app: AppHandle,
+    hex: String,
+) -> CommandResult<()> {
+    let rgb = crate::platform::tray::parse_hex_rgb(&hex).ok_or_else(|| {
+        super::error::CommandError::new(super::error::ErrorCode::Invalid, "Invalid accent color.")
+    })?;
+    #[cfg(desktop)]
+    crate::platform::tray::set_title_bar_rgb(&app, rgb);
+    #[cfg(not(desktop))]
+    let _ = rgb;
+    Ok(())
+}
+
 /// Drops every account's saved usage snapshot. Accounts, sign-ins and settings are untouched; the
 /// page refreshes usage afterwards.
 #[tauri::command]

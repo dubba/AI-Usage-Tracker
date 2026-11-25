@@ -581,6 +581,13 @@ impl AppState {
         self.buckets.clear()?;
         self.history.clear()?;
         self.settings.reset()?;
+        #[cfg(target_os = "ios")]
+        if let Some(app) = self.app_handle.read().clone() {
+            use tauri::Manager;
+            if let Ok(data_dir) = app.path().app_data_dir() {
+                crate::platform::ios_files::clear_downloads_bookmark(&data_dir);
+            }
+        }
         // Also when nothing was stored: a sign-in can leave cookies without
         // an account, and each removal above already cleared them once.
         self.clear_provider_sign_in_session();

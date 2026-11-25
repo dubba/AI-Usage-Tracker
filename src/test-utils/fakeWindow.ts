@@ -32,7 +32,14 @@ export function installFakeWindow() {
   vi.stubGlobal("window", win);
   vi.stubGlobal("document", {
     documentElement: {
-      style: { setProperty: (name: string, value: string) => cssVars.set(name, value) },
+      style: {
+        setProperty: (name: string, value: string) => cssVars.set(name, value),
+        removeProperty: (name: string) => {
+          const prev = cssVars.get(name) ?? "";
+          cssVars.delete(name);
+          return prev;
+        },
+      },
       setAttribute: (name: string, value: string) => attrs.set(name, value),
       getAttribute: (name: string) => attrs.get(name) ?? null,
     },

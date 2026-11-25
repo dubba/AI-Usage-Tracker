@@ -146,6 +146,71 @@ pub fn configure_pairing_network(bind: bool) {
     }
 }
 
+/// Advertises the pairing host through Android's native `NsdManager` (RFC 6762/6763),
+/// which responds to Apple `mDNSResponder` QU unicast queries and sends clean goodbye packets.
+#[cfg(target_os = "android")]
+pub fn register_nsd_service(
+    instance: &str,
+    port: u16,
+    session_id: &str,
+    nonce: &str,
+    version: &str,
+) -> Result<(), String> {
+    const PREFIX: &str = "Unable to advertise pairing service via Android NSD";
+    crate::platform::android_context::with_activity(PREFIX, |env, activity| {
+        let j_instance = env
+            .new_string(instance)
+            .map_err(|error| format!("{PREFIX}: {error}"))?;
+        let j_sid = env
+            .new_string(session_id)
+            .map_err(|error| format!("{PREFIX}: {error}"))?;
+        let j_nonce = env
+            .new_string(nonce)
+            .map_err(|error| format!("{PREFIX}: {error}"))?;
+        let j_version = env
+            .new_string(version)
+            .map_err(|error| format!("{PREFIX}: {error}"))?;
+        let result = env.call_method(
+            activity,
+            "registerMdnsService",
+            "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Z",
+            &[
+                JValue::Object(&j_instance.into()),
+                JValue::Int(i32::from(port)),
+                JValue::Object(&j_sid.into()),
+                JValue::Object(&j_nonce.into()),
+                JValue::Object(&j_version.into()),
+            ],
+        );
+        if env.exception_check().unwrap_or(false) {
+            let throwable = env.exception_occurred().map_err(|e| e.to_string())?;
+            let _ = env.exception_clear();
+            return Err(format!(
+                "{PREFIX}: {}",
+                jni_exception_message(env, &throwable)
+            ));
+        }
+        let ok = result
+            .and_then(|v| v.z())
+            .map_err(|error| format!("{PREFIX}: {error}"))?;
+        if ok {
+            Ok(())
+        } else {
+            Err(format!("{PREFIX}: registration failed"))
+        }
+    })
+}
+
+/// Withdraws the active Android `NsdManager` pairing advertisement, if any.
+#[cfg(target_os = "android")]
+pub fn unregister_nsd_service() {
+    const PREFIX: &str = "Unable to stop Android NSD advertisement";
+    let _ = crate::platform::android_context::with_activity(PREFIX, |env, activity| {
+        let result = env.call_method(activity, "unregisterMdnsService", "()V", &[]);
+        check_call(env, result, PREFIX)
+    });
+}
+
 /// Ensures Android's Wi-Fi binding and `MulticastLock` are active before mDNS
 /// sockets open, with a short timeout so a slow JNI call can never hang pairing.
 pub async fn prepare_pairing_network() {

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { getAccentColor, setAccentColor, subscribeAccentColor } from "../lib/accent-color";
 import { getBottomNavLabels, setBottomNavLabels, subscribeBottomNavLabels } from "../lib/bottom-nav-labels";
 import { getCompactDashboardMode, setCompactDashboardMode, subscribeCompactDashboardMode } from "../lib/compact-dashboard";
 import { getSyncOtherWays, setSyncOtherWays, subscribeSyncOtherWays } from "../lib/sync-other-ways";
@@ -12,6 +13,10 @@ const useStoreValue = <T,>(subscribe: (notify: () => void) => () => void, get: (
 
 export function useThemePreference(): [ThemePreference, (next: ThemePreference) => void] {
   return [useStoreValue(subscribeThemePreference, getThemePreference), setThemePreference];
+}
+
+export function useAccentColor(): [string, (next: string) => void] {
+  return [useStoreValue(subscribeAccentColor, getAccentColor), setAccentColor];
 }
 
 export function useUsageDisplayMode(): [UsageDisplayMode, (next: UsageDisplayMode) => void] {

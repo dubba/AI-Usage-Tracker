@@ -2,16 +2,23 @@ package com.dubba.ai.usage.tracker
 
 import android.app.Activity
 import android.content.Context
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
+import android.os.Build
 
 /**
  * What Link Devices needs from the phone's network: the Wi-Fi state, and the multicast lock and
- * Wi-Fi binding held while a pairing session runs. `MainActivity` forwards Rust's JNI calls here.
+ * Wi-Fi binding held while a pairing session runs, plus native Android NSD (mDNS/Bonjour)
+ * advertisement so iOS/macOS `mDNSResponder` resolves Android hosts reliably.
+ * `MainActivity` forwards Rust's JNI calls here.
  */
 internal class PairingNetwork(private val activity: Activity) {
   private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
   private var boundLanNetwork: Boolean = false
   /** A pairing session is running (between `setLanBinding(true)` and `setLanBinding(false)`). */
   private var pairingActive: Boolean = false
+  private val nsdLock = Any()
+  private var nsdListener: NsdManager.RegistrationListener? = null
 
   /**
    * Pairing (Link Devices) finds peers with mDNS over multicast, and Android filters
@@ -129,6 +136,99 @@ internal class PairingNetwork(private val activity: Activity) {
       }
     }
     done.await(2, java.util.concurrent.TimeUnit.SECONDS)
+  }
+
+  /**
+   * Advertises this pairing host via Android's native `NsdManager` (RFC 6762/6763 responder),
+   * which supports QU unicast responses, IPv4+IPv6 answers, and clean TTL=0 goodbye packets for
+   * Apple's `mDNSResponder`. Returns true once registered, or false so Rust can fall back.
+   */
+  fun registerMdnsService(
+    instanceName: String,
+    port: Int,
+    sessionId: String,
+    nonce: String,
+    version: String,
+  ): Boolean {
+    unregisterMdnsService()
+    val nsd = try {
+      activity.applicationContext.getSystemService(Context.NSD_SERVICE) as? NsdManager
+    } catch (e: Throwable) {
+      android.util.Log.w(LOG_TAG, "NSD service unavailable: ${e.message}")
+      return false
+    } ?: return false
+
+    val info = NsdServiceInfo().apply {
+      serviceName = instanceName
+      serviceType = "_aiut-pair._tcp"
+      setPort(port)
+      setAttribute("sid", sessionId)
+      setAttribute("nonce", nonce)
+      setAttribute("v", version)
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      try {
+        wifiNetwork(connectivity())?.let { wifi ->
+          info.network = wifi
+        }
+      } catch (e: Throwable) {
+        android.util.Log.w(LOG_TAG, "Binding NSD registration to Wi-Fi failed: ${e.message}")
+      }
+    }
+
+    val done = java.util.concurrent.CountDownLatch(1)
+    val registered = java.util.concurrent.atomic.AtomicBoolean(false)
+    val listener = object : NsdManager.RegistrationListener {
+      override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
+        registered.set(true)
+        done.countDown()
+      }
+
+      override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+        android.util.Log.w(LOG_TAG, "NSD registration failed (code $errorCode)")
+        done.countDown()
+      }
+
+      override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {}
+
+      override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+        android.util.Log.w(LOG_TAG, "NSD unregistration failed (code $errorCode)")
+      }
+    }
+
+    try {
+      synchronized(nsdLock) {
+        nsdListener = listener
+      }
+      nsd.registerService(info, NsdManager.PROTOCOL_DNS_SD, listener)
+      done.await(3, java.util.concurrent.TimeUnit.SECONDS)
+      if (!registered.get()) {
+        unregisterMdnsService()
+        return false
+      }
+      return true
+    } catch (e: Throwable) {
+      android.util.Log.w(LOG_TAG, "NSD registerService threw: ${e.message}")
+      synchronized(nsdLock) {
+        if (nsdListener === listener) nsdListener = null
+      }
+      return false
+    }
+  }
+
+  /** Stops the active `NsdManager` advertisement (if any) so Android sends a goodbye packet. */
+  fun unregisterMdnsService() {
+    val listener = synchronized(nsdLock) {
+      val current = nsdListener
+      nsdListener = null
+      current
+    } ?: return
+    try {
+      val nsd = activity.applicationContext.getSystemService(Context.NSD_SERVICE) as? NsdManager
+      nsd?.unregisterService(listener)
+    } catch (e: Throwable) {
+      android.util.Log.w(LOG_TAG, "NSD unregisterService failed: ${e.message}")
+    }
   }
 
   private fun connectivity(): android.net.ConnectivityManager =

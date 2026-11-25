@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   sendFile: vi.fn(),
   shareFile: vi.fn(),
   saveFile: vi.fn(),
+  openFile: vi.fn(),
   importFile: vi.fn(),
   tappedFilePending: vi.fn(),
   openTappedFile: vi.fn(),
@@ -175,6 +176,7 @@ beforeEach(() => {
   api.sendFile.mockResolvedValue(true);
   api.shareFile.mockResolvedValue(undefined);
   api.saveFile.mockResolvedValue(true);
+  api.openFile.mockResolvedValue(null);
   api.importFile.mockResolvedValue({ added: 2, updated: 0, skipped: 0, warnings: [] });
   api.tappedFilePending.mockResolvedValue(false);
   api.openTappedFile.mockResolvedValue(null);
@@ -1101,6 +1103,38 @@ describe("transfer by file", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it("asks an iPhone receiver for one-time Downloads folder access when not granted yet", async () => {
+      Object.defineProperty(navigator, "userAgent", {
+        value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+        configurable: true,
+      });
+      api.watchForFile.mockResolvedValue({ watching: false, needsAccess: true });
+      render();
+      await press("Receive Accounts on This Device");
+      expect(popupTitle()).toBe("Allow File Access");
+      expect(popup()?.textContent).toContain("Automatically add accounts received through AirDrop.");
+      expect(popup()?.textContent).toContain("On the next screen, open your Downloads folder and tap Open.");
+      await pressIn("Allow Access");
+      expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
+    });
+
+    it("lets an iPhone receiver pick a transfer file saved to Files and confirm adding it", async () => {
+      Object.defineProperty(navigator, "userAgent", {
+        value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+        configurable: true,
+      });
+      api.openFile.mockResolvedValue(PREVIEW);
+      render();
+      await press("Receive Accounts on This Device");
+      expect(text()).toContain("AirDrop files saved to Downloads are picked up automatically when you return here.");
+      await press("Open File from Files");
+      expect(api.openFile).toHaveBeenCalledTimes(1);
+      expect(text()).toContain("Are you sure you want to add these 2 accounts from the other device?");
+      await press("Add Accounts");
+      expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
+      expect(title()).toBe("Devices linked");
     });
 
     it("is not looked for on Windows or Linux", async () => {

@@ -69,6 +69,8 @@ export const bridgeApi = {
   setIncludeBetaUpdates: (enabled: boolean) => invoke<AppSettings>("set_include_beta_updates", { enabled }),
   getAutostart: () => invoke<boolean>("get_autostart"),
   setAutostart: (enabled: boolean) => invoke<boolean>("set_autostart", { enabled }),
+  /** Desktop: paints the native title bar with the chosen `#rrggbb` accent color. */
+  setTitleBarColor: (hex: string) => invoke<void>("set_title_bar_color", { hex }),
   /** Drops every account's saved usage snapshot; accounts and sign-ins stay. */
   clearCachedUsage: () => invoke<void>("clear_cached_usage"),
   /** Deletes accounts, saved sign-ins, snapshots, groups, alerts, usage history and settings from this device. */
@@ -147,6 +149,8 @@ export const pairingApi = {
   shareFile: () => invoke<void>("pairing_file_share"),
   /** Saves a copy of the file made last where the user chooses. */
   saveFile: () => invoke<boolean>("pairing_file_save"),
+  /** Receiver: chooses a transfer file from the native picker (e.g. iOS Files) and opens it with the code shown. */
+  openFile: () => invoke<FilePreview | null>("pairing_file_open"),
   /** Android and iPhone: whether a transfer file was opened from another app and not opened here yet. */
   tappedFilePending: () => invoke<boolean>("pairing_file_tapped_pending"),
   /** Android and iPhone: opens a transfer file opened from another app; null when none waits. */

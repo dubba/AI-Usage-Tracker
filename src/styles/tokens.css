@@ -156,7 +156,9 @@
      * the two together do not turn the window black. */
     --scrim: rgba(0, 0, 0, 0.7);
     --scrim-stacked: rgba(0, 0, 0, 0.3);
+    --scrim-preview: rgba(0, 0, 0, 0.22);
     --scrim-blur: 3px;
+    --scrim-blur-subtle: 0.75px;
     --z-toast: 10100;
     --z-error-banner: 10200;
     /* Portal tooltips render directly onto document.body and always sit above all app UI layers. */

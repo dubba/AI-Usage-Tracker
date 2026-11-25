@@ -1,3 +1,4 @@
+import { applyAccentColorToDocument, initAccentColor } from "./accent-color";
 import { logIgnored } from "./log";
 import { createPreferenceStore } from "./preference-store";
 import { STORAGE_KEYS } from "./storage";
@@ -29,7 +30,9 @@ export const getThemePreference = store.get;
 export const subscribeThemePreference = store.subscribe;
 
 function applyToDocument(): void {
-  document.documentElement.setAttribute("data-theme", resolveTheme(store.get(), systemPrefersLight()));
+  const resolved = resolveTheme(store.get(), systemPrefersLight());
+  document.documentElement.setAttribute("data-theme", resolved);
+  applyAccentColorToDocument(resolved);
 }
 
 // Keeps the native title bar in step with the page. `null` hands control back to the OS.
@@ -57,6 +60,7 @@ export function setThemePreference(next: ThemePreference): void {
 export function initTheme(): void {
   store.refresh();
   applyToDocument();
+  initAccentColor(resolveTheme(store.get(), systemPrefersLight()));
   void applyToWindow();
 
   window.matchMedia?.(LIGHT_QUERY).addEventListener?.("change", () => {

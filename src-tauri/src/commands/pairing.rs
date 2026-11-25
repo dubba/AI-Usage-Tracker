@@ -244,17 +244,67 @@ fn file_error(message: impl Into<String>) -> super::error::CommandError {
 }
 
 /// The open and save dialogs, filtered to transfer files where the system knows file types by
-/// extension. Android's dialogs filter by MIME type, which these files do not have.
+/// extension. Android filters by MIME type and iOS may receive `.aiutpair 2` duplicates or generic
+/// binary types from Android Quick Share, so mobile leaves the picker unfiltered and validates the
+/// header on read.
 fn transfer_dialog(
     app: &AppHandle,
     title: &str,
 ) -> tauri_plugin_dialog::FileDialogBuilder<tauri::Wry> {
     use tauri_plugin_dialog::DialogExt;
     let dialog = app.dialog().file().set_title(title);
-    if cfg!(target_os = "android") {
+    if cfg!(any(target_os = "android", target_os = "ios")) {
         dialog
     } else {
         dialog.add_filter("AI Usage Tracker transfer", &[TRANSFER_FILE_EXTENSION])
+    }
+}
+
+/// Shows the native open dialog and reads the chosen file, refusing one larger than `max_len`
+/// before reading it. `None` when the user cancels.
+async fn pick_transfer_file(
+    app: &AppHandle,
+    title: &str,
+    max_len: usize,
+) -> CommandResult<Option<Vec<u8>>> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    transfer_dialog(app, title).pick_file(move |path| {
+        let _ = sender.send(path);
+    });
+    let Some(path) = receiver.await.ok().flatten() else {
+        return Ok(None);
+    };
+    tauri::async_runtime::spawn_blocking(move || read_picked(path, max_len))
+        .await
+        .map_err(|_| file_error(FILE_READ_FAILED))?
+        .map(Some)
+}
+
+/// Reads a picked file, at most `max_len` bytes: a path, or on Android a `content://` address.
+fn read_picked(path: tauri_plugin_dialog::FilePath, max_len: usize) -> CommandResult<Vec<u8>> {
+    match path {
+        tauri_plugin_dialog::FilePath::Path(path) => read_capped(&path, max_len),
+        #[cfg(target_os = "android")]
+        tauri_plugin_dialog::FilePath::Url(url) => {
+            let bytes =
+                crate::platform::android_files::read(url.as_str(), max_len).map_err(file_error)?;
+            if bytes.len() > max_len {
+                return Err(file_error(pairing::file_transfer::NOT_A_PAIRING_FILE));
+            }
+            Ok(bytes)
+        }
+        // iOS hands back a copy of the picked file (`asCopy: true`) as a `file://` address in the
+        // app's temporary inbox. It is deleted once read so it is never re-offered as a tapped file.
+        #[cfg(not(target_os = "android"))]
+        tauri_plugin_dialog::FilePath::Url(url) => match url.to_file_path() {
+            Ok(path) => {
+                let read = read_capped(&path, max_len);
+                #[cfg(target_os = "ios")]
+                let _ = std::fs::remove_file(&path);
+                read
+            }
+            Err(()) => Err(file_error(FILE_READ_FAILED)),
+        },
     }
 }
 
@@ -423,6 +473,25 @@ pub async fn pairing_file_save(
     Ok(true)
 }
 
+/// Receiver: opens a transfer file chosen in the native open dialog (e.g. iOS Files → Downloads
+/// when AirDrop from Android Quick Share saves the file to Files) with the code this device shows,
+/// and says how many accounts it holds, importing nothing. `None` when the dialog was cancelled.
+#[tauri::command]
+pub async fn pairing_file_open(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
+    let Some(file) =
+        pick_transfer_file(&app, "Open the file", pairing::file_transfer::MAX_FILE_LEN)
+            .await
+            .inspect_err(|error| sync_log::failed("file: reading the chosen file", error))?
+    else {
+        sync_log::note("file: choosing a file cancelled");
+        return Ok(None);
+    };
+    open_received(state.inner(), file, CHOSEN).await.map(Some)
+}
+
 /// Android, iOS, and macOS: whether a transfer file was opened from another app (Quick Share's
 /// notification, AirDrop, Files, Finder) and not opened in Sync Devices yet. Always false elsewhere.
 #[tauri::command]
@@ -526,12 +595,13 @@ async fn open_tapped_on_android(
 }
 
 /// Where a received file came from, for the sync log.
+const CHOSEN: &str = "chosen in the open dialog";
 #[cfg(any(target_os = "android", target_os = "ios", target_os = "macos"))]
 const TAPPED: &str = "tapped in another app";
 const PICKED_UP: &str = "picked up from Downloads";
 
 /// Opens a transfer file, already read, with the code this device shows, logging how it went.
-/// `source` is [`TAPPED`] or [`PICKED_UP`].
+/// `source` is [`CHOSEN`], [`TAPPED`] or [`PICKED_UP`].
 async fn open_received(
     state: &AppState,
     bytes: Vec<u8>,
@@ -568,14 +638,14 @@ pub struct IncomingWatchInfo {
 }
 
 /// Receiver: starts (or restarts) looking in Downloads for the transfer file. Files already there
-/// are left alone. On iPhone nothing is watched (AirDrop opens the file in the app itself), and
-/// on Android only once the user has allowed file access.
+/// are left alone. On Android and iPhone, picking them up automatically needs the user's one-time
+/// Downloads folder access ([`pairing_file_request_access`]).
 #[tauri::command]
 pub async fn pairing_file_watch(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
 ) -> CommandResult<IncomingWatchInfo> {
-    use pairing::incoming_files::{watched_dirs, IncomingWatch};
+    use pairing::incoming_files::IncomingWatch;
     #[cfg(target_os = "android")]
     {
         let allowed =
@@ -590,30 +660,56 @@ pub async fn pairing_file_watch(
             });
         }
     }
-    let (watch, denied) = tauri::async_runtime::spawn_blocking(move || {
-        let dirs = watched_dirs(&app);
-        let denied = dirs.iter().any(|dir| {
-            matches!(
-                std::fs::read_dir(dir),
-                Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied
-            )
+    #[cfg(target_os = "ios")]
+    {
+        use tauri::Manager;
+        let data_dir = app.path().app_data_dir().ok();
+        let watch = tauri::async_runtime::spawn_blocking(move || {
+            let dir = data_dir?;
+            let scope = crate::platform::ios_files::open_downloads_dir(&dir)?;
+            let watch = IncomingWatch::start(vec![scope.path().to_path_buf()]);
+            Some(watch)
+        })
+        .await
+        .map_err(|_| file_error(FILE_READ_FAILED))?;
+        let watching = watch.is_some();
+        *state.pairing_incoming.lock() = watch;
+        if watching {
+            sync_log::note("file: watching Downloads for the transfer file");
+        }
+        return Ok(IncomingWatchInfo {
+            watching,
+            needs_access: !watching,
         });
-        let watch = (!dirs.is_empty()).then(|| IncomingWatch::start(dirs));
-        (watch, denied)
-    })
-    .await
-    .map_err(|_| file_error(FILE_READ_FAILED))?;
-    let watching = watch.is_some();
-    *state.pairing_incoming.lock() = watch;
-    if denied {
-        sync_log::note("file: Downloads folder access was denied by the OS");
-    } else if watching {
-        sync_log::note("file: watching Downloads for the transfer file");
     }
-    Ok(IncomingWatchInfo {
-        watching,
-        needs_access: false,
-    })
+    #[cfg(not(target_os = "ios"))]
+    {
+        use pairing::incoming_files::watched_dirs;
+        let (watch, denied) = tauri::async_runtime::spawn_blocking(move || {
+            let dirs = watched_dirs(&app);
+            let denied = dirs.iter().any(|dir| {
+                matches!(
+                    std::fs::read_dir(dir),
+                    Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied
+                )
+            });
+            let watch = (!dirs.is_empty()).then(|| IncomingWatch::start(dirs));
+            (watch, denied)
+        })
+        .await
+        .map_err(|_| file_error(FILE_READ_FAILED))?;
+        let watching = watch.is_some();
+        *state.pairing_incoming.lock() = watch;
+        if denied {
+            sync_log::note("file: Downloads folder access was denied by the OS");
+        } else if watching {
+            sync_log::note("file: watching Downloads for the transfer file");
+        }
+        Ok(IncomingWatchInfo {
+            watching,
+            needs_access: false,
+        })
+    }
 }
 
 /// Stops looking in Downloads (the page left the step that waits for a file).
@@ -623,15 +719,29 @@ pub fn pairing_file_watch_stop(state: State<'_, Arc<AppState>>) -> CommandResult
     Ok(())
 }
 
-/// Android: opens the system page that allows file access, so transfer files are picked up by
-/// themselves. Does nothing elsewhere.
+/// Android / iOS: asks the user for one-time Downloads folder access so transfer files saved by
+/// Quick Share or AirDrop are picked up automatically. Does nothing elsewhere.
 #[tauri::command]
-pub async fn pairing_file_request_access() -> CommandResult<()> {
+pub async fn pairing_file_request_access(
+    #[allow(unused_variables)] app: AppHandle,
+    #[allow(unused_variables)] window: tauri::WebviewWindow,
+) -> CommandResult<()> {
     #[cfg(target_os = "android")]
     tauri::async_runtime::spawn_blocking(crate::platform::android_files::request_downloads_access)
         .await
         .map_err(|_| file_error(FILE_READ_FAILED))?
         .map_err(file_error)?;
+    #[cfg(target_os = "ios")]
+    {
+        use tauri::Manager;
+        let data_dir = app
+            .path()
+            .app_data_dir()
+            .map_err(|_| file_error(FILE_READ_FAILED))?;
+        crate::platform::ios_files::request_downloads_access(&window, data_dir)
+            .await
+            .map_err(file_error)?;
+    }
     Ok(())
 }
 
@@ -691,30 +801,39 @@ pub async fn pairing_open_receive_settings(
 /// file is skipped (and logged), so the watch goes on. One that opened is deleted.
 #[tauri::command]
 pub async fn pairing_file_poll(
+    #[allow(unused_variables)] app: AppHandle,
     state: State<'_, Arc<AppState>>,
 ) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
     use pairing::file_transfer::{check, MAX_FILE_LEN, NOT_A_PAIRING_FILE};
     let shared = state.inner().clone();
+    #[cfg(target_os = "ios")]
+    let data_dir = {
+        use tauri::Manager;
+        app.path().app_data_dir().ok()
+    };
+    #[cfg(target_os = "ios")]
+    let remove_data_dir = data_dir.clone();
     let found = tauri::async_runtime::spawn_blocking(move || {
-        shared.pairing_incoming.lock().as_mut()?.next_ready()
+        #[cfg(target_os = "ios")]
+        let _scope = data_dir
+            .as_deref()
+            .and_then(crate::platform::ios_files::open_downloads_dir);
+        let path = shared.pairing_incoming.lock().as_mut()?.next_ready()?;
+        let bytes = read_capped(&path, MAX_FILE_LEN);
+        Some((path, bytes))
     })
     .await
     .map_err(|_| file_error(FILE_READ_FAILED))?;
-    let Some(path) = found else {
+    let Some((path, read)) = found else {
         return Ok(None);
     };
-    let read_path = path.clone();
-    let bytes =
-        match tauri::async_runtime::spawn_blocking(move || read_capped(&read_path, MAX_FILE_LEN))
-            .await
-            .map_err(|_| file_error(FILE_READ_FAILED))?
-        {
-            Ok(bytes) => bytes,
-            Err(error) => {
-                sync_log::failed("file: reading a file that arrived in Downloads", &error);
-                return Ok(None);
-            }
-        };
+    let bytes = match read {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            sync_log::failed("file: reading a file that arrived in Downloads", &error);
+            return Ok(None);
+        }
+    };
     match check(&bytes) {
         Ok(()) => {}
         Err(error) if error == NOT_A_PAIRING_FILE => {
@@ -729,7 +848,13 @@ pub async fn pairing_file_poll(
     }
     let opened = open_received(state.inner(), bytes, PICKED_UP).await?;
     // The accounts are in memory now and the code is used up: the file is spent.
-    tauri::async_runtime::spawn_blocking(move || std::fs::remove_file(path));
+    tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(target_os = "ios")]
+        let _scope = remove_data_dir
+            .as_deref()
+            .and_then(crate::platform::ios_files::open_downloads_dir);
+        let _ = std::fs::remove_file(path);
+    });
     Ok(Some(opened))
 }
 

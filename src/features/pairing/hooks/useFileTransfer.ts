@@ -143,7 +143,12 @@ export function useFileTransfer({
     awaitingConfirm: awaitingConfirm && preview !== null,
     /** Receiver: add the opened file's accounts. */
     confirmImport,
-    /** Android and iPhone: open the file opened from another app, then add its accounts. */
+    /** Receiver: choose a received transfer file from the system picker (e.g. iOS Files). */
+    openFile: () =>
+      step("Couldn't open the file", () => pairingApi.openFile(), (opened) => {
+        if (opened) showOpened(opened);
+      }),
+    /** Android, iPhone, and macOS: open the file opened from another app, then add its accounts. */
     openTapped: () =>
       step("Couldn't open the file", () => pairingApi.openTappedFile(), (opened) => {
         if (opened) showOpened(opened);

@@ -308,6 +308,7 @@ class MainActivity : TauriActivity() {
   }
 
   override fun onDestroy() {
+    pairingNetwork.unregisterMdnsService()
     signInTabs.disconnectSession()
     updateInstaller.activityDestroyed()
     activeWebView = null
@@ -373,6 +374,16 @@ class MainActivity : TauriActivity() {
   fun setPairingLanBinding(enabled: Boolean) = pairingNetwork.setLanBinding(enabled)
 
   fun routePairingTo(interfaceName: String) = pairingNetwork.routePairingTo(interfaceName)
+
+  fun registerMdnsService(
+    instanceName: String,
+    port: Int,
+    sessionId: String,
+    nonce: String,
+    version: String,
+  ): Boolean = pairingNetwork.registerMdnsService(instanceName, port, sessionId, nonce, version)
+
+  fun unregisterMdnsService() = pairingNetwork.unregisterMdnsService()
 
   // Sync Devices transfer files (android_files.rs). read and write throw on failure.
   fun shareTransferFile(path: String) = transferFiles.share(path)

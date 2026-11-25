@@ -5,6 +5,8 @@ import { click, mount, type Mounted } from "../../test-utils/react";
 import type { AppSettings, AppUpdateStatus, BridgeStatus } from "../../types";
 import { setNarrowWindow } from "../../test-utils/media";
 import { getBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
+import { DEFAULT_ACCENT_COLOR, getAccentColor, setAccentColor } from "../../shared/lib/accent-color";
+import { getThemePreference, setThemePreference } from "../../shared/lib/theme";
 import { getSyncOtherWays, setSyncOtherWays } from "../../shared/lib/sync-other-ways";
 import { SettingsView } from "./SettingsView";
 import { AppSettingsContext, AppUpdateContext, type AppSettingsState, type AppUpdateState } from "./settings-context";
@@ -142,6 +144,79 @@ describe("General", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     click(toggle);
     expect(settings.toggleAutostart).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a custom Theme Accent Color modal without duplicate inline swatches and extends downward for Custom Color", () => {
+    try {
+      setAccentColor(DEFAULT_ACCENT_COLOR);
+      setThemePreference("dark");
+      app = mount(view());
+      // Never uses the underlying OS <input type="color"> or duplicate inline swatch radios.
+      expect(document.querySelector('input[type="color"]')).toBeNull();
+      expect(document.querySelectorAll('.settings-card button[role="radio"]')).toHaveLength(0);
+
+      const trigger = document.querySelector<HTMLButtonElement>("#setting-accent-color")!;
+      expect(trigger.textContent?.trim()).toBe("Purple");
+
+      // Open the custom "Pick a theme color" modal.
+      click(trigger);
+      expect(document.querySelector(".modal-backdrop.accent-color-modal-backdrop")).not.toBeNull();
+      const modal = document.querySelector(".accent-color-modal")!;
+      expect(modal).not.toBeNull();
+      expect(modal.textContent).toContain("Pick a theme color");
+      expect(modal.textContent).toContain("Tap the color twice to toggle between Light and Dark mode");
+      expect(modal.querySelector(".accent-custom-box")).toBeNull();
+
+      const modalSwatches = [...modal.querySelectorAll<HTMLButtonElement>('.accent-color-grid button[role="radio"]')];
+      expect(modalSwatches).toHaveLength(11);
+
+      // Select Emerald, then tap Emerald a second time to toggle Dark -> Light.
+      const emerald = modalSwatches.find((el) => el.getAttribute("aria-label") === "Emerald")!;
+      click(emerald);
+      expect(getAccentColor()).toBe("#0ea472");
+      expect(trigger.textContent?.trim()).toBe("Emerald");
+      expect(getThemePreference()).toBe("dark");
+      click(emerald);
+      expect(getThemePreference()).toBe("light");
+
+      // Tapping the + circle extends the Custom Color box below the 4×3 grid (grid remains visible!).
+      click(modal.querySelector<HTMLButtonElement>('button[aria-label="Custom color picker"]')!);
+      expect(modal.querySelectorAll('.accent-color-grid button[role="radio"]')).toHaveLength(11);
+      const customBox = modal.querySelector(".accent-custom-box")!;
+      expect(customBox).not.toBeNull();
+      expect(customBox.textContent).toContain("Custom Color");
+      expect(customBox.querySelector(".accent-sv-plane")).not.toBeNull();
+      expect(customBox.querySelector('[role="slider"][aria-label="Hue"]')).not.toBeNull();
+
+      const hexInput = customBox.querySelector<HTMLInputElement>("#accent-custom-hex-input")!;
+      act(() => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+        setter.call(hexInput, "#c22222");
+        hexInput.dispatchEvent(new Event("input", { bubbles: true }));
+        hexInput.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      expect(getAccentColor()).toBe("#c22222");
+      expect(document.documentElement.style.getPropertyValue("--purple-fill")).toBe("#c22222");
+      expect(trigger.textContent?.trim()).toBe("#C22222");
+
+      // Clicking Reset restores default Purple while keeping the custom box open.
+      const resetBtn = customBox.querySelector<HTMLButtonElement>(".accent-reset-btn")!;
+      expect(resetBtn.disabled).toBe(false);
+      click(resetBtn);
+      expect(getAccentColor()).toBe(DEFAULT_ACCENT_COLOR);
+      expect(document.documentElement.style.getPropertyValue("--purple-fill")).toBe("");
+      expect(hexInput.value).toBe(DEFAULT_ACCENT_COLOR.toUpperCase());
+      expect(resetBtn.disabled).toBe(true);
+
+      // Selecting a preset in the grid above collapses the Custom Color box.
+      const purple = modalSwatches.find((el) => el.getAttribute("aria-label") === "Purple")!;
+      click(purple);
+      expect(modal.querySelector(".accent-custom-box")).toBeNull();
+      expect(trigger.textContent?.trim()).toBe("Purple");
+    } finally {
+      setThemePreference("dark");
+      setAccentColor(DEFAULT_ACCENT_COLOR);
+    }
   });
 
   it("offers the bottom bar's labels switch on a narrow window, and saves the choice", () => {

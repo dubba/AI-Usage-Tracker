@@ -141,13 +141,35 @@ pub(crate) struct MdnsSdAdvertisement {
 ))]
 impl Drop for MdnsSdAdvertisement {
     fn drop(&mut self) {
-        let _ = self.daemon.unregister(&self.fullname);
+        if let Ok(receiver) = self.daemon.unregister(&self.fullname) {
+            // Give the daemon thread a moment to send the TTL=0 goodbye packet before shutting down.
+            let _ = receiver.recv_timeout(Duration::from_millis(200));
+        }
         let _ = self.daemon.shutdown();
     }
 }
 
+#[cfg(target_os = "android")]
+struct AndroidNsdAdvertisement;
+
+#[cfg(target_os = "android")]
+impl Drop for AndroidNsdAdvertisement {
+    fn drop(&mut self) {
+        crate::platform::lan_binding::unregister_nsd_service();
+    }
+}
+
+#[cfg(target_os = "android")]
+#[allow(dead_code)]
+enum AndroidAdvertisement {
+    Nsd(AndroidNsdAdvertisement),
+    MdnsSd(MdnsSdAdvertisement),
+}
+
 pub struct MdnsAdvertisement {
-    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
+    #[cfg(target_os = "android")]
+    _android: AndroidAdvertisement,
+    #[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "android")))]
     _mdns: MdnsSdAdvertisement,
     #[cfg(any(target_os = "ios", target_os = "macos"))]
     _registration: super::dnssd::Registration,
@@ -202,7 +224,35 @@ pub fn advertise(
         })
     }
 
-    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
+    #[cfg(target_os = "android")]
+    {
+        let sid = properties[0].1.as_str();
+        let nonce_b64 = properties[1].1.as_str();
+        let version = properties[2].1.as_str();
+        match crate::platform::lan_binding::register_nsd_service(
+            instance, port, sid, nonce_b64, version,
+        ) {
+            Ok(()) => {
+                super::sync_log::note("link code: announced via Android NSD");
+                Ok(MdnsAdvertisement {
+                    _android: AndroidAdvertisement::Nsd(AndroidNsdAdvertisement),
+                })
+            }
+            Err(error) => {
+                crate::diagnostics::warn(&error);
+                Ok(MdnsAdvertisement {
+                    _android: AndroidAdvertisement::MdnsSd(advertise_mdns_sd(
+                        instance,
+                        host_ip,
+                        port,
+                        &properties,
+                    )?),
+                })
+            }
+        }
+    }
+
+    #[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "android")))]
     Ok(MdnsAdvertisement {
         _mdns: advertise_mdns_sd(instance, host_ip, port, &properties)?,
     })
@@ -219,6 +269,11 @@ pub(crate) fn advertise_mdns_sd(
     properties: &[(&str, String)],
 ) -> Result<MdnsSdAdvertisement, String> {
     let daemon = ServiceDaemon::new().map_err(|e| format!("mDNS unavailable: {e}"))?;
+    // Pairing listeners bind IPv4; disabling IPv6 keeps mdns-sd from dropping queries on IPv6
+    // sockets where an IPv4-only ServiceInfo has no interface-matching addresses.
+    if host_ip.parse::<std::net::Ipv4Addr>().is_ok() {
+        let _ = daemon.disable_interface(mdns_sd::IfKind::IPv6);
+    }
     let host_name = format!("{}.local.", instance.to_ascii_lowercase());
     let info = ServiceInfo::new(
         SERVICE_TYPE,
@@ -291,6 +346,8 @@ pub(crate) async fn discover_dnssd(timeout: Duration) -> Result<Discovery, Strin
         let mut deadline = std::time::Instant::now() + timeout;
         let mut settling = false;
         let mut saw_instances = 0usize;
+        let mut resolve_errors: Vec<String> = Vec::new();
+        let mut invalid_records = 0usize;
 
         while std::time::Instant::now() < deadline && discovery.hosts.len() < MAX_DISCOVERED_HOSTS {
             let batch = browser.poll_new(deadline, &tried);
@@ -304,44 +361,57 @@ pub(crate) async fn discover_dnssd(timeout: Duration) -> Result<Discovery, Strin
 
             // Resolve every newly seen instance in parallel with a bounded per-instance
             // timeout so a stale cached record cannot starve a live host arriving on the LAN.
-            let resolved_batch: Vec<Option<super::dnssd::Resolved>> = std::thread::scope(|scope| {
-                let handles: Vec<_> = batch
-                    .iter()
-                    .map(|inst| {
-                        let budget = deadline
-                            .saturating_duration_since(std::time::Instant::now())
-                            .min(Duration::from_secs(3));
-                        scope.spawn(move || {
-                            if budget.is_zero() {
-                                return None;
-                            }
-                            super::dnssd::resolve(
-                                &inst.name,
-                                DNSSD_REGTYPE,
-                                &inst.domain,
-                                inst.interface_index,
-                                budget,
-                            )
-                            .ok()
+            let resolved_batch: Vec<Result<super::dnssd::Resolved, String>> =
+                std::thread::scope(|scope| {
+                    let handles: Vec<_> = batch
+                        .iter()
+                        .map(|inst| {
+                            let budget = deadline
+                                .saturating_duration_since(std::time::Instant::now())
+                                .min(Duration::from_secs(5));
+                            scope.spawn(move || {
+                                if budget.is_zero() {
+                                    return Err("budget exhausted".to_string());
+                                }
+                                super::dnssd::resolve(
+                                    &inst.name,
+                                    DNSSD_REGTYPE,
+                                    &inst.domain,
+                                    inst.interface_index,
+                                    budget,
+                                )
+                            })
                         })
-                    })
-                    .collect();
-                handles
-                    .into_iter()
-                    .map(|handle| handle.join().ok().flatten())
-                    .collect()
-            });
+                        .collect();
+                    handles
+                        .into_iter()
+                        .map(|handle| {
+                            handle
+                                .join()
+                                .unwrap_or_else(|_| Err("resolve worker panicked".to_string()))
+                        })
+                        .collect()
+                });
 
-            for resolved in resolved_batch.into_iter().flatten() {
-                let host = pick_resolved_host(&resolved.addresses);
-                let property = |key: &str| resolved.properties.get(key).map(String::as_str);
-                discovery.add(parsed_from_resolved(
-                    host.as_deref(),
-                    resolved.port,
-                    property("sid"),
-                    property("nonce"),
-                    property("v"),
-                ));
+            for outcome in resolved_batch {
+                match outcome {
+                    Ok(resolved) => {
+                        let host = pick_resolved_host(&resolved.addresses);
+                        let property = |key: &str| resolved.properties.get(key).map(String::as_str);
+                        let parsed = parsed_from_resolved(
+                            host.as_deref(),
+                            resolved.port,
+                            property("sid"),
+                            property("nonce"),
+                            property("v"),
+                        );
+                        if matches!(parsed, Err(ResolveError::Invalid)) {
+                            invalid_records += 1;
+                        }
+                        discovery.add(parsed);
+                    }
+                    Err(reason) => resolve_errors.push(reason),
+                }
             }
 
             if !discovery.hosts.is_empty() && !settling {
@@ -354,8 +424,15 @@ pub(crate) async fn discover_dnssd(timeout: Duration) -> Result<Discovery, Strin
             if let Some(code) = browser.last_error() {
                 super::sync_log::note(&format!("Bonjour browse error (DNS-SD {code})"));
             } else if saw_instances > 0 {
+                let detail = if !resolve_errors.is_empty() {
+                    resolve_errors.join("; ")
+                } else if invalid_records > 0 {
+                    format!("{invalid_records} record(s) rejected by validation")
+                } else {
+                    "no usable host".to_string()
+                };
                 super::sync_log::note(&format!(
-                    "Bonjour saw {saw_instances} pairing host(s) but could not resolve a local address"
+                    "Bonjour saw {saw_instances} pairing host(s) but could not resolve: {detail}"
                 ));
             }
         }

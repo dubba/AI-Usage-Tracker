@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (4 changes)
+
+### Added (2)
+
+- Settings > General now includes a **Theme Accent Color** option with a custom "Pick a theme color" modal (11 preset colors, tap a selected color again to toggle Light and Dark mode, and an expandable **Custom Color** picker with a color square, hue slider, hex input, and Reset). Your chosen color applies across the app and desktop title bar and stays saved across restarts and synced devices.
+- On iPhone and iPad, Sync Devices now asks once for Downloads folder access so AirDrop transfer files saved to Files are picked up automatically when you return to the app, and also offers an "Open File from Files" fallback button on the link code screen.
+
+### Fixed (2)
+
+- On Android, Sync Devices now advertises link-code sessions through Android's native `NsdManager` and Apple devices prefer IPv4 during Bonjour address lookup, fixing iPhone-to-Android Wi-Fi discovery.
+- On iPhone and iPad, Sync Devices transfer files now support opening in place so tapping a `.aiutpair` file in Files hands it straight to the app.
 
 ## v0.7.0 - 2026-11-24 (35 changes)
 

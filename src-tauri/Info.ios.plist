@@ -22,8 +22,8 @@
 	</array>
 	<!-- Sync Devices transfer files (.aiutpair, the same type as Android's
 	     TransferFiles.MIME_TYPE). Declaring the type lets AirDrop, Files and Mail offer this app
-	     for one; iOS copies it into Documents/Inbox, where platform/ios_files.rs reads it.
-	     Not opened in place, so no security-scoped access is needed. -->
+	     for one; platform/ios_files.rs reads opened URLs with security-scoped access and also
+	     watches a user-selected Downloads folder via a persistent security-scoped bookmark. -->
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -55,7 +55,7 @@
 			<key>CFBundleTypeName</key>
 			<string>AI Usage Tracker transfer file</string>
 			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
+			<string>Editor</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
@@ -65,7 +65,7 @@
 		</dict>
 	</array>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<false/>
+	<true/>
 	<!-- Apps built with the iOS 27 SDK must use the scene life cycle; this key opts tao
 	     into it. One window, so a single scene. tao installs its own scene delegate. -->
 	<key>UIApplicationSceneManifest</key>

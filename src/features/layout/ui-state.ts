@@ -1,6 +1,7 @@
 import { collectPageUiState, applyPageUiState } from "./dashboard-page-state";
 import { requestDashboardResync, UI_EVENTS } from "../../shared/lib/events";
 import { isStringArray, readJson, storageGet, storageSet, STORAGE_KEYS, writeJson } from "../../shared/lib/storage";
+import { normalizeAccentColor, readAccentColor, setAccentColor } from "../../shared/lib/accent-color";
 import { isThemePreference, readThemePreference, setThemePreference } from "../../shared/lib/theme";
 import { getBottomNavLabels, isBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
 import { getCompactDashboardMode, isCompactDashboardMode, setCompactDashboardMode } from "../../shared/lib/compact-dashboard";
@@ -8,7 +9,7 @@ import { getUsageDisplayMode, isUsageDisplayMode, setUsageDisplayMode } from "..
 
 type UiState = Record<string, unknown>;
 
-/** Layout state (group/provider order, collapsed cards, page order, sidebar width, theme, usage display mode, menu bar labels, compact dashboard) to send to a paired device. */
+/** Layout state (group/provider order, collapsed cards, page order, sidebar width, theme, accent color, usage display mode, menu bar labels, compact dashboard) to send to a paired device. */
 export function collectUiState(): UiState {
   const ui: UiState = {};
   const groupOrder = readJson<string[]>(STORAGE_KEYS.sidebarGroupOrder, [], isStringArray);
@@ -19,6 +20,7 @@ export function collectUiState(): UiState {
   const width = Number.parseInt(storageGet(STORAGE_KEYS.sidebarWidthDesktop) ?? "", 10);
   if (Number.isFinite(width) && width > 0) ui.sidebar_width = width;
   ui.theme = readThemePreference();
+  ui.accent_color = readAccentColor();
   ui.usage_display_mode = getUsageDisplayMode();
   ui.bottom_nav_labels = getBottomNavLabels();
   ui.compact_dashboard = getCompactDashboardMode();
@@ -42,6 +44,10 @@ export function applyUiState(payload: UiState): void {
   }
   if (isThemePreference(payload.theme)) {
     setThemePreference(payload.theme);
+  }
+  const accentColor = normalizeAccentColor(payload.accent_color);
+  if (accentColor) {
+    setAccentColor(accentColor);
   }
   if (isUsageDisplayMode(payload.usage_display_mode)) {
     setUsageDisplayMode(payload.usage_display_mode);

@@ -10,13 +10,13 @@ const ACCESS_POLL_MS = 1500;
 
 /**
  * Waits for the transfer file while `active` (the receiver showing its link code), with nothing to
- * tap. Rust watches Downloads, where AirDrop on a Mac and Quick Share on Windows and Android save
- * what they receive, and opens the file that arrives with the code; `onOpened` gets it. On iPhone AirDrop
- * opens the file in the app itself (`useTappedTransferFile`), so nothing is watched.
+ * tap. Rust watches Downloads, where AirDrop (Mac/iPhone) and Quick Share (Windows/Android) save
+ * what they receive, and opens the file that arrives with the code; `onOpened` gets it. On iPhone
+ * tapping the file directly in Files also hands it to the app (`useTappedTransferFile`).
  *
- * Android needs All files access to see Quick Share's files: `needsAccess` is then true until the
- * user allows it through `requestAccess` (Settings), which is checked for every 1.5 s, since the
- * WebView is not told when the app comes back from Settings.
+ * Android (All files access) and iPhone (one-time Downloads folder bookmark) need user permission
+ * first: `needsAccess` is then true until allowed through `requestAccess`, which is re-checked
+ * every 1.5 s so returning from Settings or the folder picker starts watching automatically.
  */
 export function useIncomingFile({
   active,
@@ -27,6 +27,7 @@ export function useIncomingFile({
   onOpened: (opened: FilePreview) => void;
   onError: (cause: unknown) => void;
 }) {
+  const [watching, setWatching] = useState(false);
   const [needsAccess, setNeedsAccess] = useState(false);
   /** The first watch answered, so `needsAccess` is known. */
   const [checked, setChecked] = useState(false);
@@ -35,6 +36,7 @@ export function useIncomingFile({
 
   useEffect(() => {
     if (!active) {
+      setWatching(false);
       setNeedsAccess(false);
       setChecked(false);
       return;
@@ -60,6 +62,7 @@ export function useIncomingFile({
       try {
         const info = await pairingApi.watchForFile();
         if (cancelled) return;
+        setWatching(info.watching);
         setNeedsAccess(info.needsAccess);
         setChecked(true);
         if (info.watching) {
@@ -87,5 +90,5 @@ export function useIncomingFile({
     void pairingApi.requestFileAccess().catch(onError);
   };
 
-  return { needsAccess, checked, requestAccess };
+  return { watching, needsAccess, checked, requestAccess };
 }

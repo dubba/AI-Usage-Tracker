@@ -11,7 +11,7 @@ import { useQrScanner } from "./hooks/useQrScanner";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 import { useSyncOtherWays } from "../../shared/hooks/usePreferences";
 import { logIgnored } from "../../shared/lib/log";
-import { isMobileDevice } from "../../shared/lib/platform";
+import { isIOS, isMobileDevice } from "../../shared/lib/platform";
 import { flowReducer, INITIAL_FLOW } from "./lib/flow-state";
 import {
   hasOwnActionButtons as viewHasOwnActionButtons,
@@ -563,7 +563,10 @@ export function PairingModal({
           <HostCodeView
             status={status}
             remainingSecs={remainingSecs}
+            busy={busy}
             onRegenerate={() => void initHostSession(legacyHost)}
+            onOpenFile={watchingForFile && isIOS() ? fileTransfer.openFile : undefined}
+            autoPickup={incoming.watching}
             onOtherWays={otherWaysShown ? () => leaveAttempt("select-mode") : undefined}
             nearbyName={nearbyName}
           />
@@ -753,6 +756,7 @@ export function PairingModal({
               </div>
               <p className="file-access-row-desc">
                 AI Usage Tracker needs access to {nearbyName ?? "Quick Share"} files saved in Downloads to automatically sync your accounts.
+                {isIOS() ? " On the next screen, open your Downloads folder and tap Open." : ""}
               </p>
             </div>
             <div className="file-access-row">

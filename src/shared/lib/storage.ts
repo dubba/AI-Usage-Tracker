@@ -12,6 +12,8 @@ export const STORAGE_KEYS = {
   sidebarWidthMobile: "paseo-usage-bridge:sidebar-width-mobile",
   /** "dark" | "oled" | "light" | "system"; also read by public/theme-init.js before the app loads. */
   theme: "ai-usage-tracker:theme",
+  /** "#rrggbb" accent color; also read by public/theme-init.js before the app loads. */
+  accentColor: "ai-usage-tracker:accent-color",
   /** sessionStorage: survives a reload during sign-in, not an app restart. */
   loginAttempt: "ai-usage-tracker:login-attempt",
   /** "left" | "used": whether usage percentages show the quota remaining or already consumed. */

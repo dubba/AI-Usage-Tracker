@@ -504,6 +504,7 @@ impl Browser {
 
 struct ResolveState {
     found: Option<(u32, CString, u16, HashMap<String, String>)>,
+    last_error: Option<DnsServiceErrorType>,
 }
 
 unsafe extern "C" fn on_resolve(
@@ -521,7 +522,11 @@ unsafe extern "C" fn on_resolve(
     // SAFETY: context is the &mut ResolveState passed to DNSServiceResolve,
     // alive for the whole pump on this thread.
     let state = unsafe { &mut *context.cast::<ResolveState>() };
-    if error != NO_ERROR || host_target.is_null() || state.found.is_some() {
+    if error != NO_ERROR {
+        state.last_error.get_or_insert(error);
+        return;
+    }
+    if host_target.is_null() || state.found.is_some() {
         return;
     }
     // SAFETY: DNS-SD passes a NUL-terminated host name and txt_len bytes of TXT.
@@ -542,6 +547,7 @@ unsafe extern "C" fn on_resolve(
 struct AddrState {
     addresses: Vec<IpAddr>,
     batch_done: bool,
+    last_error: Option<DnsServiceErrorType>,
 }
 
 /// Reads an IPv4 or IPv6 address out of a BSD `sockaddr` (Apple layout:
@@ -585,7 +591,11 @@ unsafe extern "C" fn on_addr_info(
     // A missing AAAA record (common for IPv4-only mdns-sd hosts on Android) arrives as
     // `kDNSServiceErr_NoSuchRecord` with `FLAGS_MORE_COMING == 0`. Never end the batch on an
     // error or before at least one address has arrived, or the IPv4 A record can be missed.
-    if error == NO_ERROR && flags & FLAGS_ADD != 0 && !address.is_null() {
+    if error != NO_ERROR {
+        state.last_error.get_or_insert(error);
+        return;
+    }
+    if flags & FLAGS_ADD != 0 && !address.is_null() {
         // SAFETY: DNS-SD hands over a valid sockaddr for the protocol asked.
         if let Some(ip) = unsafe { sockaddr_ip(address) } {
             if !state.addresses.contains(&ip) {
@@ -603,10 +613,11 @@ fn query_addresses(
     protocol: u32,
     host: &CString,
     deadline: Instant,
-) -> Result<Vec<IpAddr>, String> {
+) -> Result<(Vec<IpAddr>, Option<i32>), String> {
     let mut addr_state = AddrState {
         addresses: Vec::new(),
         batch_done: false,
+        last_error: None,
     };
     let mut sd_ref: DnsServiceRef = ptr::null_mut();
     // SAFETY: valid pointers; `addr_state` outlives `ServiceRef`.
@@ -622,20 +633,55 @@ fn query_addresses(
         )
     };
     if err != NO_ERROR || sd_ref.is_null() {
-        return Err(format!("Failed to look up pairing host (DNS-SD {err})"));
+        return Err(format!("addr start error (DNS-SD {err})"));
     }
     let service = ServiceRef(sd_ref);
-    // Wait until a complete batch with at least one real address arrives (or deadline).
-    // If only IPv6 arrived first, wait briefly for IPv4 as well.
     pump(&service, deadline, || addr_state.batch_done);
-    if !addr_state.addresses.is_empty() && !addr_state.addresses.iter().any(IpAddr::is_ipv4) {
-        let short = deadline.min(Instant::now() + Duration::from_millis(1500));
-        pump(&service, short, || {
-            addr_state.addresses.iter().any(IpAddr::is_ipv4)
-        });
-    }
     drop(service);
-    Ok(addr_state.addresses)
+    Ok((addr_state.addresses, addr_state.last_error))
+}
+
+fn resolve_service(
+    name: &CString,
+    regtype: &CString,
+    domain: &CString,
+    interface_index: u32,
+    deadline: Instant,
+) -> Result<(u32, CString, u16, HashMap<String, String>), String> {
+    let mut resolve_state = ResolveState {
+        found: None,
+        last_error: None,
+    };
+    let mut sd_ref: DnsServiceRef = ptr::null_mut();
+    // SAFETY: valid pointers; the context outlives the operation, which is
+    // deallocated (ServiceRef drop) before resolve_state goes out of scope.
+    let err = unsafe {
+        DNSServiceResolve(
+            &mut sd_ref,
+            0,
+            interface_index,
+            name.as_ptr(),
+            regtype.as_ptr(),
+            domain.as_ptr(),
+            on_resolve,
+            (&mut resolve_state as *mut ResolveState).cast(),
+        )
+    };
+    if err != NO_ERROR || sd_ref.is_null() {
+        return Err(format!("resolve start error (DNS-SD {err})"));
+    }
+    let service = ServiceRef(sd_ref);
+    let found = pump(&service, deadline, || {
+        resolve_state.found.is_some() || resolve_state.last_error.is_some()
+    });
+    drop(service);
+    if let Some(found) = resolve_state.found.take().filter(|_| found) {
+        Ok(found)
+    } else if let Some(code) = resolve_state.last_error {
+        Err(format!("resolve callback error (DNS-SD {code})"))
+    } else {
+        Err("resolve timed out".to_string())
+    }
 }
 
 /// Resolves `instance` of `regtype` in `domain` to its port, TXT properties,
@@ -653,49 +699,56 @@ pub fn resolve(
     let regtype = cstring(regtype)?;
     let domain = cstring(domain)?;
 
-    let mut resolve_state = ResolveState { found: None };
-    let mut sd_ref: DnsServiceRef = ptr::null_mut();
-    // SAFETY: valid pointers; the context outlives the operation, which is
-    // deallocated (ServiceRef drop) before resolve_state goes out of scope.
-    let err = unsafe {
-        DNSServiceResolve(
-            &mut sd_ref,
-            0,
-            interface_index,
-            name.as_ptr(),
-            regtype.as_ptr(),
-            domain.as_ptr(),
-            on_resolve,
-            (&mut resolve_state as *mut ResolveState).cast(),
-        )
+    let first_resolve_deadline = if interface_index != 0 {
+        deadline.min(Instant::now() + Duration::from_millis(2500))
+    } else {
+        deadline
     };
-    if err != NO_ERROR || sd_ref.is_null() {
-        return Err(format!("Failed to look up pairing service (DNS-SD {err})"));
-    }
-    let service = ServiceRef(sd_ref);
-    let found = pump(&service, deadline, || resolve_state.found.is_some());
-    drop(service);
-    let Some((resolved_if, host, port, properties)) = resolve_state.found.take().filter(|_| found)
-    else {
-        return Err(NOT_FOUND.to_string());
+    let (resolved_if, host, port, properties) = match resolve_service(
+        &name,
+        &regtype,
+        &domain,
+        interface_index,
+        first_resolve_deadline,
+    ) {
+        Ok(found) => found,
+        Err(_) if interface_index != 0 && Instant::now() < deadline => {
+            resolve_service(&name, &regtype, &domain, 0, deadline)?
+        }
+        Err(err) => return Err(err),
     };
 
-    let mut addresses =
-        query_addresses(resolved_if, PROTOCOL_IPV4 | PROTOCOL_IPV6, &host, deadline)?;
-    // If `DNSServiceResolve` came back on an interface without IPv4 (e.g. AWDL),
-    // try looking up IPv4 across all interfaces before giving up.
-    if !addresses.iter().any(IpAddr::is_ipv4) && resolved_if != 0 && Instant::now() < deadline {
-        if let Ok(fallback) = query_addresses(0, PROTOCOL_IPV4, &host, deadline) {
-            for ip in fallback {
-                if !addresses.contains(&ip) {
-                    addresses.push(ip);
-                }
+    // Pairing hosts bind IPv4, so ask mDNSResponder for IPv4 first without IPv6 AAAA noise.
+    let v4_first_deadline = if resolved_if != 0 {
+        deadline.min(Instant::now() + Duration::from_millis(2000))
+    } else {
+        deadline
+    };
+    let (mut addresses, mut last_addr_err) =
+        query_addresses(resolved_if, PROTOCOL_IPV4, &host, v4_first_deadline)?;
+    if addresses.is_empty() && resolved_if != 0 && Instant::now() < deadline {
+        let v4_any_deadline = deadline.min(Instant::now() + Duration::from_millis(1500));
+        if let Ok((fallback, err)) = query_addresses(0, PROTOCOL_IPV4, &host, v4_any_deadline) {
+            addresses.extend(fallback);
+            if err.is_some() {
+                last_addr_err = err;
+            }
+        }
+    }
+    if addresses.is_empty() && Instant::now() < deadline {
+        if let Ok((v6, err)) = query_addresses(0, PROTOCOL_IPV6, &host, deadline) {
+            addresses.extend(v6);
+            if err.is_some() {
+                last_addr_err = err;
             }
         }
     }
 
     if addresses.is_empty() {
-        return Err(NOT_FOUND.to_string());
+        return Err(match last_addr_err {
+            Some(code) => format!("addr lookup failed (DNS-SD {code})"),
+            None => "addr lookup timed out".to_string(),
+        });
     }
     Ok(Resolved {
         port,
@@ -703,8 +756,6 @@ pub fn resolve(
         addresses,
     })
 }
-
-use super::discovery::NOT_FOUND;
 
 #[cfg(test)]
 mod tests {
