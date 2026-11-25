@@ -21,7 +21,6 @@ const api = vi.hoisted(() => ({
   sendFile: vi.fn(),
   shareFile: vi.fn(),
   saveFile: vi.fn(),
-  openFile: vi.fn(),
   importFile: vi.fn(),
   tappedFilePending: vi.fn(),
   openTappedFile: vi.fn(),
@@ -177,7 +176,6 @@ beforeEach(() => {
   api.sendFile.mockResolvedValue(true);
   api.shareFile.mockResolvedValue(undefined);
   api.saveFile.mockResolvedValue(true);
-  api.openFile.mockResolvedValue(PREVIEW);
   api.importFile.mockResolvedValue({ added: 2, updated: 0, skipped: 0, warnings: [] });
   api.tappedFilePending.mockResolvedValue(false);
   api.openTappedFile.mockResolvedValue(null);

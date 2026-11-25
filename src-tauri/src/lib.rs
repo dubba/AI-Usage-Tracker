@@ -171,7 +171,6 @@ pub fn run() {
             commands::pairing::pairing_file_send,
             commands::pairing::pairing_file_share,
             commands::pairing::pairing_file_save,
-            commands::pairing::pairing_file_open,
             commands::pairing::pairing_file_tapped_pending,
             commands::pairing::pairing_file_open_tapped,
             commands::pairing::pairing_file_import,

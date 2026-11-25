@@ -101,7 +101,6 @@
     "allow-pairing-file-send",
     "allow-pairing-file-share",
     "allow-pairing-file-save",
-    "allow-pairing-file-open",
     "allow-pairing-file-tapped-pending",
     "allow-pairing-file-open-tapped",
     "allow-pairing-file-import",

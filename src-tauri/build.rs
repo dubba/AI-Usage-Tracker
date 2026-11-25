@@ -83,7 +83,6 @@ const APP_COMMANDS: &[&str] = &[
     "pairing_file_send",
     "pairing_file_share",
     "pairing_file_save",
-    "pairing_file_open",
     "pairing_file_tapped_pending",
     "pairing_file_open_tapped",
     "pairing_file_import",

@@ -274,54 +274,6 @@ async fn choose_save_path(
     receiver.await.ok().flatten()
 }
 
-/// Shows the native open dialog and reads the chosen file, refusing one larger than `max_len`
-/// before reading it. `None` when the user cancels.
-async fn pick_transfer_file(
-    app: &AppHandle,
-    title: &str,
-    max_len: usize,
-) -> CommandResult<Option<Vec<u8>>> {
-    let (sender, receiver) = tokio::sync::oneshot::channel();
-    transfer_dialog(app, title).pick_file(move |path| {
-        let _ = sender.send(path);
-    });
-    let Some(path) = receiver.await.ok().flatten() else {
-        return Ok(None);
-    };
-    tauri::async_runtime::spawn_blocking(move || read_picked(path, max_len))
-        .await
-        .map_err(|_| file_error(FILE_READ_FAILED))?
-        .map(Some)
-}
-
-/// Reads a picked file, at most `max_len` bytes: a path, or on Android a `content://` address.
-fn read_picked(path: tauri_plugin_dialog::FilePath, max_len: usize) -> CommandResult<Vec<u8>> {
-    match path {
-        tauri_plugin_dialog::FilePath::Path(path) => read_capped(&path, max_len),
-        #[cfg(target_os = "android")]
-        tauri_plugin_dialog::FilePath::Url(url) => {
-            let bytes =
-                crate::platform::android_files::read(url.as_str(), max_len).map_err(file_error)?;
-            if bytes.len() > max_len {
-                return Err(file_error(pairing::file_transfer::NOT_A_PAIRING_FILE));
-            }
-            Ok(bytes)
-        }
-        // iOS hands back a copy of the picked file, as a `file://` address in the app's inbox.
-        // It is deleted once read, so it is never taken for a file opened from another app.
-        #[cfg(not(target_os = "android"))]
-        tauri_plugin_dialog::FilePath::Url(url) => match url.to_file_path() {
-            Ok(path) => {
-                let read = read_capped(&path, max_len);
-                #[cfg(target_os = "ios")]
-                let _ = std::fs::remove_file(&path);
-                read
-            }
-            Err(()) => Err(file_error(FILE_READ_FAILED)),
-        },
-    }
-}
-
 /// Copies the file at `source` to where the save dialog pointed.
 fn write_saved(
     source: &std::path::Path,
@@ -471,24 +423,6 @@ pub async fn pairing_file_save(
     Ok(true)
 }
 
-/// Receiver: opens a transfer file chosen in the open dialog with the code this device shows,
-/// and says how many accounts it holds, importing nothing. `None` when the dialog was cancelled.
-#[tauri::command]
-pub async fn pairing_file_open(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
-    let Some(file) =
-        pick_transfer_file(&app, "Open the file", pairing::file_transfer::MAX_FILE_LEN)
-            .await
-            .inspect_err(|error| sync_log::failed("file: reading the chosen file", error))?
-    else {
-        sync_log::note("file: choosing a file cancelled");
-        return Ok(None);
-    };
-    open_received(state.inner(), file, CHOSEN).await.map(Some)
-}
-
 /// Android and iOS: whether a transfer file was opened from another app (Quick Share's
 /// notification, AirDrop, Files) and not opened in Sync Devices yet. Always false elsewhere.
 #[tauri::command]
@@ -506,9 +440,9 @@ pub async fn pairing_file_tapped_pending() -> CommandResult<bool> {
     Ok(pending)
 }
 
-/// Android and iOS: opens the file opened from another app, as `pairing_file_open` does for a
-/// chosen file. `None` when no file is waiting. On Android the file is deleted once it opened;
-/// iOS's own copy is deleted once read. Always `None` elsewhere.
+/// Android and iOS: opens the file opened from another app with the code this device shows, and says
+/// how many accounts it holds, importing nothing. `None` when no file is waiting. On Android the
+/// file is deleted once it opened; iOS's own copy is deleted once read. Always `None` elsewhere.
 #[tauri::command]
 pub async fn pairing_file_open_tapped(
     state: State<'_, Arc<AppState>>,
@@ -592,13 +526,12 @@ async fn open_tapped_on_android(
 }
 
 /// Where a received file came from, for the sync log.
-const CHOSEN: &str = "chosen in the open dialog";
 #[cfg(any(target_os = "android", target_os = "ios"))]
 const TAPPED: &str = "tapped in another app";
 const PICKED_UP: &str = "picked up from Downloads";
 
 /// Opens a transfer file, already read, with the code this device shows, logging how it went.
-/// `source` is [`CHOSEN`], [`TAPPED`] or [`PICKED_UP`].
+/// `source` is [`TAPPED`] or [`PICKED_UP`].
 async fn open_received(
     state: &AppState,
     bytes: Vec<u8>,

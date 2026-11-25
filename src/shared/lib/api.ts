@@ -147,11 +147,9 @@ export const pairingApi = {
   shareFile: () => invoke<void>("pairing_file_share"),
   /** Saves a copy of the file made last where the user chooses. */
   saveFile: () => invoke<boolean>("pairing_file_save"),
-  /** Receiver: opens a file with the code this device shows and counts its accounts; imports nothing. */
-  openFile: () => invoke<FilePreview | null>("pairing_file_open"),
   /** Android and iPhone: whether a transfer file was opened from another app and not opened here yet. */
   tappedFilePending: () => invoke<boolean>("pairing_file_tapped_pending"),
-  /** Android and iPhone: opens that file as `openFile` does; null when none waits. */
+  /** Android and iPhone: opens a transfer file opened from another app; null when none waits. */
   openTappedFile: () => invoke<FilePreview | null>("pairing_file_open_tapped"),
   /**
    * Receiver: starts looking in Downloads for the file (where AirDrop and Quick Share save it);
