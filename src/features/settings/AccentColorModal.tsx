@@ -30,6 +30,11 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+/** How close to the circle's center a press counts as a tap on it, in CSS pixels. */
+const THUMB_HIT_RADIUS_PX = 16;
+/** How far a press on the circle may move and still count as a tap rather than a drag. */
+const TAP_SLOP_PX = 6;
+
 function systemPrefersLight(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: light)").matches === true;
 }
@@ -37,7 +42,8 @@ function systemPrefersLight(): boolean {
 /**
  * Custom in-app "Pick a theme color" dialog:
  * - Always shows the 4 × 3 circular swatch grid (11 curated presets + custom `+` circle).
- * - Tapping an already-selected preset toggles between Light and Dark mode.
+ * - Tapping an already-selected preset, or the circle on the custom color square, toggles between
+ *   Light and Dark mode. Dragging the circle picks a color.
  * - Tapping the `+` circle swaps the grid for the "Custom Color" view in the same dialog
  *   (2D saturation/brightness square, hue slider, preview swatch, hex input, Reset) — no OS
  *   picker. "Presets" (left of "Done") goes back to the grid; "Done" closes the dialog.
@@ -79,10 +85,14 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
     setCustomOpen(custom);
   };
 
+  const toggleLightDark = () => {
+    const resolved = resolveTheme(themePreference, systemPrefersLight());
+    setThemePreference(resolved === "light" ? "dark" : "light");
+  };
+
   const handlePresetClick = (hex: string) => {
     if (accentColor === hex) {
-      const resolved = resolveTheme(themePreference, systemPrefersLight());
-      setThemePreference(resolved === "light" ? "dark" : "light");
+      toggleLightDark();
       return;
     }
     setAccentColor(hex);
@@ -118,14 +128,43 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
     applyHsv({ h: ratio * 359.9, s: hsv.s, v: hsv.v });
   };
 
+  /** Where a press on the circle began, while it may still be a tap (it toggles Light/Dark). */
+  const thumbPress = useRef<{ x: number; y: number } | null>(null);
+
   const onSvPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    const rect = svRef.current?.getBoundingClientRect();
+    if (rect && rect.width > 0 && rect.height > 0) {
+      const thumbX = rect.left + hsv.s * rect.width;
+      const thumbY = rect.top + (1 - hsv.v) * rect.height;
+      if (Math.hypot(event.clientX - thumbX, event.clientY - thumbY) <= THUMB_HIT_RADIUS_PX) {
+        // On the circle: wait to see whether this is a tap or the start of a drag.
+        thumbPress.current = { x: event.clientX, y: event.clientY };
+        return;
+      }
+    }
+    thumbPress.current = null;
     updateSvFromPointer(event.clientX, event.clientY);
   };
 
   const onSvPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (event.buttons === 0 && event.pointerType === "mouse") return;
+    const press = thumbPress.current;
+    if (press) {
+      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < TAP_SLOP_PX) return;
+      thumbPress.current = null;
+    }
     updateSvFromPointer(event.clientX, event.clientY);
+  };
+
+  const onSvPointerUp = () => {
+    if (!thumbPress.current) return;
+    thumbPress.current = null;
+    toggleLightDark();
+  };
+
+  const onSvPointerCancel = () => {
+    thumbPress.current = null;
   };
 
   const onHuePointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -187,6 +226,8 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
             style={{ backgroundColor: hueBaseHex, backgroundImage: SV_OVERLAY_GRADIENT }}
             onPointerDown={onSvPointerDown}
             onPointerMove={onSvPointerMove}
+            onPointerUp={onSvPointerUp}
+            onPointerCancel={onSvPointerCancel}
           >
             <span
               className="accent-sv-thumb"

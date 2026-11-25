@@ -5,7 +5,7 @@ import { click, mount, type Mounted } from "../../test-utils/react";
 import type { AppSettings, AppUpdateStatus, BridgeStatus } from "../../types";
 import { setNarrowWindow } from "../../test-utils/media";
 import { getBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
-import { DEFAULT_ACCENT_COLOR, getAccentColor, setAccentColor } from "../../shared/lib/accent-color";
+import { DEFAULT_ACCENT_COLOR, getAccentColor, hexToHsv, setAccentColor } from "../../shared/lib/accent-color";
 import { getThemePreference, setThemePreference } from "../../shared/lib/theme";
 import { getSyncOtherWays, setSyncOtherWays } from "../../shared/lib/sync-other-ways";
 import { SettingsView } from "./SettingsView";
@@ -215,11 +215,34 @@ describe("General", () => {
       expect(document.activeElement?.getAttribute("aria-label")).toBe("Custom color picker");
       expect(trigger.textContent?.trim()).toBe("Purple");
 
-      // Done closes the dialog, keeping the color chosen.
+      // Tapping the circle on the color square toggles Light/Dark and keeps the color.
       click(modal.querySelector<HTMLButtonElement>('button[aria-label="Custom color picker"]')!);
+      const plane = modal.querySelector<HTMLDivElement>(".accent-sv-plane")!;
+      plane.getBoundingClientRect = () => new DOMRect(0, 0, 200, 100);
+      const { s, v } = hexToHsv(DEFAULT_ACCENT_COLOR);
+      const thumb = { clientX: s * 200, clientY: (1 - v) * 100 };
+      const press = (type: string, at: { clientX: number; clientY: number }) =>
+        act(() => {
+          plane.dispatchEvent(new MouseEvent(type, { bubbles: true, buttons: type === "pointerup" ? 0 : 1, ...at }));
+        });
+      expect(getThemePreference()).toBe("light");
+      press("pointerdown", thumb);
+      press("pointerup", thumb);
+      expect(getThemePreference()).toBe("dark");
+      expect(getAccentColor()).toBe(DEFAULT_ACCENT_COLOR);
+
+      // Dragging the circle picks a color instead, without toggling.
+      press("pointerdown", thumb);
+      press("pointermove", { clientX: thumb.clientX - 40, clientY: thumb.clientY + 20 });
+      press("pointerup", { clientX: thumb.clientX - 40, clientY: thumb.clientY + 20 });
+      expect(getThemePreference()).toBe("dark");
+      expect(getAccentColor()).not.toBe(DEFAULT_ACCENT_COLOR);
+
+      // Done closes the dialog, keeping the color chosen.
+      const chosen = getAccentColor();
       click(document.querySelector<HTMLButtonElement>(".accent-done-btn")!);
       expect(document.querySelector(".accent-color-modal")).toBeNull();
-      expect(getAccentColor()).toBe(DEFAULT_ACCENT_COLOR);
+      expect(getAccentColor()).toBe(chosen);
     } finally {
       setThemePreference("dark");
       setAccentColor(DEFAULT_ACCENT_COLOR);
