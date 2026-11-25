@@ -268,6 +268,15 @@ describe("usePairingSession: confirming the transfer", () => {
     expect(spies.showError).not.toHaveBeenCalled();
   });
 
+  it("confirming as receiver skips the sender settings step", async () => {
+    render({ includeSettings: true });
+    await act(() => session.handleConfirmTransfer("s1", true, false));
+    expect(spies.setConfirmed).toHaveBeenCalledWith(true);
+    expect(api.setIncludeSettings).not.toHaveBeenCalled();
+    expect(api.setPendingUiState).not.toHaveBeenCalled();
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", true);
+  });
+
   it("declining skips the settings step", async () => {
     render({ includeSettings: true });
     await act(() => session.handleConfirmTransfer("s1", false));

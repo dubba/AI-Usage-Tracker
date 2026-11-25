@@ -1,16 +1,52 @@
+import { type ClipboardEvent, type KeyboardEvent, type MouseEvent, useLayoutEffect, useReducer, useRef, useState } from "react";
 import {
-  CODE_GROUP_SIZE,
+  buildCodeSlots,
   cleanCode,
   codeLength,
-  formatJoinCode,
+  diffSingleInputEdit,
+  formatCodeSlots,
+  formattedOffsetForSlot,
   isCompleteCode,
   isLegacyCode,
+  lastFilledSlotIndex,
+  normalizeSlotChar,
+  slotsHaveHoles,
   startsGroupInRow,
 } from "../lib/view-model";
 
 import { ChevronIcon } from "../../../shared/ui/icons";
 import { isMobileDevice } from "../../../shared/lib/platform";
 import { OtherWaysLink, SearchingRow } from "./HostCodeView";
+
+/**
+ * Finds the tile index at `(clientX, clientY)`, or the nearest tile on that row if the click
+ * landed in the small gap between tiles. Returns `null` for synthetic `(0, 0)` clicks or points
+ * outside the tile grid.
+ */
+function findTileIndexAtPoint(tiles: (HTMLSpanElement | null)[], clientX: number, clientY: number): number | null {
+  if (clientX === 0 && clientY === 0) return null;
+  for (let i = 0; i < tiles.length; i++) {
+    const rect = tiles[i]?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) continue;
+    if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+      return i;
+    }
+  }
+  let bestIndex: number | null = null;
+  let bestDist = Infinity;
+  for (let i = 0; i < tiles.length; i++) {
+    const rect = tiles[i]?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) continue;
+    if (clientY >= rect.top && clientY <= rect.bottom) {
+      const dist = clientX < rect.left ? rect.left - clientX : clientX > rect.right ? clientX - rect.right : 0;
+      if (dist < bestDist && dist <= 16) {
+        bestDist = dist;
+        bestIndex = i;
+      }
+    }
+  }
+  return bestIndex;
+}
 
 /**
  * Typing in the link code shown on the other device: twelve letters, or six digits from a device with
@@ -51,19 +87,271 @@ export function CodeEntryView({
   /** Lets the field flag the on-screen keyboard before the viewport has resized. */
   setKeyboardOpen: (open: boolean) => void;
 }) {
-  const complete = isCompleteCode(value);
+  const [slots, setSlots] = useState<string[]>(() => buildCodeSlots(value));
+  const [syncedValue, setSyncedValue] = useState(value);
+  const [cursorIndex, setCursorIndex] = useState<number | null>(null);
+  const [, bumpCaret] = useReducer((n: number) => n + 1, 0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const tileRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    if (slots.join("") !== value) {
+      setSlots(buildCodeSlots(value));
+      setCursorIndex(null);
+    }
+  }
+
+  if (busy && cursorIndex !== null) {
+    setCursorIndex(null);
+  }
+
+  const lastFilled = lastFilledSlotIndex(slots);
+  const hasHoles = slotsHaveHoles(slots);
+  const complete = !hasHoles && isCompleteCode(value);
   const legacy = isLegacyCode(value);
-  const length = codeLength(value);
+  const length = slots.length;
   const searching = busy && fallback != null;
-  const tiles = Array.from({ length }, (_, index) => value[index] ?? "");
-  const activeIndex = Math.min(value.length, length - 1);
+  const defaultActiveIndex = complete ? -1 : Math.min(lastFilled + 1, length - 1);
+  const activeTileIndex = busy ? -1 : (cursorIndex ?? defaultActiveIndex);
+  const displayValue = formatCodeSlots(slots);
   // Only a twelve-letter code can go by file.
   const nearby = legacy ? undefined : nearbyName;
+
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el || busy || document.activeElement !== el) return;
+    const target = cursorIndex ?? Math.min(lastFilled + 1, length - 1);
+    const pos = formattedOffsetForSlot(slots, target);
+    if (el.selectionStart !== pos || el.selectionEnd !== pos) {
+      el.setSelectionRange(pos, pos);
+    }
+  });
+
+  function commitSlots(nextSlots: string[], nextCursor: number | null) {
+    const nextCode = nextSlots.join("");
+    const normalizedSlots = nextCode === "" ? buildCodeSlots("") : nextSlots;
+    setSyncedValue(nextCode);
+    setSlots(normalizedSlots);
+    setCursorIndex(nextCursor);
+    onChange(nextCode);
+  }
+
+  function syncCaretNow(targetSlots: string[], targetCursor: number | null) {
+    const el = inputRef.current;
+    if (!el || document.activeElement !== el) return;
+    const target = targetCursor ?? Math.min(lastFilledSlotIndex(targetSlots) + 1, targetSlots.length - 1);
+    const pos = formattedOffsetForSlot(targetSlots, target);
+    el.setSelectionRange(pos, pos);
+  }
+
+  function selectTile(rawIndex: number) {
+    if (busy) return;
+    const maxReachable = Math.min(lastFilled + 1, length - 1);
+    const clamped = Math.max(0, Math.min(rawIndex, maxReachable));
+    const nextCursor = !hasHoles && clamped === lastFilled + 1 ? null : clamped;
+    setCursorIndex(nextCursor);
+    const el = inputRef.current;
+    if (el) {
+      if (document.activeElement !== el) el.focus();
+      syncCaretNow(slots, nextCursor);
+    }
+  }
+
+  function applyTypedChar(rawChar: string) {
+    const target = cursorIndex ?? Math.min(lastFilled + 1, length - 1);
+    const normalized = normalizeSlotChar(rawChar, slots, target, allowLegacy);
+    if (!normalized) {
+      bumpCaret();
+      return;
+    }
+
+    const onlyTargetFilled = slots.every((s, i) => i === target || s === "");
+    const nextLength = onlyTargetFilled ? codeLength(normalized) : length;
+    const nextSlots = Array.from({ length: nextLength }, (_, i) => slots[i] ?? "");
+    nextSlots[target] = normalized;
+
+    const nextLast = lastFilledSlotIndex(nextSlots);
+    const nextHasHoles = slotsHaveHoles(nextSlots);
+    const nextCursor =
+      cursorIndex === null
+        ? null
+        : target + 1 >= nextLength || (!nextHasHoles && target + 1 > nextLast)
+          ? null
+          : target + 1;
+
+    commitSlots(nextSlots, nextCursor);
+    const nextCode = nextSlots.join("");
+    if (!nextHasHoles && isCompleteCode(nextCode) && !isCompleteCode(value)) {
+      onSubmit(nextCode);
+    }
+  }
+
+  function applyBackspace() {
+    if (cursorIndex === null) {
+      if (lastFilled < 0) {
+        bumpCaret();
+        return;
+      }
+      const nextSlots = [...slots];
+      nextSlots[lastFilled] = "";
+      commitSlots(nextSlots, null);
+      return;
+    }
+
+    if (slots[cursorIndex] !== "") {
+      const nextSlots = [...slots];
+      nextSlots[cursorIndex] = "";
+      const nextHasHoles = slotsHaveHoles(nextSlots);
+      const nextLast = lastFilledSlotIndex(nextSlots);
+      const nextCursor = !nextHasHoles && cursorIndex >= nextLast + 1 ? null : cursorIndex;
+      commitSlots(nextSlots, nextCursor);
+      return;
+    }
+
+    if (cursorIndex === 0) {
+      bumpCaret();
+      return;
+    }
+
+    const prev = cursorIndex - 1;
+    const nextSlots = [...slots];
+    nextSlots[prev] = "";
+    const nextHasHoles = slotsHaveHoles(nextSlots);
+    const nextLast = lastFilledSlotIndex(nextSlots);
+    commitSlots(nextSlots, !nextHasHoles && prev > nextLast ? null : prev);
+  }
+
+  function applyDelete() {
+    if (cursorIndex === null) {
+      bumpCaret();
+      return;
+    }
+    if (slots[cursorIndex] !== "") {
+      const nextSlots = [...slots];
+      nextSlots[cursorIndex] = "";
+      const nextHasHoles = slotsHaveHoles(nextSlots);
+      const nextLast = lastFilledSlotIndex(nextSlots);
+      commitSlots(nextSlots, !nextHasHoles && cursorIndex > nextLast ? null : cursorIndex);
+      return;
+    }
+    if (cursorIndex + 1 < length && slots[cursorIndex + 1] !== "") {
+      const nextSlots = [...slots];
+      nextSlots[cursorIndex + 1] = "";
+      commitSlots(nextSlots, cursorIndex);
+    }
+  }
+
+  function handleInputChange(nextRaw: string) {
+    if (cursorIndex === null && !hasHoles) {
+      const code = cleanCode(nextRaw, allowLegacy);
+      commitSlots(buildCodeSlots(code), null);
+      // The last character connects: there is nothing else to decide.
+      if (isCompleteCode(code) && !isCompleteCode(value)) onSubmit(code);
+      return;
+    }
+
+    const edit = diffSingleInputEdit(displayValue, nextRaw);
+    if (edit?.kind === "insert" || edit?.kind === "replace") {
+      applyTypedChar(edit.char);
+      return;
+    }
+    if (edit?.kind === "delete") {
+      applyBackspace();
+      return;
+    }
+
+    const code = cleanCode(nextRaw, allowLegacy);
+    commitSlots(buildCodeSlots(code), null);
+    if (isCompleteCode(code) && !isCompleteCode(value)) onSubmit(code);
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLInputElement>) {
+    const pasted = event.clipboardData?.getData("text") ?? "";
+    const cleaned = cleanCode(pasted, allowLegacy);
+    if (!cleaned) return;
+
+    if (isCompleteCode(cleaned)) {
+      event.preventDefault();
+      commitSlots(buildCodeSlots(cleaned), null);
+      if (!isCompleteCode(value)) onSubmit(cleaned);
+      return;
+    }
+
+    if (cursorIndex !== null) {
+      event.preventDefault();
+      let pos = cursorIndex;
+      const nextSlots = [...slots];
+      for (const ch of pasted) {
+        if (pos >= nextSlots.length) break;
+        const normalized = normalizeSlotChar(ch, nextSlots, pos, allowLegacy);
+        if (!normalized) continue;
+        nextSlots[pos] = normalized;
+        pos++;
+      }
+      const nextLast = lastFilledSlotIndex(nextSlots);
+      const nextHasHoles = slotsHaveHoles(nextSlots);
+      const nextCursor = pos >= nextSlots.length || (!nextHasHoles && pos > nextLast) ? null : pos;
+      commitSlots(nextSlots, nextCursor);
+      const nextCode = nextSlots.join("");
+      if (!nextHasHoles && isCompleteCode(nextCode) && !isCompleteCode(value)) {
+        onSubmit(nextCode);
+      }
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter" && complete) {
+      onSubmit(value);
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      const current = cursorIndex ?? Math.min(lastFilled + 1, length - 1);
+      setCursorIndex(Math.max(0, current - 1));
+      return;
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      if (cursorIndex === null) return;
+      const maxReachable = Math.min(lastFilled + 1, length - 1);
+      const next = cursorIndex + 1;
+      setCursorIndex(!hasHoles && next >= maxReachable ? null : Math.min(next, maxReachable));
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      setCursorIndex(0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      setCursorIndex(hasHoles ? Math.min(lastFilled + 1, length - 1) : null);
+      return;
+    }
+    if (event.key === "Backspace" && (cursorIndex !== null || hasHoles)) {
+      event.preventDefault();
+      applyBackspace();
+      return;
+    }
+    if (event.key === "Delete" && (cursorIndex !== null || hasHoles)) {
+      event.preventDefault();
+      applyDelete();
+    }
+  }
+
+  function handleInputClick(event: MouseEvent<HTMLInputElement>) {
+    const hit = findTileIndexAtPoint(tileRefs.current, event.clientX, event.clientY);
+    if (hit !== null) {
+      selectTile(hit);
+    }
+  }
 
   return (
     <div className="pairing-code-entry-view">
       <label className={`pairing-code-tiles${busy ? " is-busy" : ""}${legacy ? "" : " is-long"}`}>
         <input
+          ref={inputRef}
           id="pairing-join-code-input"
           aria-label="Link code"
           className="pairing-code-input"
@@ -72,8 +360,7 @@ export function CodeEntryView({
           autoCorrect="off"
           autoComplete="off"
           spellCheck={false}
-          maxLength={length + length / CODE_GROUP_SIZE}
-          value={formatJoinCode(value)}
+          value={displayValue}
           autoFocus
           disabled={busy}
           onFocus={() => {
@@ -90,23 +377,22 @@ export function CodeEntryView({
               }
             }, 120);
           }}
-          onChange={(event) => {
-            const code = cleanCode(event.target.value, allowLegacy);
-            onChange(code);
-            // The last character connects: there is nothing else to decide.
-            if (isCompleteCode(code) && !isCompleteCode(value)) onSubmit(code);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && complete) onSubmit(value);
-          }}
+          onClick={handleInputClick}
+          onPaste={handlePaste}
+          onChange={(event) => handleInputChange(event.target.value)}
+          onKeyDown={handleKeyDown}
           aria-describedby="pairing-code-help"
         />
-        {tiles.map((digit, index) => (
+        {slots.map((digit, index) => (
           <span
             key={index}
+            ref={(el) => {
+              tileRefs.current[index] = el;
+            }}
             aria-hidden="true"
+            onClick={() => selectTile(index)}
             className={`pairing-code-tile${digit ? " is-filled" : ""}${
-              !busy && index === activeIndex && !complete ? " is-active" : ""
+              index === activeTileIndex ? " is-active" : ""
             }${startsGroupInRow(index) ? " group-start" : ""}`}
           >
             {digit}

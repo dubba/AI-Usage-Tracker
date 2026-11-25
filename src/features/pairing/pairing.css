@@ -449,6 +449,10 @@
   box-shadow: 0 0 0 3px rgb(var(--purple-accent-rgb) / 0.22);
 }
 
+.pairing-code-tiles:focus-within .pairing-code-tile.is-active.is-filled {
+  background: rgb(var(--purple-accent-rgb) / 0.2);
+}
+
 /* A blinking caret in the tile the next digit goes into. */
 .pairing-code-tiles:focus-within .pairing-code-tile.is-active:empty::after {
   content: "";

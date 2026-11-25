@@ -14,7 +14,7 @@ use crate::{
         payload::{create_export_payload, import_sync_payload, validate_payload, SyncSummary},
         protocol::{
             read_frame_limited, write_frame, AbortReason, CONFIRM_TAG_LEN, MAX_CONTROL_FRAME_SIZE,
-            MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE, MSG_ACK, MSG_ENCRYPTED_PAYLOAD,
+            MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE, MSG_ABORT, MSG_ACK, MSG_ENCRYPTED_PAYLOAD,
             MSG_TRANSFER_CONFIRM, TRANSFER_ACCEPTED, TRANSFER_CONFIRM_LEN,
         },
     },
@@ -22,7 +22,7 @@ use crate::{
 };
 use std::{sync::Arc, time::Duration};
 use tokio::{
-    io::AsyncWriteExt,
+    io::{AsyncReadExt, AsyncWriteExt},
     sync::{mpsc, oneshot},
     time::timeout,
 };
@@ -61,11 +61,9 @@ pub(super) async fn run_authenticated_transfer<E>(
 
 /// Both sides agree to the transfer before anything large is sent or read.
 ///
-/// The sender's agreement is its user pressing Send. The receiver agrees at
-/// once: its user already asked to receive from the device whose code they
-/// typed or showed, the peer proved it is that device, and a transfer only
-/// adds accounts. The tags are bound to the role, so both sides must also
-/// agree on who sends.
+/// The sender agrees once its code is entered and the connection opens; the
+/// receiver waits for its user to confirm adding the shown number of accounts.
+/// The tags are bound to the role, so both sides must also agree on who sends.
 async fn exchange_confirmations(
     peer: &mut AuthenticatedPeer,
     is_sender: bool,
@@ -91,15 +89,13 @@ async fn exchange_confirmations(
     let stopped = |message: String| (AbortReason::CanceledBeforeConfirm, message);
 
     let writer_task = async {
-        if is_sender {
-            match (&mut confirm_rx).await {
-                Ok(true) => {}
-                _ => {
-                    return Err::<(), Stopped>((
-                        AbortReason::TransferDeclined,
-                        DECLINED_HERE.to_string(),
-                    ))
-                }
+        match (&mut confirm_rx).await {
+            Ok(true) => {}
+            _ => {
+                return Err::<(), Stopped>((
+                    AbortReason::TransferDeclined,
+                    DECLINED_HERE.to_string(),
+                ))
             }
         }
         write_frame(&mut write_half, MSG_TRANSFER_CONFIRM, &confirm_payload)
@@ -113,6 +109,9 @@ async fn exchange_confirmations(
         let (msg_type, payload) = read_frame_limited(&mut read_half, MAX_PREAUTH_FRAME_SIZE)
             .await
             .map_err(stopped)?;
+        if msg_type == MSG_ABORT && payload == AbortReason::TransferDeclined.payload() {
+            return Err(stopped(OTHER_DEVICE_DECLINED.to_string()));
+        }
         if msg_type != MSG_TRANSFER_CONFIRM {
             return Err(stopped(OTHER_DEVICE_CANCELED.to_string()));
         }
@@ -130,7 +129,7 @@ async fn exchange_confirmations(
 
     let exchange_task = async { tokio::try_join!(writer_task, reader_task) };
 
-    // Cancel is watched for both roles: the receiver has no button to wait on.
+    // Cancel is watched for both roles while waiting for confirmation.
     let result: Result<(), Stopped> = tokio::select! {
         _ = &mut cancel_rx => Err(stopped(CANCELED_BY_USER.to_string())),
         result = timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), exchange_task) => match result {
@@ -143,6 +142,11 @@ async fn exchange_confirmations(
         Ok(()) => Ok(()),
         Err((reason, message)) => {
             send_abort(&mut peer.stream, reason).await;
+            // Half-close and drain any unread peer frame briefly before closing, so the OS does
+            // not emit a TCP RST that wipes our abort reason from the peer's receive buffer.
+            let _ = peer.stream.shutdown().await;
+            let mut drain = [0u8; 256];
+            let _ = timeout(Duration::from_millis(100), peer.stream.read(&mut drain)).await;
             Err(message)
         }
     }

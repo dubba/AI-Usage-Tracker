@@ -351,76 +351,155 @@ fn pump(service: &ServiceRef, deadline: Instant, mut done: impl FnMut() -> bool)
     true
 }
 
+/// One service instance heard during a Bonjour browse.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BrowsedInstance {
+    pub name: String,
+    pub interface_index: u32,
+    pub domain: String,
+}
+
 struct BrowseState {
-    instances: Vec<String>,
+    instances: Vec<BrowsedInstance>,
     limit: usize,
+    last_error: Option<DnsServiceErrorType>,
+}
+
+/// Frees the browser's callback state after the DNS-SD ref is deallocated.
+struct OwnedBrowseState(*mut BrowseState);
+
+impl Drop for OwnedBrowseState {
+    fn drop(&mut self) {
+        // SAFETY: allocated by Box::into_raw in `Browser::start`; the ServiceRef
+        // field is declared first on `Browser`, so it is deallocated before this runs.
+        drop(unsafe { Box::from_raw(self.0) });
+    }
+}
+
+/// A live Bonjour browse that stays open across multiple resolve attempts so a
+/// stale cached instance cannot end browsing before a live host answers.
+pub struct Browser {
+    // Field order matters: the service is dropped before its state pointer.
+    service: ServiceRef,
+    state: OwnedBrowseState,
 }
 
 unsafe extern "C" fn on_browse(
     _sd_ref: DnsServiceRef,
     flags: DnsServiceFlags,
-    _interface_index: u32,
+    interface_index: u32,
     error: DnsServiceErrorType,
     service_name: *const c_char,
     _regtype: *const c_char,
-    _domain: *const c_char,
+    reply_domain: *const c_char,
     context: *mut c_void,
 ) {
-    // SAFETY: context is the &mut BrowseState passed to DNSServiceBrowse,
-    // alive for the whole pump on this thread.
+    // SAFETY: context is the boxed BrowseState owned by `Browser`, only accessed
+    // on the thread pumping `DNSServiceProcessResult`.
     let state = unsafe { &mut *context.cast::<BrowseState>() };
-    if error != NO_ERROR || flags & FLAGS_ADD == 0 || service_name.is_null() {
+    if error != NO_ERROR {
+        state.last_error.get_or_insert(error);
         return;
     }
-    // SAFETY: DNS-SD passes a NUL-terminated instance name.
+    if flags & FLAGS_ADD == 0 || service_name.is_null() {
+        return;
+    }
+    // SAFETY: DNS-SD passes NUL-terminated instance and domain names.
     let Ok(name) = unsafe { CStr::from_ptr(service_name) }.to_str() else {
         return;
     };
-    if state.instances.len() < state.limit && !state.instances.iter().any(|known| known == name) {
-        state.instances.push(name.to_string());
+    let domain = if reply_domain.is_null() {
+        "local.".to_string()
+    } else {
+        unsafe { CStr::from_ptr(reply_domain) }
+            .to_str()
+            .ok()
+            .filter(|d| !d.is_empty())
+            .unwrap_or("local.")
+            .to_string()
+    };
+    if state.instances.len() < state.limit
+        && !state.instances.iter().any(|known| known.name == name)
+    {
+        state.instances.push(BrowsedInstance {
+            name: name.to_string(),
+            interface_index,
+            domain,
+        });
     }
 }
 
-/// Lists the instances of `regtype` announced in `local.`. Waits up to
-/// `timeout` for the first one, then `settle` longer for others, and returns
-/// at most `limit` names. Blocking: run it off the async runtime.
-pub fn browse(
-    regtype: &str,
-    timeout: Duration,
-    settle: Duration,
-    limit: usize,
-) -> Result<Vec<String>, String> {
-    let deadline = Instant::now() + timeout;
-    let regtype = cstring(regtype)?;
-    let domain = cstring("local.")?;
-    let mut state = BrowseState {
-        instances: Vec::new(),
-        limit,
-    };
-    let mut sd_ref: DnsServiceRef = ptr::null_mut();
-    // SAFETY: valid pointers; the context outlives the operation, which is
-    // deallocated (ServiceRef drop) before `state` goes out of scope.
-    let err = unsafe {
-        DNSServiceBrowse(
-            &mut sd_ref,
-            0,
-            0,
-            regtype.as_ptr(),
-            domain.as_ptr(),
-            on_browse,
-            (&mut state as *mut BrowseState).cast(),
-        )
-    };
-    if err != NO_ERROR || sd_ref.is_null() {
-        return Err(format!("Failed to look for pairing devices (DNS-SD {err})"));
+impl Browser {
+    pub fn start(regtype: &str, limit: usize) -> Result<Self, String> {
+        let regtype = cstring(regtype)?;
+        let domain = cstring("local.")?;
+        let state_ptr = Box::into_raw(Box::new(BrowseState {
+            instances: Vec::new(),
+            limit,
+            last_error: None,
+        }));
+        let mut sd_ref: DnsServiceRef = ptr::null_mut();
+        // SAFETY: valid pointers; `Browser` deallocates `sd_ref` before dropping `state_ptr`.
+        let err = unsafe {
+            DNSServiceBrowse(
+                &mut sd_ref,
+                0,
+                0,
+                regtype.as_ptr(),
+                domain.as_ptr(),
+                on_browse,
+                state_ptr.cast(),
+            )
+        };
+        if err != NO_ERROR || sd_ref.is_null() {
+            // SAFETY: browse failed, so DNS-SD holds no copy of `state_ptr`.
+            drop(unsafe { Box::from_raw(state_ptr) });
+            return Err(format!("Failed to look for pairing devices (DNS-SD {err})"));
+        }
+        Ok(Self {
+            service: ServiceRef(sd_ref),
+            state: OwnedBrowseState(state_ptr),
+        })
     }
-    let service = ServiceRef(sd_ref);
-    if pump(&service, deadline, || !state.instances.is_empty()) {
-        let settle_deadline = deadline.min(Instant::now() + settle);
-        pump(&service, settle_deadline, || state.instances.len() >= limit);
+
+    /// Pumps until `deadline` or until at least one instance whose name is not in `seen`
+    /// arrives (or DNS-SD reports an error), then drains any queued replies and returns
+    /// all unseen instances.
+    pub fn poll_new(
+        &mut self,
+        deadline: Instant,
+        seen: &std::collections::HashSet<String>,
+    ) -> Vec<BrowsedInstance> {
+        let state_ptr = self.state.0;
+        let has_unseen = || {
+            // SAFETY: only accessed on this thread between ProcessResult calls.
+            let state = unsafe { &*state_ptr };
+            state.last_error.is_some()
+                || state
+                    .instances
+                    .iter()
+                    .any(|item| !seen.contains(&item.name))
+        };
+        if !has_unseen() {
+            pump(&self.service, deadline, has_unseen);
+        }
+        // Drain any additional replies that arrived in the same packet/batch.
+        let drain_until = deadline.min(Instant::now() + Duration::from_millis(50));
+        pump(&self.service, drain_until, || false);
+        // SAFETY: only accessed on this thread between ProcessResult calls.
+        let state = unsafe { &*state_ptr };
+        state
+            .instances
+            .iter()
+            .filter(|item| !seen.contains(&item.name))
+            .cloned()
+            .collect()
     }
-    drop(service);
-    Ok(state.instances)
+
+    pub fn last_error(&self) -> Option<i32> {
+        // SAFETY: only accessed on this thread.
+        unsafe { (*self.state.0).last_error }
+    }
 }
 
 struct ResolveState {
@@ -503,6 +582,9 @@ unsafe extern "C" fn on_addr_info(
 ) {
     // SAFETY: context is the &mut AddrState passed to DNSServiceGetAddrInfo.
     let state = unsafe { &mut *context.cast::<AddrState>() };
+    // A missing AAAA record (common for IPv4-only mdns-sd hosts on Android) arrives as
+    // `kDNSServiceErr_NoSuchRecord` with `FLAGS_MORE_COMING == 0`. Never end the batch on an
+    // error or before at least one address has arrived, or the IPv4 A record can be missed.
     if error == NO_ERROR && flags & FLAGS_ADD != 0 && !address.is_null() {
         // SAFETY: DNS-SD hands over a valid sockaddr for the protocol asked.
         if let Some(ip) = unsafe { sockaddr_ip(address) } {
@@ -510,20 +592,66 @@ unsafe extern "C" fn on_addr_info(
                 state.addresses.push(ip);
             }
         }
-    }
-    if flags & FLAGS_MORE_COMING == 0 {
-        state.batch_done = true;
+        if flags & FLAGS_MORE_COMING == 0 && !state.addresses.is_empty() {
+            state.batch_done = true;
+        }
     }
 }
 
-/// Resolves `instance` of `regtype` in `local.` to its port, TXT properties,
+fn query_addresses(
+    interface_index: u32,
+    protocol: u32,
+    host: &CString,
+    deadline: Instant,
+) -> Result<Vec<IpAddr>, String> {
+    let mut addr_state = AddrState {
+        addresses: Vec::new(),
+        batch_done: false,
+    };
+    let mut sd_ref: DnsServiceRef = ptr::null_mut();
+    // SAFETY: valid pointers; `addr_state` outlives `ServiceRef`.
+    let err = unsafe {
+        DNSServiceGetAddrInfo(
+            &mut sd_ref,
+            0,
+            interface_index,
+            protocol,
+            host.as_ptr(),
+            on_addr_info,
+            (&mut addr_state as *mut AddrState).cast(),
+        )
+    };
+    if err != NO_ERROR || sd_ref.is_null() {
+        return Err(format!("Failed to look up pairing host (DNS-SD {err})"));
+    }
+    let service = ServiceRef(sd_ref);
+    // Wait until a complete batch with at least one real address arrives (or deadline).
+    // If only IPv6 arrived first, wait briefly for IPv4 as well.
+    pump(&service, deadline, || addr_state.batch_done);
+    if !addr_state.addresses.is_empty() && !addr_state.addresses.iter().any(IpAddr::is_ipv4) {
+        let short = deadline.min(Instant::now() + Duration::from_millis(1500));
+        pump(&service, short, || {
+            addr_state.addresses.iter().any(IpAddr::is_ipv4)
+        });
+    }
+    drop(service);
+    Ok(addr_state.addresses)
+}
+
+/// Resolves `instance` of `regtype` in `domain` to its port, TXT properties,
 /// and addresses, giving up after `timeout`. Blocking: run it off the async
 /// runtime.
-pub fn resolve(instance: &str, regtype: &str, timeout: Duration) -> Result<Resolved, String> {
+pub fn resolve(
+    instance: &str,
+    regtype: &str,
+    domain: &str,
+    interface_index: u32,
+    timeout: Duration,
+) -> Result<Resolved, String> {
     let deadline = Instant::now() + timeout;
     let name = cstring(instance)?;
     let regtype = cstring(regtype)?;
-    let domain = cstring("local.")?;
+    let domain = cstring(domain)?;
 
     let mut resolve_state = ResolveState { found: None };
     let mut sd_ref: DnsServiceRef = ptr::null_mut();
@@ -533,7 +661,7 @@ pub fn resolve(instance: &str, regtype: &str, timeout: Duration) -> Result<Resol
         DNSServiceResolve(
             &mut sd_ref,
             0,
-            0,
+            interface_index,
             name.as_ptr(),
             regtype.as_ptr(),
             domain.as_ptr(),
@@ -547,51 +675,32 @@ pub fn resolve(instance: &str, regtype: &str, timeout: Duration) -> Result<Resol
     let service = ServiceRef(sd_ref);
     let found = pump(&service, deadline, || resolve_state.found.is_some());
     drop(service);
-    let Some((interface_index, host, port, properties)) =
-        resolve_state.found.take().filter(|_| found)
+    let Some((resolved_if, host, port, properties)) = resolve_state.found.take().filter(|_| found)
     else {
         return Err(NOT_FOUND.to_string());
     };
 
-    let mut addr_state = AddrState {
-        addresses: Vec::new(),
-        batch_done: false,
-    };
-    let mut sd_ref: DnsServiceRef = ptr::null_mut();
-    // SAFETY: as above; addr_state outlives the operation.
-    let err = unsafe {
-        DNSServiceGetAddrInfo(
-            &mut sd_ref,
-            0,
-            interface_index,
-            PROTOCOL_IPV4 | PROTOCOL_IPV6,
-            host.as_ptr(),
-            on_addr_info,
-            (&mut addr_state as *mut AddrState).cast(),
-        )
-    };
-    if err != NO_ERROR || sd_ref.is_null() {
-        return Err(format!("Failed to look up pairing host (DNS-SD {err})"));
+    let mut addresses =
+        query_addresses(resolved_if, PROTOCOL_IPV4 | PROTOCOL_IPV6, &host, deadline)?;
+    // If `DNSServiceResolve` came back on an interface without IPv4 (e.g. AWDL),
+    // try looking up IPv4 across all interfaces before giving up.
+    if !addresses.iter().any(IpAddr::is_ipv4) && resolved_if != 0 && Instant::now() < deadline {
+        if let Ok(fallback) = query_addresses(0, PROTOCOL_IPV4, &host, deadline) {
+            for ip in fallback {
+                if !addresses.contains(&ip) {
+                    addresses.push(ip);
+                }
+            }
+        }
     }
-    let service = ServiceRef(sd_ref);
-    // Take the first complete batch; an IPv4 answer usually arrives with it.
-    // If the first batch held only IPv6, wait briefly for IPv4 too.
-    pump(&service, deadline, || addr_state.batch_done);
-    if !addr_state.addresses.iter().any(IpAddr::is_ipv4) {
-        let short = deadline.min(Instant::now() + Duration::from_millis(1500));
-        pump(&service, short, || {
-            addr_state.addresses.iter().any(IpAddr::is_ipv4)
-        });
-    }
-    drop(service);
 
-    if addr_state.addresses.is_empty() {
+    if addresses.is_empty() {
         return Err(NOT_FOUND.to_string());
     }
     Ok(Resolved {
         port,
         properties,
-        addresses: addr_state.addresses,
+        addresses,
     })
 }
 

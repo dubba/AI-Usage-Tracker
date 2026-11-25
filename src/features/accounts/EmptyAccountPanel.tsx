@@ -60,7 +60,7 @@ export function EmptyAccountPanel({
             {onOpenPairing ? (
               <button type="button" className="button ghost empty-provider-other" onClick={onOpenPairing}>
                 <DevicesIcon className="settings-update-action-icon" />
-                <span>Link Devices</span>
+                <span>Sync Devices</span>
               </button>
             ) : null}
           </div>

@@ -7,7 +7,7 @@ import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { useScrollThumb } from "../../shared/hooks/useScrollThumb";
-import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
+import { useDialogError } from "../../shared/hooks/useDialogError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy, useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
@@ -44,7 +44,7 @@ export function BucketModal({
   const [selectedProvider, setSelectedProvider] = useState<Provider | "all">("all");
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const accountScrollRef = useRef<HTMLDivElement>(null);
-  const { error, setError } = useAutoDismissedError(open);
+  const { error, setError } = useDialogError(open);
   const { busy, setBusy, run } = useAsyncAction({ source: "buckets", setError });
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);

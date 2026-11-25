@@ -17,7 +17,6 @@ vi.mock("../lib/qr-decoder", () => ({
 }));
 
 import { mount, type Mounted } from "../../../test-utils/react";
-import { ERROR_AUTO_DISMISS_MS } from "../../../shared/hooks/useAutoDismissedError";
 import { useQrScanner, type UseQrScannerOptions } from "./useQrScanner";
 
 type Track = { stop: ReturnType<typeof vi.fn>; getSettings: () => MediaTrackSettings };
@@ -185,12 +184,12 @@ describe("camera errors", () => {
     expect(latest.cameraError).toContain("secure context");
   });
 
-  it("hides the message after a few seconds but remembers that the camera failed until it restarts", async () => {
+  it("keeps the camera error message visible over time until cleared or restarted", async () => {
     await failWith(named("NotFoundError"));
     expect(latest.cameraError).not.toBeNull();
     expect(latest.cameraFailed).toBe(true);
-    await runFor(ERROR_AUTO_DISMISS_MS);
-    expect(latest.cameraError).toBeNull();
+    await runFor(60_000);
+    expect(latest.cameraError).not.toBeNull();
     expect(latest.cameraFailed).toBe(true);
 
     camera.getCameraStream.mockResolvedValue(makeStream().stream);
@@ -198,6 +197,7 @@ describe("camera errors", () => {
       mounted!.rerender(<Harness {...baseOptions({ restartKey: 1 })} />);
     });
     await runFor(10);
+    expect(latest.cameraError).toBeNull();
     expect(latest.cameraFailed).toBe(false);
   });
 
@@ -210,7 +210,7 @@ describe("camera errors", () => {
 
   it("shows a new message after a restart that fails again", async () => {
     await failWith(named("NotFoundError"));
-    await runFor(ERROR_AUTO_DISMISS_MS);
+    act(() => latest.clearCameraError());
 
     await act(async () => {
       mounted!.rerender(<Harness {...baseOptions({ restartKey: 1 })} />);

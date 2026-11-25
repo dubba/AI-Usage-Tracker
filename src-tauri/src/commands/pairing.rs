@@ -11,7 +11,7 @@ pub async fn pairing_start_host(
     legacy_code: bool,
 ) -> CommandResult<crate::pairing::PairingHostInit> {
     crate::platform::capture_protection::release(&app);
-    crate::platform::lan_binding::configure_pairing_network(true);
+    crate::platform::lan_binding::prepare_pairing_network().await;
     state
         .pairing
         .start_host(state.inner().clone(), accept_settings, legacy_code)
@@ -55,7 +55,7 @@ pub async fn pairing_start_client_by_code(
     accept_settings: bool,
 ) -> CommandResult<()> {
     crate::platform::capture_protection::release(&app);
-    crate::platform::lan_binding::configure_pairing_network(true);
+    crate::platform::lan_binding::prepare_pairing_network().await;
     state
         .pairing
         .start_client_by_code(state.inner().clone(), code, accept_settings)
@@ -423,35 +423,35 @@ pub async fn pairing_file_save(
     Ok(true)
 }
 
-/// Android and iOS: whether a transfer file was opened from another app (Quick Share's
-/// notification, AirDrop, Files) and not opened in Sync Devices yet. Always false elsewhere.
+/// Android, iOS, and macOS: whether a transfer file was opened from another app (Quick Share's
+/// notification, AirDrop, Files, Finder) and not opened in Sync Devices yet. Always false elsewhere.
 #[tauri::command]
 pub async fn pairing_file_tapped_pending() -> CommandResult<bool> {
     #[cfg(target_os = "android")]
     let pending = tauri::async_runtime::spawn_blocking(crate::platform::android_files::has_tapped)
         .await
         .map_err(|_| file_error(FILE_READ_FAILED))?;
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "macos"))]
     let pending = tauri::async_runtime::spawn_blocking(crate::platform::ios_files::has_tapped)
         .await
         .map_err(|_| file_error(FILE_READ_FAILED))?;
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[cfg(not(any(target_os = "android", target_os = "ios", target_os = "macos")))]
     let pending = false;
     Ok(pending)
 }
 
-/// Android and iOS: opens the file opened from another app with the code this device shows, and says
-/// how many accounts it holds, importing nothing. `None` when no file is waiting. On Android the
-/// file is deleted once it opened; iOS's own copy is deleted once read. Always `None` elsewhere.
+/// Android, iOS, and macOS: opens the file opened from another app with the code this device shows,
+/// and says how many accounts it holds, importing nothing. `None` when no file is waiting. Always
+/// `None` elsewhere.
 #[tauri::command]
 pub async fn pairing_file_open_tapped(
     state: State<'_, Arc<AppState>>,
 ) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
     #[cfg(target_os = "android")]
     let opened = open_tapped_on_android(state.inner()).await?;
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "macos"))]
     let opened = open_tapped_on_ios(state.inner()).await?;
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[cfg(not(any(target_os = "android", target_os = "ios", target_os = "macos")))]
     let opened = {
         let _ = state;
         None
@@ -459,7 +459,7 @@ pub async fn pairing_file_open_tapped(
     Ok(opened)
 }
 
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "macos"))]
 async fn open_tapped_on_ios(
     state: &AppState,
 ) -> CommandResult<Option<pairing::file_transfer::FilePreview>> {
@@ -526,7 +526,7 @@ async fn open_tapped_on_android(
 }
 
 /// Where a received file came from, for the sync log.
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(any(target_os = "android", target_os = "ios", target_os = "macos"))]
 const TAPPED: &str = "tapped in another app";
 const PICKED_UP: &str = "picked up from Downloads";
 
@@ -590,15 +590,24 @@ pub async fn pairing_file_watch(
             });
         }
     }
-    let watch = tauri::async_runtime::spawn_blocking(move || {
+    let (watch, denied) = tauri::async_runtime::spawn_blocking(move || {
         let dirs = watched_dirs(&app);
-        (!dirs.is_empty()).then(|| IncomingWatch::start(dirs))
+        let denied = dirs.iter().any(|dir| {
+            matches!(
+                std::fs::read_dir(dir),
+                Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied
+            )
+        });
+        let watch = (!dirs.is_empty()).then(|| IncomingWatch::start(dirs));
+        (watch, denied)
     })
     .await
     .map_err(|_| file_error(FILE_READ_FAILED))?;
     let watching = watch.is_some();
     *state.pairing_incoming.lock() = watch;
-    if watching {
+    if denied {
+        sync_log::note("file: Downloads folder access was denied by the OS");
+    } else if watching {
         sync_log::note("file: watching Downloads for the transfer file");
     }
     Ok(IncomingWatchInfo {

@@ -3,9 +3,8 @@ pub mod crypto;
 pub mod discovery;
 pub mod file_transfer;
 pub mod incoming_files;
-// Bonjour discovery for iOS; also built into macOS tests to check it
-// interoperates with mdns-sd.
-#[cfg(any(target_os = "ios", all(test, target_os = "macos")))]
+// Bonjour discovery for Apple platforms (iOS and macOS).
+#[cfg(any(target_os = "ios", target_os = "macos"))]
 pub mod dnssd;
 pub mod payload;
 pub mod protocol;
@@ -69,8 +68,8 @@ pub enum PairingStatus {
     RoleSelection {
         session_id: String,
     },
-    /// Both devices proved they share the link code. The sending device asks its user to
-    /// confirm; the receiving device waits.
+    /// Both devices proved they share the link code. The receiver asks its user to
+    /// confirm adding the accounts; the sender sends once both sides agree.
     #[serde(rename_all = "camelCase")]
     ConfirmTransfer {
         session_id: String,

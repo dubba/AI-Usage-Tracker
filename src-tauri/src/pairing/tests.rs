@@ -1748,7 +1748,7 @@ async fn client_failure(events: &mut mpsc::Receiver<ClientEvent>) -> String {
 }
 
 #[tokio::test]
-async fn the_joiner_sends_after_one_confirmation_and_the_receiver_needs_none() {
+async fn both_sides_must_confirm_before_accounts_transfer() {
     let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
     let host_state = state_in(&dir_host, "tok-h").await;
     let client_state = state_with_account(&dir_client, "tok-c").await;
@@ -1791,12 +1791,38 @@ async fn the_joiner_sends_after_one_confirmation_and_the_receiver_needs_none() {
     tokio::time::sleep(Duration::from_millis(150)).await;
     assert!(host_state.store.list().is_empty());
 
-    // Only the sender confirms. The receiver's answer channel is never used.
+    // Nothing moves after only the sender confirms: the receiver must agree before importing.
     client.confirm.send(true).unwrap();
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert!(host_state.store.list().is_empty());
+
+    host.confirm.send(true).unwrap();
     assert_eq!(host_completed(&mut host.events).await.added, 1);
     assert_eq!(client_completed(&mut client.events).await.added, 1);
     assert_eq!(host_state.store.list()[0].label, "Claude Pair");
-    drop(host.confirm);
+}
+
+#[tokio::test]
+async fn the_receiver_declining_sends_nothing() {
+    let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let host_state = state_in(&dir_host, "tok-h-dec").await;
+    let client_state = state_with_account(&dir_client, "tok-c-dec").await;
+
+    let mut host = spawn_host(&host_state, TEST_CODE).await;
+    let mut client = spawn_client(&client_state, vec![host.found.clone()], TEST_CODE);
+    next(&mut host.events).await;
+    next(&mut client.events).await;
+    client.role.send("send".into()).unwrap();
+    next(&mut client.events).await;
+    next(&mut host.events).await;
+
+    client.confirm.send(true).unwrap();
+    host.confirm.send(false).unwrap();
+    assert!(host_failure(&mut host.events).await.contains("declined"));
+    assert!(client_failure(&mut client.events)
+        .await
+        .contains("declined"));
+    assert!(host_state.store.list().is_empty());
 }
 
 /// A peer that finished the link-code exchange still cannot deliver more
@@ -1827,6 +1853,7 @@ async fn a_sender_cannot_deliver_more_accounts_than_it_showed() {
         }
         other => panic!("unexpected host event: {other:?}"),
     }
+    host.confirm.send(true).unwrap();
     assert!(matches!(
         next(&mut host.events).await,
         HostEvent::Transferring
@@ -1964,7 +1991,12 @@ async fn the_host_sends_when_the_joiner_chooses_to_receive() {
         HostEvent::ConfirmTransfer { role, .. } => assert_eq!(role, "sender"),
         other => panic!("unexpected host event: {other:?}"),
     }
+    match next(&mut client.events).await {
+        ClientEvent::ConfirmTransfer { role, .. } => assert_eq!(role, "receiver"),
+        other => panic!("unexpected client event: {other:?}"),
+    }
     host.confirm.send(true).unwrap();
+    client.confirm.send(true).unwrap();
     assert_eq!(client_completed(&mut client.events).await.added, 1);
     assert_eq!(host_completed(&mut host.events).await.added, 1);
     assert_eq!(client_state.store.list().len(), 1);
@@ -1972,7 +2004,6 @@ async fn the_host_sends_when_the_joiner_chooses_to_receive() {
         client_state.settings.get().automatic_updates_enabled,
         "a sender must not change the receiver's settings unasked"
     );
-    drop(client.confirm);
 }
 
 #[tokio::test]
@@ -2068,6 +2099,7 @@ async fn a_typo_does_not_end_the_session() {
     client.role.send("receive".into()).unwrap();
     next(&mut host.events).await;
     host.confirm.send(true).unwrap();
+    client.confirm.send(true).unwrap();
     assert_eq!(client_completed(&mut client.events).await.added, 1);
 }
 
@@ -2135,6 +2167,7 @@ async fn garbage_and_strangers_do_not_reach_the_user_or_use_up_attempts() {
     client.role.send("receive".into()).unwrap();
     next(&mut host.events).await;
     host.confirm.send(true).unwrap();
+    client.confirm.send(true).unwrap();
     assert_eq!(client_completed(&mut client.events).await.added, 1);
 }
 
@@ -2265,8 +2298,15 @@ mod link_code_interop {
                 );
             }
             Side::MdnsSd => {
-                _mdns_ad =
-                    Some(discovery::advertise(&instance, &ip, port, session_id, &nonce).unwrap());
+                _mdns_ad = Some(
+                    discovery::advertise_mdns_sd(
+                        &instance,
+                        &ip,
+                        port,
+                        &discovery::advertised_properties(session_id, &nonce),
+                    )
+                    .unwrap(),
+                );
             }
         }
 

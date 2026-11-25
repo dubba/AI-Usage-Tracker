@@ -1,18 +1,25 @@
 import { describe, expect, it } from "vitest";
 import type { PairingStatus } from "../../../types";
 import {
+  buildCodeSlots,
   cleanCode,
   codeLength,
   confirmFields,
+  diffSingleInputEdit,
+  formatCodeSlots,
   formatCountdown,
   formatJoinCode,
+  formattedOffsetForSlot,
   isCompleteCode,
   isLinkCode,
   hasOwnActionButtons,
   hostWaitingFields,
   isWaitingStatus,
+  lastFilledSlotIndex,
+  normalizeSlotChar,
   pairingHeader,
   pairingStep,
+  slotsHaveHoles,
   waitingExpiresAt,
   type ViewMode,
 } from "./view-model";
@@ -56,7 +63,7 @@ describe("pairingHeader titles", () => {
     ["asking for a role", { status: "roleSelection" }, "Send or Receive Accounts"],
     ["applying a chosen role", { status: "roleSelection", intendedRole: "send" }, "Connecting"],
     ["sending once connected", { status: "confirmTransfer", isSender: true }, "Sending"],
-    ["receiving once connected", { status: "confirmTransfer", isSender: false }, "Receiving"],
+    ["receiving once connected", { status: "confirmTransfer", isSender: false }, "Add the accounts"],
     ["transferring", { status: "transferring" }, "Transferring"],
     ["done", { status: "completed" }, "Devices linked"],
     ["failed", { status: "failed" }, "Pairing Failed"],
@@ -79,11 +86,11 @@ describe("pairingHeader subtitles and steps", () => {
     expect(header({ viewMode: "airgap-sender" }).subtitle).toContain("Scan QR Code (under Other Ways to Connect)");
   });
 
-  it("says the sender is sending and the receiver receiving, with no code to compare", () => {
+  it("says the sender is waiting for confirmation and asks the receiver to confirm, with no code to compare", () => {
     const sender = header({ status: "confirmTransfer", isSender: true }).subtitle;
     const receiver = header({ status: "confirmTransfer", isSender: false }).subtitle;
-    expect(sender).toContain("Sending the accounts");
-    expect(receiver).toContain("The other device is sending");
+    expect(sender).toContain("Waiting for the other device to confirm");
+    expect(receiver).toContain("Confirm adding the accounts");
     // No flow compares a code any more.
     const airgap = header({ viewMode: "scanner", airgapVerifyPrompt: true }).subtitle;
     for (const subtitle of [sender, receiver, airgap]) expect(subtitle).not.toContain("same code");
@@ -212,5 +219,46 @@ describe("formatting", () => {
     expect(formatCountdown(59)).toBe("0:59");
     expect(formatCountdown(0)).toBe("0:00");
     expect(formatCountdown(600)).toBe("10:00");
+  });
+});
+
+describe("slot editing helpers", () => {
+  it("builds slots, formats holes with underscores, and computes caret offsets", () => {
+    const slots = buildCodeSlots("KTQMPR");
+    expect(slots).toHaveLength(12);
+    expect(lastFilledSlotIndex(slots)).toBe(5);
+    expect(slotsHaveHoles(slots)).toBe(false);
+    expect(formatCodeSlots(slots)).toBe("KTQ MPR");
+    expect(formattedOffsetForSlot(slots, 3)).toBe(5);
+    expect(formattedOffsetForSlot(slots, 6)).toBe(7);
+
+    slots[3] = "";
+    expect(slotsHaveHoles(slots)).toBe(true);
+    expect(formatCodeSlots(slots)).toBe("KTQ _PR");
+    expect(formattedOffsetForSlot(slots, 3)).toBe(5);
+  });
+
+  it("normalizes single slot characters without letting digits wipe an existing letter code", () => {
+    const letters = buildCodeSlots("KTQMPR");
+    expect(normalizeSlotChar("n", letters, 3, true)).toBe("N");
+    expect(normalizeSlotChar("i", letters, 3, true)).toBeNull();
+    expect(normalizeSlotChar("l", letters, 3, true)).toBeNull();
+    expect(normalizeSlotChar("o", letters, 3, true)).toBeNull();
+    expect(normalizeSlotChar("1", letters, 0, true)).toBeNull();
+
+    const digits = buildCodeSlots("123456");
+    expect(normalizeSlotChar("9", digits, 2, true)).toBe("9");
+    expect(normalizeSlotChar("k", digits, 0, true)).toBeNull();
+
+    const empty = buildCodeSlots("");
+    expect(normalizeSlotChar("4", empty, 0, true)).toBe("4");
+    expect(normalizeSlotChar("4", empty, 0, false)).toBeNull();
+  });
+
+  it("detects single-character insertions, deletions, and replacements", () => {
+    expect(diffSingleInputEdit("KTQ MPR", "KTQ MnPR")).toEqual({ kind: "insert", char: "n", index: 5 });
+    expect(diffSingleInputEdit("KTQ MPR", "KTQ PR")).toEqual({ kind: "delete", index: 4 });
+    expect(diffSingleInputEdit("KTQ MPR", "KTQ NPR")).toEqual({ kind: "replace", char: "N", index: 4 });
+    expect(diffSingleInputEdit("KTQ MPR", "KTQ MPR XDH WAB")).toBeNull();
   });
 });

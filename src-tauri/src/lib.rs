@@ -210,9 +210,9 @@ pub fn run() {
                     state.request_refresh_check();
                 }
             }
-            // A Sync Devices transfer file opened from AirDrop, Files or Mail while the app runs:
-            // tell the page, which opens it (MainActivity does the same on Android).
-            #[cfg(target_os = "ios")]
+            // A Sync Devices transfer file opened from AirDrop, Files, Finder or Mail while the app
+            // runs: tell the page, which opens it (MainActivity does the same on Android).
+            #[cfg(any(target_os = "ios", target_os = "macos"))]
             if let tauri::RunEvent::Opened { urls } = &event {
                 if platform::ios_files::note_opened(urls) {
                     if let Some(window) = app_handle.get_webview_window("main") {

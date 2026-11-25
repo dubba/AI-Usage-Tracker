@@ -60,13 +60,13 @@ internal class PairingNetwork(private val activity: Activity) {
    * keeps the LAN connection working.
    */
   fun setLanBinding(enabled: Boolean) {
-    activity.runOnUiThread {
+    val apply = Runnable {
       pairingActive = enabled
       setMulticastLock(enabled)
       try {
         val cm = connectivity()
         if (enabled) {
-          if (boundLanNetwork) return@runOnUiThread
+          if (boundLanNetwork) return@Runnable
           val wifi = wifiNetwork(cm)
           boundLanNetwork = if (wifi != null) {
             cm.bindProcessToNetwork(wifi)
@@ -83,6 +83,19 @@ internal class PairingNetwork(private val activity: Activity) {
         android.util.Log.w(LOG_TAG, "setPairingLanBinding failed: ${e.message}")
       }
     }
+    if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+      apply.run()
+      return
+    }
+    val done = java.util.concurrent.CountDownLatch(1)
+    activity.runOnUiThread {
+      try {
+        apply.run()
+      } finally {
+        done.countDown()
+      }
+    }
+    done.await(2, java.util.concurrent.TimeUnit.SECONDS)
   }
 
   /**

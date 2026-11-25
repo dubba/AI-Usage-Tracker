@@ -62,8 +62,8 @@ export function RoleFallbackView({ busy, onChoose }: { busy: boolean; onChoose: 
 
 /**
  * The devices are connected and each proved it knows the link code. The sending device sends by
- * itself (`PairingModal` confirms at once), so it shows the send under way; its Send button only
- * appears if that failed. The receiving device waits.
+ * itself (`PairingModal` confirms at once) and waits while the receiving device asks the user to
+ * confirm adding the accounts before anything is imported.
  */
 export function ConfirmTransferCard({
   isSender,
@@ -77,24 +77,46 @@ export function ConfirmTransferCard({
   accountCount: number | undefined;
   busy: boolean;
   confirmed: boolean;
-  /** Sender only: send the accounts. */
+  /** Confirm sending (sender) or adding the incoming accounts (receiver). */
   onConfirm: () => void;
-  /** Sender: decline. Receiver: stop waiting and end the pairing. */
+  /** Decline the transfer. */
   onCancel: () => void;
 }) {
-  const accounts = accountCount === 1 ? "1 account" : `${accountCount ?? ""} accounts`.trim();
+  const accounts =
+    accountCount === 1
+      ? "1 account"
+      : accountCount != null
+        ? `${accountCount} accounts`
+        : "accounts";
+  const addPhrase =
+    accountCount === 1
+      ? "this account"
+      : accountCount != null
+        ? `these ${accounts}`
+        : "these accounts";
   if (!isSender) {
+    if (confirmed) {
+      return (
+        <div className="pairing-panel-status transferring">
+          <span className="spinner large" />
+          <h3>Adding {accounts}…</h3>
+          <p>The other device is sending them now.</p>
+        </div>
+      );
+    }
     return (
       <div className="pairing-sas-card">
         <div className="pairing-sas-icon"><ShieldIcon /></div>
-        <h3>Receiving {accounts}</h3>
-        <div className="pairing-sas-waiting-note">
-          <span className="spinner button-spinner" />
-          <span>The other device is sending them now.</span>
-        </div>
+        <h3>Add {accounts}?</h3>
+        <p className="pairing-instruction pairing-add-question">
+          Are you sure you want to add {addPhrase} from the other device?
+        </p>
         <div className="pairing-sas-actions">
-          <button type="button" className="button ghost" onClick={onCancel}>
+          <button type="button" className="button ghost" disabled={busy} onClick={onCancel}>
             Cancel
+          </button>
+          <button type="button" className="button primary" disabled={busy} onClick={onConfirm}>
+            Add Accounts
           </button>
         </div>
       </div>
@@ -105,7 +127,7 @@ export function ConfirmTransferCard({
       <div className="pairing-panel-status transferring">
         <span className="spinner large" />
         <h3>Sending {accounts}…</h3>
-        <p>Encrypted end to end with the link code.</p>
+        <p>Waiting for the other device to confirm.</p>
       </div>
     );
   }

@@ -20,7 +20,7 @@ import { GrokFields } from "./fields/GrokFields";
 import { OpenCodeFields } from "./fields/OpenCodeFields";
 import type { FieldsProps } from "./fields/types";
 import { CustomDropdown, type DropdownOption } from "../../shared/ui/CustomDropdown";
-import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
+import { useDialogError } from "../../shared/hooks/useDialogError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 
@@ -58,7 +58,7 @@ export function AddAccountModal({
   const isAndroid = detectAndroid();
   const isMobileOs = isAndroid || isIOS();
   const [draft, setDraft] = useState<AddAccountDraft>(() => emptyDraft("anthropic"));
-  const { error, setError } = useAutoDismissedError(open);
+  const { error, setError } = useDialogError(open);
   const { busy, setBusy, run } = useAsyncAction({ source: "add-account", setError });
   const { busy: modelsBusy, setBusy: setModelsBusy, run: runModels } = useAsyncAction({ source: "add-account", setError });
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);

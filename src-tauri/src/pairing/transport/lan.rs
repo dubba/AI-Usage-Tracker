@@ -70,7 +70,7 @@ pub(crate) fn select_lan_ipv4(
 
 /// The interface index of the local interface that holds `ip`, so discovery
 /// can announce the session only where the listener is reachable.
-#[cfg_attr(not(target_os = "ios"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "ios", target_os = "macos")), allow(dead_code))]
 pub(crate) fn interface_index_for_ip(ip: &str) -> Option<u32> {
     let ip = ip.parse::<std::net::IpAddr>().ok()?;
     if_addrs::get_if_addrs()

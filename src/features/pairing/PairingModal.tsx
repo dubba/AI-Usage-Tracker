@@ -29,7 +29,7 @@ import {
 import { isAirgapFrameCode } from "./lib/airgap-frame";
 import { useLatestRequest } from "../../shared/hooks/useLatestRequest";
 import { usePairingSession } from "./hooks/usePairingSession";
-import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
+import { useDialogError } from "../../shared/hooks/useDialogError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { describeError } from "../../shared/lib/errors";
@@ -76,12 +76,8 @@ export function PairingModal({
   const { status, setStatus, remainingSecs, hasCompletedRef } = usePairingStatus(open);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [busy, setBusy] = useState(false);
-  // After a failure the reason is the screen's content ("The reason is below"), so it stays.
-  const { error: errorMessage, setError: setErrorMessage } = useAutoDismissedError(
-    viewMode,
-    status.status === "failed",
-  );
-  const { error: airgapPrepareError, setError: setAirgapPrepareError } = useAutoDismissedError(viewMode);
+  const { error: errorMessage, setError: setErrorMessage } = useDialogError(viewMode);
+  const { error: airgapPrepareError, setError: setAirgapPrepareError } = useDialogError(viewMode);
   const [confirmedTransfer, setConfirmedTransfer] = useState(false);
   const [includeSettings, setIncludeSettings] = useState(true);
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
@@ -182,8 +178,6 @@ export function PairingModal({
     showView,
     onImported: completeWithFile,
   });
-  // A file opened from Quick Share, AirDrop or Files: open it with the code shown.
-  useTappedTransferFile(open, () => void fileTransfer.openTapped());
   // Where AirDrop or Quick Share can carry the file, a sender whose code finds no receiver on the
   // network sends the accounts that way by itself, and the receiver picks up the file that comes.
   const fileFallback = hasNearbyShare();
@@ -195,6 +189,9 @@ export function PairingModal({
     viewMode === "host" &&
     status.status === "hostWaiting" &&
     isLinkCode(hostWaitingFields(status)?.joinCode ?? "");
+  // A file opened from Quick Share, AirDrop or Files: open it with the code shown.
+  // On iOS, also poll the app inbox while showing a code in case AirDrop wrote it without firing Opened.
+  useTappedTransferFile(open, () => void fileTransfer.openTapped(), { poll: watchingForFile });
   const incoming = useIncomingFile({
     active: watchingForFile,
     onOpened: fileTransfer.handleOpened,
@@ -687,12 +684,8 @@ export function PairingModal({
             accountCount={confirm.accountCount}
             busy={busy}
             confirmed={confirmedTransfer}
-            onConfirm={() => void handleConfirmTransfer(confirm.sessionId, true)}
-            onCancel={
-              confirm.isSender
-                ? () => void handleConfirmTransfer(confirm.sessionId, false)
-                : requestClose
-            }
+            onConfirm={() => void handleConfirmTransfer(confirm.sessionId, true, confirm.isSender)}
+            onCancel={() => void handleConfirmTransfer(confirm.sessionId, false, confirm.isSender)}
           />
         )}
 

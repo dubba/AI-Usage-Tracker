@@ -95,7 +95,6 @@ vi.mock("./hooks/useQrScanner", async () => {
 vi.mock("../layout/ui-state", () => ({ collectUiState: () => ({ marker: true }) }));
 
 import { click, mount, settle, typeInto, type Mounted } from "../../test-utils/react";
-import { ERROR_AUTO_DISMISS_MS } from "../../shared/hooks/useAutoDismissedError";
 import { PairingModal } from "./PairingModal";
 import { TRANSFER_FILE_TAPPED_EVENT } from "./hooks/useTappedTransferFile";
 import { setSyncOtherWays } from "../../shared/lib/sync-other-ways";
@@ -525,7 +524,7 @@ describe("entering a link code", () => {
     expect(title()).toBe("Enter Link Code");
   });
 
-  it("auto-dismisses the connection error after 10 seconds", async () => {
+  it("keeps the connection error visible over time until its X dismisses it", async () => {
     vi.useFakeTimers();
     try {
       api.startClientByCode.mockRejectedValue(new Error("code not found"));
@@ -535,10 +534,13 @@ describe("entering a link code", () => {
       expect(text()).toContain("code not found");
       expect(document.querySelector(".modal-error")).not.toBeNull();
       await act(async () => {
-        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS);
+        vi.advanceTimersByTime(60_000);
       });
+      expect(document.querySelector(".modal-error")).not.toBeNull();
+      expect(text()).toContain("code not found");
+      click(document.querySelector<HTMLButtonElement>('.modal-error [aria-label="Dismiss error"]')!);
+      await settle();
       expect(document.querySelector(".modal-error")).toBeNull();
-      expect(text()).not.toContain("code not found");
     } finally {
       vi.useRealTimers();
     }
@@ -558,6 +560,115 @@ describe("entering a link code", () => {
     await press("Try Again");
     expect(title()).toBe("Enter Link Code");
     expect(input().value).toBe("123 456");
+  });
+
+  it("lets the user click any filled tile to replace that letter in place", async () => {
+    await openCodeEntry();
+    typeInto(input(), "KTQMPRXDH");
+    expect(input().value).toBe("KTQ MPR XDH");
+
+    const tiles = () => Array.from(document.querySelectorAll<HTMLElement>(".pairing-code-tile"));
+    // Click tile 3 ('M') and type 'n' (simulating single-char insertion at the caret after 'M').
+    click(tiles()[3]);
+    expect(tiles()[3].classList.contains("is-active")).toBe(true);
+    expect(tiles()[9].classList.contains("is-active")).toBe(false);
+
+    typeInto(input(), "KTQ MnPR XDH");
+    expect(input().value).toBe("KTQ NPR XDH");
+    // Cursor advances to tile 4 ('P') so adjacent typos can be fixed right away.
+    expect(tiles()[4].classList.contains("is-active")).toBe(true);
+
+    // Invalid letters (I, L, O) or digits are ignored without erasing or shifting tile 4 ('P').
+    typeInto(input(), "KTQ NPiR XDH");
+    expect(input().value).toBe("KTQ NPR XDH");
+    expect(tiles()[4].classList.contains("is-active")).toBe(true);
+
+    // Replace tile 4 ('P') with 'z' too.
+    typeInto(input(), "KTQ NPzR XDH");
+    expect(input().value).toBe("KTQ NZR XDH");
+  });
+
+  it("lets the user edit individual letters on a full code after Try Again, including row 2", async () => {
+    await openCodeEntry();
+    typeInto(input(), CODE);
+    await settle();
+    await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "The link to the other device broke." } } });
+    await press("Try Again");
+    expect(input().value).toBe("KTQ MPR XDH WAB");
+
+    const tiles = () => Array.from(document.querySelectorAll<HTMLElement>(".pairing-code-tile"));
+    // Click tile 8 ('H' on the second row) via coordinate hit-testing on the input overlay.
+    const rect8 = { left: 100, right: 140, top: 80, bottom: 130, width: 40, height: 50, x: 100, y: 80, toJSON: () => {} };
+    tiles()[8].getBoundingClientRect = () => rect8 as DOMRect;
+    act(() => {
+      input().dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, clientX: 120, clientY: 100 }));
+    });
+    expect(tiles()[8].classList.contains("is-active")).toBe(true);
+
+    // Replace 'H' with 'C' without auto-submitting mid-edit.
+    api.startClientByCode.mockClear();
+    typeInto(input(), "KTQ MPR XDHc WAB");
+    expect(input().value).toBe("KTQ MPR XDC WAB");
+    expect(api.startClientByCode).not.toHaveBeenCalled();
+
+    await press("Connect");
+    expect(api.startClientByCode).toHaveBeenCalledWith("KTQMPRXDCWAB", true);
+  });
+
+  it("clears a clicked tile on Backspace without shifting later letters, then fills it in place", async () => {
+    await openCodeEntry();
+    typeInto(input(), CODE);
+    await settle();
+    await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "The link to the other device broke." } } });
+    await press("Try Again");
+
+    const tiles = () => Array.from(document.querySelectorAll<HTMLElement>(".pairing-code-tile"));
+    click(tiles()[3]);
+    act(() => input().dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true, cancelable: true })));
+
+    // Tile 3 is now empty, while tiles 4..11 ('PRXDHWAB') stayed in place and Connect is disabled.
+    expect(tiles()[3].textContent).toBe("");
+    expect(tiles()[4].textContent).toBe("P");
+    expect(tiles()[11].textContent).toBe("B");
+    expect(tiles()[3].classList.contains("is-active")).toBe(true);
+    expect(button("Connect").disabled).toBe(true);
+
+    // Typing 'N' fills tile 3 and auto-connects the now-complete 12-letter code.
+    api.startClientByCode.mockClear();
+    typeInto(input(), "KTQ _nPR XDH WAB");
+    await settle();
+    expect(input().value).toBe("KTQ NPR XDH WAB");
+    expect(api.startClientByCode).toHaveBeenCalledWith("KTQNPRXDHWAB", true);
+  });
+
+  it("navigates tiles with ArrowLeft and ArrowRight", async () => {
+    await openCodeEntry();
+    typeInto(input(), "KTQMPR");
+    const tiles = () => Array.from(document.querySelectorAll<HTMLElement>(".pairing-code-tile"));
+    expect(tiles()[6].classList.contains("is-active")).toBe(true);
+
+    act(() => input().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true })));
+    expect(tiles()[5].classList.contains("is-active")).toBe(true);
+
+    act(() => input().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true })));
+    expect(tiles()[4].classList.contains("is-active")).toBe(true);
+
+    act(() => input().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true })));
+    expect(tiles()[5].classList.contains("is-active")).toBe(true);
+
+    act(() => input().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true })));
+    expect(tiles()[6].classList.contains("is-active")).toBe(true);
+  });
+
+  it("returns from 6 legacy tiles to 12 tiles when the last digit is cleared", async () => {
+    await openCodeEntry();
+    typeInto(input(), "1");
+    expect(document.querySelectorAll(".pairing-code-tile")).toHaveLength(6);
+    const tiles = () => Array.from(document.querySelectorAll<HTMLElement>(".pairing-code-tile"));
+    click(tiles()[0]);
+    act(() => input().dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true, cancelable: true })));
+    expect(input().value).toBe("");
+    expect(document.querySelectorAll(".pairing-code-tile")).toHaveLength(12);
   });
 });
 
@@ -956,7 +1067,44 @@ describe("transfer by file", () => {
       expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
     });
 
-    it("is not looked for on desktop", async () => {
+    it("adds a file AirDropped to a Mac while the app was running", async () => {
+      api.openTappedFile.mockResolvedValue(PREVIEW);
+      render();
+      await press("Receive Accounts on This Device");
+      api.tappedFilePending.mockResolvedValue(true);
+      await act(async () => {
+        window.dispatchEvent(new Event(TRANSFER_FILE_TAPPED_EVENT));
+      });
+      await settle();
+      await press("Add Accounts");
+      expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
+    });
+
+    it("polls the iOS inbox while showing a code even if no native event fires", async () => {
+      vi.useFakeTimers();
+      try {
+        Object.defineProperty(navigator, "userAgent", {
+          value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+          configurable: true,
+        });
+        api.openTappedFile.mockResolvedValue(PREVIEW);
+        render();
+        await press("Receive Accounts on This Device");
+        api.tappedFilePending.mockResolvedValue(true);
+        await act(async () => {
+          vi.advanceTimersByTime(1100);
+        });
+        await settle();
+        expect(api.openTappedFile).toHaveBeenCalledTimes(1);
+        await press("Add Accounts");
+        expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("is not looked for on Windows or Linux", async () => {
+      Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", configurable: true });
       render();
       await comeBackWithTappedFile();
       expect(api.tappedFilePending).not.toHaveBeenCalled();
@@ -1211,17 +1359,38 @@ describe("sending once connected", () => {
     expect(api.confirmTransfer).toHaveBeenCalledTimes(1);
   });
 
-  it("gives the receiver nothing to confirm, only a way to cancel", async () => {
+  it("asks the receiver to confirm before adding accounts, and sends nothing until Add Accounts is pressed", async () => {
     render();
     await settle();
     await emit(CONFIRM("receiver"));
-    expect(title()).toBe("Receiving");
-    expect(text()).toContain("Receiving 3 accounts");
-    expect(buttons().some((b) => b.textContent?.trim() === "Send")).toBe(false);
-    await press("Cancel");
+    expect(title()).toBe("Add the accounts");
+    expect(text()).toContain("Add 3 accounts?");
+    expect(text()).toContain("Are you sure you want to add these 3 accounts from the other device?");
     expect(api.confirmTransfer).not.toHaveBeenCalled();
-    expect(cancelPairing).toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(buttons().some((b) => b.textContent?.trim() === "Send")).toBe(false);
+
+    await press("Add Accounts");
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", true);
+    expect(api.setIncludeSettings).not.toHaveBeenCalled();
+    expect(api.setPendingUiState).not.toHaveBeenCalled();
+    expect(text()).toContain("Adding 3 accounts…");
+  });
+
+  it("says one account in the singular when asking the receiver to confirm", async () => {
+    render();
+    await settle();
+    await emit(CONFIRM("receiver", { accountCount: 1 }));
+    expect(text()).toContain("Add 1 account?");
+    expect(text()).toContain("Are you sure you want to add this account from the other device?");
+  });
+
+  it("declines the transfer when the receiver clicks Cancel", async () => {
+    render();
+    await settle();
+    await emit(CONFIRM("receiver"));
+    await press("Cancel");
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", false);
+    expect(api.setIncludeSettings).not.toHaveBeenCalled();
   });
 
   it("says one account in the singular", async () => {
@@ -1375,13 +1544,13 @@ describe("finishing", () => {
       expect(document.querySelector(".modal-error")?.textContent).toContain("peer vanished");
       expect(text()).toContain("Pairing Failed");
       await act(async () => {
-        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS - 1);
+        vi.advanceTimersByTime(10_000);
         await Promise.resolve();
       });
       await emit(failed);
       expect(document.querySelector(".modal-error")?.textContent).toContain("peer vanished");
       await act(async () => {
-        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS * 2);
+        vi.advanceTimersByTime(60_000);
         await Promise.resolve();
       });
       expect(document.querySelector(".modal-error")?.textContent).toContain("peer vanished");
@@ -1506,7 +1675,7 @@ describe("air-gap transfer: sending", () => {
     expect(text()).toContain("Frame 1/3");
   });
 
-  it("auto-dismisses the export error after 10 seconds and keeps Try Again", async () => {
+  it("keeps the export error visible over time until its X dismisses it", async () => {
     vi.useFakeTimers();
     try {
       api.prepareAirgapExport.mockRejectedValueOnce(new Error("too many accounts"));
@@ -1514,8 +1683,12 @@ describe("air-gap transfer: sending", () => {
       expect(text()).toContain("Couldn't prepare the transfer");
       expect(document.querySelector(".error-panel.modal-error")).not.toBeNull();
       await act(async () => {
-        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS);
+        vi.advanceTimersByTime(60_000);
       });
+      expect(document.querySelector(".error-panel.modal-error")).not.toBeNull();
+      expect(text()).toContain("too many accounts");
+      expect(button("Try Again")).toBeDefined();
+      click(document.querySelector<HTMLButtonElement>('.error-panel.modal-error [aria-label="Dismiss error"]')!);
       expect(document.querySelector(".error-panel.modal-error")).toBeNull();
       expect(text()).toContain("Couldn't prepare the transfer");
       expect(text()).not.toContain("Preparing animated transfer…");
@@ -1616,7 +1789,7 @@ describe("scanning", () => {
     });
     await act(async () => scanner.setCameraError!("No camera found"));
     expect(text()).toContain("No camera found");
-    // The scanner hook dismisses the message by itself after a few seconds (its own test covers that).
+    // Clearing the camera error text still keeps Retry Camera visible.
     await act(async () => scanner.setCameraError!(null));
     expect(text()).not.toContain("No camera found");
     expect(button("Retry Camera")).toBeDefined();

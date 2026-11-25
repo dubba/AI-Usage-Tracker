@@ -6,7 +6,7 @@ import { getLastLoginStatus, watchLoginAttempt } from "../../shared/lib/login-st
 import { useLoginAttempt, waitingStatus } from "../../shared/hooks/useLoginAttempt";
 import type { Account, CloudProjectOption } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
-import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
+import { useDialogError } from "../../shared/hooks/useDialogError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 
@@ -27,7 +27,7 @@ export function GoogleAiStudioUsageModal({
   const [stage, setStage] = useState<SetupStage>("signin");
   const [projects, setProjects] = useState<CloudProjectOption[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
-  const { error, setError } = useAutoDismissedError(account?.id);
+  const { error, setError } = useDialogError(account?.id);
   const { busy, setBusy, run } = useAsyncAction({ source: "google-ai-studio", setError });
   const dialogRef = useRef<HTMLElement>(null);
   const { status, setStatus, attemptIdRef, closeRequestedRef, adopt, retry: retryAttempt, abandon } = useLoginAttempt({

@@ -5,7 +5,7 @@ import { describeError } from "../../shared/lib/errors";
 import { BellIcon } from "../../shared/ui/icons";
 import type { Account, UsageAlertSetting, UsageWindow } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
-import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
+import { useDialogError } from "../../shared/hooks/useDialogError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy, useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
@@ -45,7 +45,7 @@ export function AccountAlertModal({
 }) {
   const [settings, setSettings] = useState<UsageAlertSetting[]>([]);
   const [loading, setLoading] = useState(false);
-  const { error, setError } = useAutoDismissedError(account?.id);
+  const { error, setError } = useDialogError(account?.id);
   const { busy: saving, setBusy: setSaving, run } = useAsyncAction({ source: "alerts", setError });
   const dialogRef = useRef<HTMLElement>(null);
   const requestClose = useModalClosePolicy(!saving, onClose);

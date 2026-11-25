@@ -56,13 +56,23 @@ describe("a transfer file tapped in Quick Share", () => {
     expect(latest.current?.pairingOpen).toBe(true);
   });
 
-  it("leaves Sync Devices closed when nothing was tapped, and off Android", async () => {
+  it("opens Sync Devices on macOS when a transfer file is opened, and leaves Windows/Linux alone", async () => {
     mounted = mount(<Probe />);
     await comeBack();
     expect(latest.current?.pairingOpen).toBe(false);
     mounted.unmount();
+
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh)", configurable: true });
     api.tappedFilePending.mockClear();
+    api.tappedFilePending.mockResolvedValue(true);
+    mounted = mount(<Probe />);
+    await settle();
+    expect(latest.current?.pairingOpen).toBe(true);
+    mounted.unmount();
+
+    Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", configurable: true });
+    api.tappedFilePending.mockClear();
+    api.tappedFilePending.mockResolvedValue(true);
     mounted = mount(<Probe />);
     await comeBack();
     expect(api.tappedFilePending).not.toHaveBeenCalled();

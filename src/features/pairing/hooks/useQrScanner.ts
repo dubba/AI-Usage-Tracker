@@ -2,7 +2,7 @@ import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react"
 import { pairingApi } from "../../../shared/lib/api";
 import { describeError } from "../../../shared/lib/errors";
 import { logIgnored } from "../../../shared/lib/log";
-import { useAutoDismissedError } from "../../../shared/hooks/useAutoDismissedError";
+import { useDialogError } from "../../../shared/hooks/useDialogError";
 import { isMobileUserAgent } from "../../../shared/lib/platform";
 import { applyAutofocusAndZoom, getCameraStream } from "../lib/camera-stream";
 import {
@@ -55,10 +55,9 @@ export function useQrScanner({ active, restartKey, onDecoded, onError }: UseQrSc
   const [videoReady, setVideoReady] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
-  // The message goes away by itself (and when the scanner closes). `cameraFailed` outlives it:
-  // the view keeps offering "Retry Camera" and hides the scan beam until the camera is started
-  // again.
-  const { error: cameraError, setError: setCameraErrorMessage, clearError: clearCameraError } = useAutoDismissedError(active);
+  // The message stays until Retry Camera is pressed or the scanner closes. `cameraFailed` keeps
+  // Retry Camera visible and hides the scan beam until the camera is started again.
+  const { error: cameraError, setError: setCameraErrorMessage, clearError: clearCameraError } = useDialogError(active);
   const [cameraFailed, setCameraFailed] = useState(false);
   const setCameraError = useCallback(
     (message: string | null) => {

@@ -50,7 +50,6 @@ export function AirgapSenderView({
   onRetry: () => void;
   onBack: () => void;
 }) {
-  // Heading + Try Again stay after the detail banner auto-dismisses.
   const failed = !busy && !exportData;
   return (
     <div className="airgap-sender-view">

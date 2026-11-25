@@ -69,7 +69,7 @@ describe("AccountsView empty dashboard", () => {
     app = null;
   });
 
-  it("offers Link Devices next to Other Provider", () => {
+  it("offers Sync Devices next to Other Provider", () => {
     const onOpenPairing = vi.fn();
     const onAdd = vi.fn();
     app = renderView({ onOpenPairing, onAdd });
@@ -77,14 +77,14 @@ describe("AccountsView empty dashboard", () => {
     expect(document.body.textContent).toContain("Add an account to begin monitoring its usage limits.");
     expect(document.body.textContent).not.toContain("Add an account to see how much of its weekly limit you use each day.");
     expect(document.querySelector('button[aria-label="Other Provider"]')).not.toBeNull();
-    expect(document.body.textContent).toContain("Link Devices");
+    expect(document.body.textContent).toContain("Sync Devices");
     const grid = document.querySelector(".empty-provider-grid");
     expect(grid?.querySelectorAll(".empty-provider-card")).toHaveLength(4);
     expect(grid?.querySelector(".empty-provider-actions")?.querySelectorAll(".empty-provider-other")).toHaveLength(2);
 
-    const linkDevices = [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Link Devices"));
-    expect(linkDevices).toBeTruthy();
-    click(linkDevices!);
+    const syncDevices = [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Sync Devices"));
+    expect(syncDevices).toBeTruthy();
+    click(syncDevices!);
     expect(onOpenPairing).toHaveBeenCalledOnce();
     expect(onAdd).not.toHaveBeenCalled();
   });
@@ -99,7 +99,7 @@ describe("AccountsView empty dashboard", () => {
     expect(onOpenPairing).not.toHaveBeenCalled();
   });
 
-  it("hides Link Devices on an empty group", () => {
+  it("hides Sync Devices on an empty group", () => {
     app = renderView({
       selectedGroup: bucketGroup,
       onOpenPairing: vi.fn(),
@@ -107,11 +107,11 @@ describe("AccountsView empty dashboard", () => {
       onDeleteBucket: () => undefined,
     });
     expect(document.body.textContent).toContain("No accounts in Work");
-    expect(document.body.textContent).not.toContain("Link Devices");
+    expect(document.body.textContent).not.toContain("Sync Devices");
     expect(document.querySelector('button[aria-label="Other Provider"]')).toBeNull();
   });
 
-  it("hides Link Devices when accounts are already listed", () => {
+  it("hides Sync Devices when accounts are already listed", () => {
     app = renderView({
       allAccounts: [account],
       accounts: [account],
@@ -119,7 +119,7 @@ describe("AccountsView empty dashboard", () => {
       onOpenPairing: vi.fn(),
     });
     expect(document.body.textContent).not.toContain("Connect an AI Account");
-    expect(document.body.textContent).not.toContain("Link Devices");
+    expect(document.body.textContent).not.toContain("Sync Devices");
   });
 
   it("renders the edit-bucket-title-btn pen button for a custom group and triggers onEditBucket", () => {

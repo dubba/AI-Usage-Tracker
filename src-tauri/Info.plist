@@ -10,10 +10,11 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>AI Usage Tracker requires camera access to scan device linking QR codes.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>AI Usage Tracker checks Downloads while Sync Devices is waiting for a transfer file sent via AirDrop.</string>
 	<!-- Sync Devices transfer files (.aiutpair; the same type as Info.ios.plist): named and drawn
-	     with the app's icon in the share menu and Finder. Only the type is declared, not a
-	     document type, so opening one in Finder does not open the app; Sync Devices' Open
-	     buttons do. -->
+	     with the app's icon in the share menu and Finder, and delivered to RunEvent::Opened when
+	     opened via AirDrop or Finder. -->
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -24,6 +25,7 @@
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
+				<string>public.content</string>
 			</array>
 			<key>UTTypeIconFile</key>
 			<string>icon.icns</string>
@@ -38,6 +40,21 @@
 					<string>application/vnd.aiut.pair</string>
 				</array>
 			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>AI Usage Tracker transfer file</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.dubba.ai.usage.tracker.transfer</string>
+			</array>
 		</dict>
 	</array>
 </dict>

@@ -11,7 +11,7 @@ export interface ScannerViewProps {
   airgapImporting: boolean;
   airgapCapturedChunks: Map<number, string>;
   cameraError: string | null;
-  /** Camera failed; Retry Camera stays after the error text auto-dismisses. */
+  /** Camera failed; keeps Retry Camera visible until retried. */
   cameraFailed: boolean;
   isFrontCamera: boolean;
   videoReady: boolean;

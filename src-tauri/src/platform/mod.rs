@@ -14,7 +14,7 @@ pub(crate) mod capture_protection;
 pub(crate) mod fs_util;
 #[cfg(target_os = "ios")]
 pub(crate) mod ios_background;
-#[cfg(any(target_os = "ios", test))]
+#[cfg(any(target_os = "ios", target_os = "macos", test))]
 pub(crate) mod ios_files;
 pub(crate) mod lan_binding;
 #[cfg(target_os = "macos")]

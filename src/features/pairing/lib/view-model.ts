@@ -158,10 +158,10 @@ export function pairingHeader(input: {
     title = "Connected";
     subtitle = "Waiting for the other device to finish connecting.";
   } else if (status === "confirmTransfer") {
-    title = input.isSender ? "Sending" : "Receiving";
+    title = input.isSender ? "Sending" : "Add the accounts";
     subtitle = input.isSender
-      ? "Connected. Sending the accounts to the other device."
-      : "Connected. The other device is sending the accounts.";
+      ? "Connected. Waiting for the other device to confirm."
+      : "Connected. Confirm adding the accounts from the other device.";
   } else if (status === "transferring") {
     title = "Transferring";
     subtitle = "Encrypted accounts and groups are moving between devices.";
@@ -298,6 +298,117 @@ export function isLinkCode(code: string): boolean {
 /** "KTQMPRXDHWAB" -> "KTQ MPR XDH WAB", "123456" -> "123 456", after `cleanCode`. */
 export function formatJoinCode(code: string): string {
   return cleanCode(code).match(new RegExp(`.{1,${CODE_GROUP_SIZE}}`, "g"))?.join(" ") ?? "";
+}
+
+/** Expands a cleaned code into fixed-length tile slots (12 letters or 6 legacy digits). */
+export function buildCodeSlots(code: string): string[] {
+  const length = codeLength(code);
+  return Array.from({ length }, (_, index) => code[index] ?? "");
+}
+
+/** Index of the last non-empty tile slot, or `-1` when all slots are empty. */
+export function lastFilledSlotIndex(slots: readonly string[]): number {
+  for (let i = slots.length - 1; i >= 0; i--) {
+    if (slots[i]) return i;
+  }
+  return -1;
+}
+
+/** Whether any empty slot sits before a filled slot. */
+export function slotsHaveHoles(slots: readonly string[]): boolean {
+  const last = lastFilledSlotIndex(slots);
+  for (let i = 0; i < last; i++) {
+    if (!slots[i]) return true;
+  }
+  return false;
+}
+
+/**
+ * Formats tile slots for the underlying `<input>`. When contiguous, matches `formatJoinCode`;
+ * when an empty slot sits before a filled one (mid-edit Backspace), preserves its position with `_`.
+ */
+export function formatCodeSlots(slots: readonly string[]): string {
+  const last = lastFilledSlotIndex(slots);
+  if (last < 0) return "";
+  if (!slotsHaveHoles(slots)) return formatJoinCode(slots.join(""));
+  let out = "";
+  for (let i = 0; i <= last; i++) {
+    if (i > 0 && i % CODE_GROUP_SIZE === 0) out += " ";
+    out += slots[i] || "_";
+  }
+  return out;
+}
+
+/**
+ * Caret offset in `formatCodeSlots(slots)` for `slotIndex`: right after that slot's character when
+ * it sits at or before `lastFilledSlotIndex`, or at the end of the formatted text otherwise.
+ */
+export function formattedOffsetForSlot(slots: readonly string[], slotIndex: number): number {
+  const formatted = formatCodeSlots(slots);
+  const last = lastFilledSlotIndex(slots);
+  if (slotIndex > last) return formatted.length;
+  const groupsBefore = Math.floor(slotIndex / CODE_GROUP_SIZE);
+  return Math.min(formatted.length, slotIndex + groupsBefore + 1);
+}
+
+/**
+ * Validates and capitalizes one typed character for `slotIndex`. Rejects characters that belong to
+ * the other code kind when other slots are already filled, so typing a digit on an existing letter
+ * code never wipes it.
+ */
+export function normalizeSlotChar(
+  char: string,
+  slots: readonly string[],
+  slotIndex: number,
+  allowLegacy: boolean,
+): string | null {
+  const upper = char.toUpperCase();
+  const hasOtherFilled = slots.some((s, i) => i !== slotIndex && s !== "");
+  const isCurrentlyLegacy = slots.some((s, i) => i !== slotIndex && /^\d$/.test(s));
+
+  if (!hasOtherFilled) {
+    if (allowLegacy && slotIndex === 0 && /^\d$/.test(upper)) return upper;
+    return LINK_CODE_ALPHABET.includes(upper) ? upper : null;
+  }
+  if (isCurrentlyLegacy) {
+    return allowLegacy && /^\d$/.test(upper) ? upper : null;
+  }
+  return LINK_CODE_ALPHABET.includes(upper) ? upper : null;
+}
+
+export type SingleInputEdit =
+  | { kind: "insert"; char: string; index: number }
+  | { kind: "delete"; index: number }
+  | { kind: "replace"; char: string; index: number };
+
+/** Detects a single-character insertion, deletion, or replacement between `prev` and `next`. */
+export function diffSingleInputEdit(prev: string, next: string): SingleInputEdit | null {
+  if (next.length === prev.length + 1) {
+    let i = 0;
+    while (i < prev.length && prev[i] === next[i]) i++;
+    if (prev.slice(i) === next.slice(i + 1)) {
+      return { kind: "insert", char: next[i], index: i };
+    }
+    return null;
+  }
+  if (next.length === prev.length - 1) {
+    let i = 0;
+    while (i < next.length && prev[i] === next[i]) i++;
+    if (prev.slice(i + 1) === next.slice(i)) {
+      return { kind: "delete", index: i };
+    }
+    return null;
+  }
+  if (next.length === prev.length && next !== prev) {
+    let start = 0;
+    while (start < prev.length && prev[start] === next[start]) start++;
+    let end = prev.length - 1;
+    while (end > start && prev[end] === next[end]) end--;
+    if (start === end) {
+      return { kind: "replace", char: next[start], index: start };
+    }
+  }
+  return null;
 }
 
 /** 125 -> "2:05". */

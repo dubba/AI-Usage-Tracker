@@ -103,15 +103,15 @@ export function usePairingSession({
     }
   };
 
-  /** The sending device's answer to "Send these accounts?". */
-  const handleConfirmTransfer = async (sessionId: string, confirmed: boolean) => {
+  /** Confirm or decline the transfer on either the sending or receiving device. */
+  const handleConfirmTransfer = async (sessionId: string, confirmed: boolean, isSender = true) => {
     if (confirmed) {
       setConfirmed(true);
     }
     const ticket = request.begin();
     setBusy(true);
     try {
-      if (confirmed) {
+      if (confirmed && isSender) {
         try {
           await pairingApi.setIncludeSettings(includeSettings);
           if (includeSettings) {

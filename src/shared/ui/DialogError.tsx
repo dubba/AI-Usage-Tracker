@@ -1,8 +1,7 @@
 import { CloseIcon } from "./icons";
 
 /**
- * A dialog's red error banner, with an X in its top right corner that hides it. The message also
- * hides by itself after `ERROR_AUTO_DISMISS_MS` (`useAutoDismissedError`).
+ * A dialog's red error banner, with an X in its top right corner that hides it (`useDialogError`).
  */
 export function DialogError({
   message,

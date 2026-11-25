@@ -67,10 +67,31 @@ fn stamp_of(path: &Path) -> Option<Stamp> {
     meta.is_file().then(|| (meta.len(), meta.modified().ok()))
 }
 
-fn is_transfer_file(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| ext.eq_ignore_ascii_case(EXTENSION))
+/// Recognizes `.aiutpair` files, including OS duplicate suffixes appended after the extension
+/// (for example macOS/iOS AirDrop's `AI Usage Tracker accounts.aiutpair 2` or `...aiutpair (2)`).
+pub(crate) fn is_transfer_file(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    let lower = name.to_ascii_lowercase();
+    let dot_ext = format!(".{EXTENSION}");
+    if let Some(stem) = lower.strip_suffix(&dot_ext) {
+        return !stem.is_empty();
+    }
+    if let Some((prefix, suffix)) = lower.rsplit_once(&dot_ext) {
+        if prefix.is_empty() {
+            return false;
+        }
+        let trimmed = suffix.trim();
+        let digits = trimmed
+            .strip_prefix('(')
+            .and_then(|s| s.strip_suffix(')'))
+            .or_else(|| trimmed.strip_prefix('-'))
+            .or_else(|| trimmed.strip_prefix('_'))
+            .unwrap_or(trimmed);
+        return !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit());
+    }
+    false
 }
 
 /// The transfer files in `dirs` and the folders directly inside them, with their stamps. A folder
@@ -211,6 +232,34 @@ mod tests {
         assert_eq!(watch.next_ready(), None);
         assert_eq!(watch.next_ready(), Some(path));
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn recognizes_airdrop_and_os_duplicate_suffixes_without_matching_partials() {
+        for valid in [
+            "AI Usage Tracker accounts.aiutpair",
+            "AI Usage Tracker accounts (1).AIUTPAIR",
+            "AI Usage Tracker accounts.aiutpair 2",
+            "AI Usage Tracker accounts.aiutpair 12",
+            "AI Usage Tracker accounts.aiutpair (2)",
+            "AI Usage Tracker accounts.aiutpair-2",
+            "AI Usage Tracker accounts.aiutpair_2",
+        ] {
+            assert!(is_transfer_file(Path::new(valid)), "{valid} should match");
+        }
+        for invalid in [
+            "aiutpair",
+            ".aiutpair",
+            "photo.jpg",
+            "accounts.aiutpair.part",
+            "accounts.aiutpair.crdownload",
+            "accounts.aiutpair.txt",
+        ] {
+            assert!(
+                !is_transfer_file(Path::new(invalid)),
+                "{invalid} should not match"
+            );
+        }
     }
 
     #[test]

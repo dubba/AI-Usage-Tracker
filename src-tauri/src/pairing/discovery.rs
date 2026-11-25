@@ -9,12 +9,17 @@
 //! nothing here is trusted or secret. A device that only pretends to be a
 //! pairing host fails that exchange.
 //!
-//! iOS goes through the system's Bonjour service ([`super::dnssd`]) because
-//! it blocks the raw multicast sockets `mdns-sd` uses; every other platform
-//! uses `mdns-sd`. Both speak standard mDNS, so either side can host.
+//! Apple platforms (iOS and macOS) go through the system's Bonjour service
+//! ([`super::dnssd`]) because iOS blocks raw multicast sockets without a
+//! restricted entitlement and macOS already runs `mDNSResponder` on UDP 5353;
+//! every other platform uses `mdns-sd`. Both speak standard mDNS, so any
+//! combination of platforms can host or join.
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-#[cfg(not(target_os = "ios"))]
+#[cfg(any(
+    not(any(target_os = "ios", target_os = "macos")),
+    all(test, target_os = "macos")
+))]
 use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use rand::Rng;
 use std::{net::IpAddr, time::Duration};
@@ -24,10 +29,10 @@ use super::protocol::{
     is_allowed_pairing_host, DiscoveredHost, LEGACY_PROTOCOL_VERSION, PROTOCOL_VERSION,
 };
 
-#[cfg_attr(target_os = "ios", allow(dead_code))]
+#[cfg_attr(any(target_os = "ios", target_os = "macos"), allow(dead_code))]
 pub const SERVICE_TYPE: &str = "_aiut-pair._tcp.local.";
 /// The service type without its domain, as DNS-SD registers and resolves it.
-#[cfg_attr(not(any(target_os = "ios", test)), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "ios", target_os = "macos")), allow(dead_code))]
 pub(crate) const DNSSD_REGTYPE: &str = "_aiut-pair._tcp";
 pub const NOT_FOUND: &str = "No device is showing a link code on this Wi-Fi network. Check that both devices are on the same Wi-Fi and that the other device is showing its code. If a VPN is on, turn it off on both devices and try again.";
 pub const INVALID_CODE: &str = "Enter the code shown on the other device: 12 letters, or 6 digits from an older version of the app.";
@@ -121,26 +126,36 @@ pub fn generate_link_code() -> String {
         .collect()
 }
 
-pub struct MdnsAdvertisement {
-    #[cfg(not(target_os = "ios"))]
+#[cfg(any(
+    not(any(target_os = "ios", target_os = "macos")),
+    all(test, target_os = "macos")
+))]
+pub(crate) struct MdnsSdAdvertisement {
     daemon: ServiceDaemon,
-    #[cfg(not(target_os = "ios"))]
     fullname: String,
-    #[cfg(target_os = "ios")]
+}
+
+#[cfg(any(
+    not(any(target_os = "ios", target_os = "macos")),
+    all(test, target_os = "macos")
+))]
+impl Drop for MdnsSdAdvertisement {
+    fn drop(&mut self) {
+        let _ = self.daemon.unregister(&self.fullname);
+        let _ = self.daemon.shutdown();
+    }
+}
+
+pub struct MdnsAdvertisement {
+    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
+    _mdns: MdnsSdAdvertisement,
+    #[cfg(any(target_os = "ios", target_os = "macos"))]
     _registration: super::dnssd::Registration,
 }
 
 impl MdnsAdvertisement {
     pub fn unregister(self) {
         drop(self);
-    }
-}
-
-#[cfg(not(target_os = "ios"))]
-impl Drop for MdnsAdvertisement {
-    fn drop(&mut self) {
-        let _ = self.daemon.unregister(&self.fullname);
-        let _ = self.daemon.shutdown();
     }
 }
 
@@ -175,7 +190,7 @@ pub fn advertise(
 
     let properties = advertised_properties(session_id, nonce);
 
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "macos"))]
     {
         // Announce only on the interface the listener is bound to, so the
         // address the joiner resolves is the one that accepts it.
@@ -187,17 +202,22 @@ pub fn advertise(
         })
     }
 
-    #[cfg(not(target_os = "ios"))]
-    advertise_mdns_sd(instance, host_ip, port, &properties)
+    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
+    Ok(MdnsAdvertisement {
+        _mdns: advertise_mdns_sd(instance, host_ip, port, &properties)?,
+    })
 }
 
-#[cfg(not(target_os = "ios"))]
-fn advertise_mdns_sd(
+#[cfg(any(
+    not(any(target_os = "ios", target_os = "macos")),
+    all(test, target_os = "macos")
+))]
+pub(crate) fn advertise_mdns_sd(
     instance: &str,
     host_ip: &str,
     port: u16,
     properties: &[(&str, String)],
-) -> Result<MdnsAdvertisement, String> {
+) -> Result<MdnsSdAdvertisement, String> {
     let daemon = ServiceDaemon::new().map_err(|e| format!("mDNS unavailable: {e}"))?;
     let host_name = format!("{}.local.", instance.to_ascii_lowercase());
     let info = ServiceInfo::new(
@@ -214,7 +234,7 @@ fn advertise_mdns_sd(
         .register(info)
         .map_err(|e| format!("Failed to advertise pairing service: {e}"))?;
 
-    Ok(MdnsAdvertisement { daemon, fullname })
+    Ok(MdnsSdAdvertisement { daemon, fullname })
 }
 
 /// What one browse of the network found.
@@ -253,43 +273,91 @@ impl Discovery {
 
 /// Finds the pairing hosts on the local network.
 pub async fn discover() -> Result<Vec<DiscoveredHost>, String> {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "macos"))]
     {
         discover_dnssd(DISCOVERY_TIMEOUT).await?.into_hosts()
     }
 
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
     discover_mdns_sd(DISCOVERY_TIMEOUT).await?.into_hosts()
 }
 
-#[cfg(any(target_os = "ios", all(test, target_os = "macos")))]
+#[cfg(any(target_os = "ios", target_os = "macos"))]
 pub(crate) async fn discover_dnssd(timeout: Duration) -> Result<Discovery, String> {
     tokio::task::spawn_blocking(move || {
-        let deadline = std::time::Instant::now() + timeout;
-        let instances = super::dnssd::browse(
-            DNSSD_REGTYPE,
-            timeout,
-            DISCOVERY_SETTLE,
-            MAX_DISCOVERED_HOSTS,
-        )?;
+        let mut browser = super::dnssd::Browser::start(DNSSD_REGTYPE, MAX_DISCOVERED_HOSTS * 2)?;
         let mut discovery = Discovery::default();
-        for instance in instances {
-            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-            if remaining.is_zero() {
+        let mut tried = std::collections::HashSet::new();
+        let mut deadline = std::time::Instant::now() + timeout;
+        let mut settling = false;
+        let mut saw_instances = 0usize;
+
+        while std::time::Instant::now() < deadline && discovery.hosts.len() < MAX_DISCOVERED_HOSTS {
+            let batch = browser.poll_new(deadline, &tried);
+            if batch.is_empty() {
                 break;
             }
-            let Ok(resolved) = super::dnssd::resolve(&instance, DNSSD_REGTYPE, remaining) else {
-                continue;
-            };
-            let host = pick_resolved_host(&resolved.addresses);
-            let property = |key: &str| resolved.properties.get(key).map(String::as_str);
-            discovery.add(parsed_from_resolved(
-                host.as_deref(),
-                resolved.port,
-                property("sid"),
-                property("nonce"),
-                property("v"),
-            ));
+            for inst in &batch {
+                tried.insert(inst.name.clone());
+            }
+            saw_instances += batch.len();
+
+            // Resolve every newly seen instance in parallel with a bounded per-instance
+            // timeout so a stale cached record cannot starve a live host arriving on the LAN.
+            let resolved_batch: Vec<Option<super::dnssd::Resolved>> = std::thread::scope(|scope| {
+                let handles: Vec<_> = batch
+                    .iter()
+                    .map(|inst| {
+                        let budget = deadline
+                            .saturating_duration_since(std::time::Instant::now())
+                            .min(Duration::from_secs(3));
+                        scope.spawn(move || {
+                            if budget.is_zero() {
+                                return None;
+                            }
+                            super::dnssd::resolve(
+                                &inst.name,
+                                DNSSD_REGTYPE,
+                                &inst.domain,
+                                inst.interface_index,
+                                budget,
+                            )
+                            .ok()
+                        })
+                    })
+                    .collect();
+                handles
+                    .into_iter()
+                    .map(|handle| handle.join().ok().flatten())
+                    .collect()
+            });
+
+            for resolved in resolved_batch.into_iter().flatten() {
+                let host = pick_resolved_host(&resolved.addresses);
+                let property = |key: &str| resolved.properties.get(key).map(String::as_str);
+                discovery.add(parsed_from_resolved(
+                    host.as_deref(),
+                    resolved.port,
+                    property("sid"),
+                    property("nonce"),
+                    property("v"),
+                ));
+            }
+
+            if !discovery.hosts.is_empty() && !settling {
+                settling = true;
+                deadline = deadline.min(std::time::Instant::now() + DISCOVERY_SETTLE);
+            }
+        }
+
+        if discovery.hosts.is_empty() {
+            if let Some(code) = browser.last_error() {
+                super::sync_log::note(&format!("Bonjour browse error (DNS-SD {code})"));
+            } else if saw_instances > 0 {
+                super::sync_log::note(&format!(
+                    "Bonjour saw {saw_instances} pairing host(s) but could not resolve a local address"
+                ));
+            }
         }
         Ok(discovery)
     })
@@ -297,7 +365,10 @@ pub(crate) async fn discover_dnssd(timeout: Duration) -> Result<Discovery, Strin
     .map_err(|_| NOT_FOUND.to_string())?
 }
 
-#[cfg(not(target_os = "ios"))]
+#[cfg(any(
+    not(any(target_os = "ios", target_os = "macos")),
+    all(test, target_os = "macos")
+))]
 pub(crate) async fn discover_mdns_sd(timeout: Duration) -> Result<Discovery, String> {
     let daemon = ServiceDaemon::new().map_err(|e| format!("mDNS unavailable: {e}"))?;
     let receiver = daemon

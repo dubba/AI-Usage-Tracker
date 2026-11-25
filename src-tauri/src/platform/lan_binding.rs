@@ -145,3 +145,18 @@ pub fn configure_pairing_network(bind: bool) {
         let _ = set_pairing_lan_binding(bind);
     }
 }
+
+/// Ensures Android's Wi-Fi binding and `MulticastLock` are active before mDNS
+/// sockets open, with a short timeout so a slow JNI call can never hang pairing.
+pub async fn prepare_pairing_network() {
+    #[cfg(target_os = "android")]
+    {
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_millis(1500),
+            tokio::task::spawn_blocking(|| {
+                let _ = set_pairing_lan_binding(true);
+            }),
+        )
+        .await;
+    }
+}
