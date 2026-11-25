@@ -338,7 +338,8 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
             <span>Presets</span>
           </button>
         ) : null}
-        <button type="button" className="button primary accent-done-btn" onClick={requestClose}>
+        {/* Focus starts here, not on the first color: opening the dialog changes nothing. */}
+        <button type="button" className="button primary accent-done-btn" data-autofocus onClick={requestClose}>
           Done
         </button>
       </div>

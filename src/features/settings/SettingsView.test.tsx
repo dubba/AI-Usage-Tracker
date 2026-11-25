@@ -169,8 +169,9 @@ describe("General", () => {
 
       const modalSwatches = [...modal.querySelectorAll<HTMLButtonElement>('.accent-color-grid button[role="radio"]')];
       expect(modalSwatches).toHaveLength(11);
-      // Done is offered with the grid too, without Presets.
+      // Done is offered with the grid too, without Presets, and focus starts on it.
       expect(modal.querySelector(".accent-done-btn")).not.toBeNull();
+      expect(document.activeElement).toBe(modal.querySelector(".accent-done-btn"));
       expect(modal.querySelector(".accent-presets-btn")).toBeNull();
 
       // Select Emerald, then tap Emerald a second time to toggle Dark -> Light.

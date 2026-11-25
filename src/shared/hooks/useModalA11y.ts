@@ -21,7 +21,8 @@ export function focusableElements(container: HTMLElement): HTMLElement[] {
  * - traps Tab / Shift+Tab within the dialog while it is open
  * - closes on Escape (unless an inner dropdown menu is open; the dropdown
  *   consumes Escape to close itself first)
- * - moves focus into the dialog on open and restores it on close
+ * - moves focus into the dialog on open (to an element marked `data-autofocus`, else the first
+ *   control other than the close button) and restores it on close
  * - locks background scrolling by disabling body overflow
  *
  * `onRequestClose` should perform the modal's own close logic (including any
@@ -51,6 +52,7 @@ export function useModalA11y(
     if (!container.contains(document.activeElement)) {
       const candidates = focusableElements(container);
       const initial =
+        container.querySelector<HTMLElement>("[data-autofocus]:not([disabled])") ??
         candidates.find((el) => !el.classList.contains("ui-modal-close")) ??
         candidates[0] ??
         container;
