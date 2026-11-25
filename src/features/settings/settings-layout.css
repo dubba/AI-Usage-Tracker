@@ -175,9 +175,10 @@
   }
 
   /* ---- Theme Accent Color row trigger ---- */
+  /* Centered, so a short color name leaves the same gap on both sides. */
   .settings-accent-trigger {
     width: 100%;
-    justify-content: space-between;
+    justify-content: center;
   }
 
   .settings-accent-trigger-value {
