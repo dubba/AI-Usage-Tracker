@@ -267,9 +267,10 @@
     color: var(--obsidian-text);
   }
 
-  /* Presets (back to the grid) on the left, Done filling the rest of the row. */
+  /* Presets (back to the grid) on the left, Done on the right. */
   .accent-custom-actions {
     display: flex;
+    justify-content: space-between;
     gap: 10px;
     margin-top: 2px;
   }
@@ -285,8 +286,10 @@
   }
 
   .accent-done-btn {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
+    min-width: 96px;
     min-height: 44px;
+    padding: 0 20px;
     justify-content: center;
   }
 
