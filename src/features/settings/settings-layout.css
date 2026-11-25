@@ -175,22 +175,18 @@
   }
 
   /* ---- Accent Color row trigger ---- */
-  /* Centered, so a short color name leaves the same gap on both sides. */
+  /* Laid out like the dropdowns above it: the name on the left, the dot where their chevron is. */
   .settings-accent-trigger {
     width: 100%;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 10px;
   }
 
-  .settings-accent-trigger-value {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-
+  /* Its center lines up with the center of the dropdowns' chevron above it. */
   .settings-accent-trigger-dot {
     width: 14px;
     height: 14px;
+    margin-right: 2px;
     flex: 0 0 auto;
     border-radius: 999px;
     box-shadow: inset 0 0 0 1px var(--obsidian-border);

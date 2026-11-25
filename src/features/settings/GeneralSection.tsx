@@ -98,10 +98,8 @@ export function GeneralSection() {
                 aria-expanded={accentPickerOpen}
                 onClick={() => setAccentPickerOpen(true)}
               >
-                <span className="settings-accent-trigger-value">
-                  <span className="custom-dropdown-label">{activeAccentLabel}</span>
-                  <span className="settings-accent-trigger-dot" style={{ backgroundColor: accentColor }} aria-hidden="true" />
-                </span>
+                <span className="custom-dropdown-label">{activeAccentLabel}</span>
+                <span className="settings-accent-trigger-dot" style={{ backgroundColor: accentColor }} aria-hidden="true" />
               </button>
             </div>
           </div>
