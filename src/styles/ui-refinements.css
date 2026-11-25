@@ -455,12 +455,11 @@
    Keep the positioning rules below intact for existing elements that rely on them.
    ========================================================================== */
 
-[data-tooltip]:not(.sidebar-resize-grip):not(.reorder-grip):not(.ui-modal-close):not(.pairing-switch-camera-fab) {
+[data-tooltip]:not(.sidebar-resize-grip):not(.reorder-grip):not(.pairing-switch-camera-fab) {
   position: relative;
 }
 
-.sidebar-resize-grip[data-tooltip],
-.ui-modal-close[data-tooltip] {
+.sidebar-resize-grip[data-tooltip] {
   position: absolute;
 }
 

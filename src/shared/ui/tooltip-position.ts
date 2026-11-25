@@ -198,7 +198,7 @@ export function getTooltipPlacement(trigger: HTMLElement): TooltipPlacementConfi
   }
   if (
     trigger.matches(
-      ".top-bar-add-account, .ui-modal-close, .provider-average, .sidebar-group-edit-btn, .mobile-sidebar-close-btn, .dashboard-header-actions .sidebar-section-button",
+      ".top-bar-add-account, .provider-average, .sidebar-group-edit-btn, .mobile-sidebar-close-btn, .dashboard-header-actions .sidebar-section-button",
     )
   ) {
     return { placement: "bottom", align: "end", offset: 8 };

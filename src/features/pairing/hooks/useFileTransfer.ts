@@ -13,7 +13,7 @@ export type FileSendState = { made: boolean; notOnNetwork: boolean };
  * its user typed, makes one file holding the accounts encrypted with that code, and sends it
  * through the system share menu (AirDrop, Quick Share) or a save dialog; it can be sent again.
  * The receiver, showing the code, opens the file that arrives by itself (`useIncomingFile`,
- * `useTappedTransferFile`; the open dialog remains as a fallback), asks its user to confirm adding
+ * `useTappedTransferFile`), asks its user to confirm adding
  * the accounts it holds (`awaitingConfirm`), then adds them. Typing the code is the sender's consent. Rust shows every menu and
  * dialog and keeps the files, so these calls carry only counts and a ticket.
  */
@@ -143,11 +143,6 @@ export function useFileTransfer({
     awaitingConfirm: awaitingConfirm && preview !== null,
     /** Receiver: add the opened file's accounts. */
     confirmImport,
-    /** Receiver: open the file by hand (the open dialog), then add its accounts. */
-    openFile: () =>
-      step("Couldn't open the file", () => pairingApi.openFile(), (opened) => {
-        if (opened) showOpened(opened);
-      }),
     /** Android and iPhone: open the file opened from another app, then add its accounts. */
     openTapped: () =>
       step("Couldn't open the file", () => pairingApi.openTappedFile(), (opened) => {

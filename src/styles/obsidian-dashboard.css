@@ -2920,6 +2920,17 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   line-height: 1.45;
 }
 
+.confirm-dialog-note.is-amber {
+  border-color: rgb(var(--tint-amber-rgb) / 0.3);
+  background: rgb(var(--tint-amber-rgb) / 0.08);
+  color: var(--muted);
+}
+
+.confirm-dialog-note.is-amber strong {
+  color: var(--c-ffffff);
+  font-weight: 650;
+}
+
 /* A warning: amber text in a solid amber frame with a yellow triangle, the look of the API
  * Integration window's "bridge is disabled" notice (.bridge-window-warning). The delete-data
  * dialog's warning (.delete-data-warning) matches it. */
@@ -3693,6 +3704,74 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
 
 .confirm-dialog-backdrop .modal-card .confirm-dialog-body p {
   margin: 0;
+}
+
+.confirm-dialog-backdrop .modal-card .confirm-dialog-body p + p {
+  margin-top: 10px;
+}
+
+.confirm-dialog-backdrop .modal-card.file-access-dialog {
+  max-width: 560px;
+}
+
+.confirm-dialog-backdrop .modal-card.file-access-dialog .confirm-dialog-body p.file-access-subtitle {
+  margin: 0 0 20px 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--obsidian-muted);
+}
+
+@media (max-width: 480px) {
+  .confirm-dialog-backdrop .modal-card.file-access-dialog h2 {
+    font-size: 1.2rem;
+  }
+
+  .confirm-dialog-backdrop .modal-card.file-access-dialog .confirm-dialog-body p.file-access-subtitle {
+    font-size: 0.81rem;
+  }
+}
+
+.file-access-card {
+  background: var(--c-171616);
+  border: 1px solid var(--obsidian-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.file-access-row {
+  padding: 16px 18px;
+}
+
+.file-access-row + .file-access-row {
+  border-top: 1px solid var(--c-2d2c2c);
+}
+
+.file-access-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.file-access-row-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--purple-accent);
+}
+
+.file-access-row-title {
+  color: var(--obsidian-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.confirm-dialog-backdrop .modal-card.file-access-dialog .confirm-dialog-body p.file-access-row-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .delete-data-warning-icon {

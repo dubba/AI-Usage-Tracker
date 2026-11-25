@@ -46,8 +46,8 @@ export function ConfirmDialog({
   className?: string;
   /** An optional callout under the body: advice that bears on the choice. */
   note?: ReactNode;
-  /** `caution` tints the note amber. */
-  noteTone?: "info" | "caution";
+  /** `caution` tints the note amber with a warning icon; `amber` uses the subtle amber instruction box. */
+  noteTone?: "info" | "caution" | "amber";
   cancelLabel?: string;
   confirmLabel: string;
   /** Danger-red for deletions; primary for other actions such as Open Wi-Fi Settings. */

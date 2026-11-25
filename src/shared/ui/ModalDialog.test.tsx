@@ -81,4 +81,12 @@ describe("ModalDialog", () => {
     render({ closeDisabled: true });
     expect((document.querySelector(".ui-modal-close") as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it("does not attach a tooltip to the × close button", () => {
+    render();
+    const closeButton = document.querySelector(".ui-modal-close")!;
+    expect(closeButton.hasAttribute("data-tooltip")).toBe(false);
+    expect(closeButton.hasAttribute("title")).toBe(false);
+    expect(closeButton.getAttribute("aria-label")).toBe("Close dialog");
+  });
 });

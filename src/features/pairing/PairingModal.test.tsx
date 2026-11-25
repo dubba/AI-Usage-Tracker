@@ -213,7 +213,7 @@ describe("choosing a role and a way to connect", () => {
     await press("Receive Accounts on This Device");
     expect(title()).toBe("Your Link Code");
     expect(api.startHost).toHaveBeenCalledWith(true, false);
-    expect(text()).toContain("go to Settings → Sync Devices, select Send, and enter this code");
+    expect(text()).toContain("To enter this code, go to Settings → Sync Devices → Send Accounts on the other device.");
   });
 
   it("asks for the link code at once when sending", async () => {
@@ -221,7 +221,7 @@ describe("choosing a role and a way to connect", () => {
     await press("Send Accounts from This Device");
     expect(title()).toBe("Enter Link Code");
     expect(api.startHost).not.toHaveBeenCalled();
-    expect(text()).toContain("Type the 12-letter link code shown on the receiving device.");
+    expect(text()).toContain("Enter the link code from the other device.");
   });
 
   it("lists every way to connect under the other ways when sending, ending the code session", async () => {
@@ -318,7 +318,7 @@ describe("showing a link code", () => {
       ),
     ).toEqual([3, 9]);
     expect(text()).toMatch(/Expires in\s*2:0\d/);
-    expect(text()).toContain("Waiting for the other device on Wi-Fi or AirDrop…");
+    expect(text()).toContain("Waiting for the other device to connect…");
   });
 
   it("shows a progress message until the code arrives", async () => {
@@ -674,40 +674,20 @@ describe("transfer by file", () => {
   it("adds nothing when Cancel is pressed, and closes Sync Devices", async () => {
     render();
     await press("Receive Accounts on This Device");
-    await press("Received a file but nothing happened? Open it");
+    await arrives(PREVIEW);
     expect(text()).toContain("Are you sure you want to add these 2 accounts");
     await press("Cancel");
     expect(api.importFile).not.toHaveBeenCalled();
     expect(cancelPairing).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
-  });
+  }, 10_000);
 
   it("says one account in the singular", async () => {
-    api.openFile.mockResolvedValue({ accountCount: 1, ticket: "ticket-1" });
     render();
     await press("Receive Accounts on This Device");
-    await press("Received a file but nothing happened? Open it");
+    await arrives({ accountCount: 1, ticket: "ticket-1" });
     expect(text()).toContain("Are you sure you want to add this account from the other device?");
-  });
-
-  it("adds a file opened by hand once confirmed", async () => {
-    render();
-    await press("Receive Accounts on This Device");
-    await press("Received a file but nothing happened? Open it");
-    expect(api.openFile).toHaveBeenCalledTimes(1);
-    await press("Add Accounts");
-    expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
-    expect(onCompleted).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps showing the code when the open dialog is cancelled", async () => {
-    api.openFile.mockResolvedValue(null);
-    render();
-    await press("Receive Accounts on This Device");
-    await press("Received a file but nothing happened? Open it");
-    expect(api.importFile).not.toHaveBeenCalled();
-    expect(title()).toBe("Your Link Code");
-  });
+  }, 10_000);
 
   it("shows why a file that arrived did not open, and keeps waiting", async () => {
     render();
@@ -726,17 +706,16 @@ describe("transfer by file", () => {
   }, 10_000);
 
   it("says why the accounts couldn't be added, with Back to start over", async () => {
-    api.openFile.mockResolvedValue(PREVIEW);
     api.importFile.mockRejectedValue(new Error("store locked"));
     render();
     await press("Receive Accounts on This Device");
-    await press("Received a file but nothing happened? Open it");
+    await arrives(PREVIEW);
     await press("Add Accounts");
     expect(text()).toContain("store locked");
     expect(title()).toBe("Receiving by AirDrop");
     await press("Back");
     expect(title()).toBe("Send or Receive Accounts");
-  });
+  }, 10_000);
 
   it("watches Downloads only while a twelve-letter code is shown", async () => {
     render();
@@ -774,11 +753,17 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     // No Use Quick Share button on the receiving screen: the popup comes by itself.
     expect(buttons().some((b) => b.textContent?.includes("Use Quick Share"))).toBe(false);
-    expect(popupTitle()).toBe("Allow file access");
+    expect(popupTitle()).toBe("Allow File Access");
+    expect(popup()?.textContent).toContain("Automatically add accounts received through Quick Share.");
+    expect(popup()?.textContent).toContain("Why access is needed");
     expect(popup()?.textContent).toContain(
-      "Allow AI Usage Tracker to access files saved by Quick Share in Downloads so synced accounts are added automatically. Only Sync Devices files are opened.",
+      "AI Usage Tracker needs access to Quick Share files saved in Downloads to automatically sync your accounts.",
     );
-    await pressIn("Allow");
+    expect(popup()?.textContent).toContain("Limited access");
+    expect(popup()?.textContent).toContain(
+      "Only files used by Sync Devices are opened. Other files remain untouched.",
+    );
+    await pressIn("Allow Access");
     expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
     // Asked once. No app can reach Quick Share's visibility setting on Android, so that isn't asked.
     expect(popup()).toBeNull();
@@ -791,13 +776,13 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     const note = document.querySelector(".pairing-discover-note");
     expect(note?.textContent).toContain(
-      "For Quick Share: Unless both devices use the same Google Account, set Who can share with you to Everyone for 10 Minutes.",
+      "To use Quick Share, set Who can share with you to Everyone for 10 minutes to allow devices to sync.",
     );
     expect(note?.textContent).toContain("To change this, search for Quick Share in your device Settings, then return here.");
     expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
-      "For Quick Share:",
+      "Quick Share",
       "Who can share with you",
-      "Everyone for 10 Minutes",
+      "Everyone for 10 minutes",
     ]);
   });
 
@@ -807,11 +792,11 @@ describe("transfer by file", () => {
     await press("Receive Accounts on This Device");
     const note = document.querySelector(".pairing-discover-note");
     expect(note?.textContent).toContain(
-      "For AirDrop: Unless both devices use the same Apple Account, set AirDrop to Everyone for 10 Minutes.",
+      "To use AirDrop, set it to Everyone for 10 Minutes to allow devices to sync.",
     );
     expect(note?.textContent).toContain("To change this, search for AirDrop in your device Settings, then return here.");
     expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
-      "For AirDrop:",
+      "AirDrop",
       "Everyone for 10 Minutes",
     ]);
     expect(popup()).toBeNull();
@@ -846,8 +831,20 @@ describe("transfer by file", () => {
   it("asks a Mac receiving by AirDrop to be discoverable, and opens AirDrop", async () => {
     render();
     await press("Receive Accounts on This Device");
-    expect(popup()?.textContent).toContain("AirDrop must allow everyone to share with this Mac.");
-    expect(popup()?.textContent).toContain("If System Settings opens instead, go to General → AirDrop & Handoff.");
+    expect(popup()?.textContent).toContain(
+      "You must set AirDrop to Everyone to allow devices to sync.",
+    );
+    const note = popup()?.querySelector(".confirm-dialog-note.is-amber");
+    expect(note?.textContent).toContain(
+      "Click Open AirDrop, set Allow me to be discovered by to Everyone, then return here to get your link code.",
+    );
+    expect(Array.from(popup()!.querySelectorAll(".confirm-dialog-body strong, .confirm-dialog-note strong"), (b) => b.textContent)).toEqual([
+      "AirDrop",
+      "Everyone",
+      "Open AirDrop",
+      "Allow me to be discovered by",
+      "Everyone",
+    ]);
     await pressIn("Open AirDrop");
     expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
   });
@@ -964,7 +961,8 @@ describe("transfer by file", () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     render();
     await press("Receive Accounts on This Device");
-    expect(text()).toContain("Waiting for the other device on Wi-Fi or AirDrop");
+    expect(text()).toContain("Waiting for the other device to connect…");
+    expect(text()).toContain("To use AirDrop, set it to Everyone for 10 Minutes to allow devices to sync.");
     await press("Back");
     api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     await press("Send Accounts from This Device");
@@ -1084,7 +1082,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
     render();
     await press("Send Accounts from This Device");
-    expect(text()).toContain("Connects over Wi-Fi or a hotspot. If the other device isn't on the same network, it uses AirDrop.");
+    expect(text()).toContain("Connects over Wi-Fi or hotspot, with AirDrop as a fallback.");
     expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("AirDrop");
     typeInto(codeInput(), CODE);
     await settle();
@@ -1102,7 +1100,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     render();
     await press("Send Accounts from This Device");
     expect(text()).toContain(
-      "Connects over Wi-Fi or a hotspot. If the other device isn't on the same network, it uses Quick Share.",
+      "Connects over Wi-Fi or hotspot, with Quick Share as a fallback.",
     );
     expect(document.querySelector("#pairing-code-help strong")?.textContent).toBe("Quick Share");
   });

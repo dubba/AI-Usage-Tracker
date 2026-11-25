@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import { cancelPairing, pairingApi } from "../../shared/lib/api";
-import { ChevronIcon } from "../../shared/ui/icons";
+import { ChevronIcon, FolderIcon, ShieldIcon } from "../../shared/ui/icons";
 import { useAirgapCapture } from "./hooks/useAirgapCapture";
 import { useAirgapFlow } from "./hooks/useAirgapFlow";
 import { useFileTransfer } from "./hooks/useFileTransfer";
@@ -569,7 +569,6 @@ export function PairingModal({
             onRegenerate={() => void initHostSession(legacyHost)}
             onOtherWays={otherWaysShown ? () => leaveAttempt("select-mode") : undefined}
             nearbyName={nearbyName}
-            onOpenFile={() => void fileTransfer.openFile()}
           />
         )}
 
@@ -745,10 +744,38 @@ export function PairingModal({
     <ConfirmDialog
       open={askFileAccess}
       kicker="Sync devices"
-      title="Allow file access"
-      body={`Allow AI Usage Tracker to access files saved by ${nearbyName ?? "Quick Share"} in Downloads so synced accounts are added automatically. Only Sync Devices files are opened.`}
+      className="file-access-dialog"
+      title="Allow File Access"
+      richBody
+      body={
+        <>
+          <p className="file-access-subtitle">
+            Automatically add accounts received through {nearbyName ?? "Quick Share"}.
+          </p>
+          <div className="file-access-card">
+            <div className="file-access-row">
+              <div className="file-access-row-head">
+                <FolderIcon className="file-access-row-icon" />
+                <span className="file-access-row-title">Why access is needed</span>
+              </div>
+              <p className="file-access-row-desc">
+                AI Usage Tracker needs access to {nearbyName ?? "Quick Share"} files saved in Downloads to automatically sync your accounts.
+              </p>
+            </div>
+            <div className="file-access-row">
+              <div className="file-access-row-head">
+                <ShieldIcon className="file-access-row-icon" />
+                <span className="file-access-row-title">Limited access</span>
+              </div>
+              <p className="file-access-row-desc">
+                Only files used by Sync Devices are opened. Other files remain untouched.
+              </p>
+            </div>
+          </div>
+        </>
+      }
       cancelLabel="Not Now"
-      confirmLabel="Allow"
+      confirmLabel="Allow Access"
       confirmDanger={false}
       onConfirm={() => {
         setFileAccessAsked(true);
@@ -759,21 +786,32 @@ export function PairingModal({
     <ConfirmDialog
       open={askReceiveVisibility}
       kicker="Sync devices"
-      title="Allow This Device to Be Discovered"
+      title="Make Device Discoverable"
       richBody
       body={
         <>
-          {visibilityHelp?.paragraphs.map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
+          {visibilityHelp?.paragraphs.map((paragraph, pIndex) => (
+            <p key={pIndex}>
+              {paragraph.map((run, rIndex) =>
+                typeof run === "string" ? run : <strong key={rIndex}>{run.strong}</strong>,
+              )}
+            </p>
           ))}
         </>
       }
-      note={visibilityHelp?.note.map((line, index) => (
-        <span key={line} className="confirm-dialog-note-line">
-          {index > 0 ? <br /> : null}
-          {line}
-        </span>
-      ))}
+      note={
+        visibilityHelp?.note.length
+          ? visibilityHelp.note.map((line, index) => (
+              <span key={index} className="confirm-dialog-note-line">
+                {index > 0 ? <br /> : null}
+                {line.map((run, rIndex) =>
+                  typeof run === "string" ? run : <strong key={rIndex}>{run.strong}</strong>,
+                )}
+              </span>
+            ))
+          : undefined
+      }
+      noteTone={visibilityHelp?.noteTone}
       cancelLabel="Not Now"
       confirmLabel={visibilityHelp?.openLabel ?? "Done"}
       confirmDanger={false}

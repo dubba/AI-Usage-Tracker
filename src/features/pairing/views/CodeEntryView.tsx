@@ -141,8 +141,7 @@ export function CodeEntryView({
               "A 6-digit code from an older version connects over Wi-Fi only."
             ) : nearby ? (
               <>
-                Connects over Wi-Fi or a hotspot. If the other device isn't on the same network, it uses{" "}
-                <strong>{nearby}</strong>.
+                Connects over Wi-Fi or hotspot, with <strong>{nearby}</strong> as a fallback.
               </>
             ) : (
               "Both devices must be connected to the same Wi-Fi network."

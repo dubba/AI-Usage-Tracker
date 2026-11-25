@@ -17,6 +17,12 @@ export const CopyIcon = (props: IconProps) => <Base {...props}><rect x="9" y="9"
 export const TrashIcon = (props: IconProps) => <Base {...props}><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></Base>;
 export const EditIcon = (props: IconProps) => <Base {...props}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></Base>;
 export const ShieldIcon = (props: IconProps) => <Base {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></Base>;
+export const FolderIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M3 18V6a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v3" />
+    <path d="M4.2 19.5a1.5 1.5 0 0 1-1.38-2.08l2.12-5.1A2 2 0 0 1 6.78 11.1H20.3a1.5 1.5 0 0 1 1.38 2.08l-2.12 5.1a2 2 0 0 1-1.84 1.22Z" />
+  </Base>
+);
 export const ChevronIcon = (props: IconProps) => <Base {...props}><path d="m9 18 6-6-6-6"/></Base>;
 export const ChevronDownIcon = (props: IconProps) => <Base {...props}><path d="m6 9 6 6 6-6"/></Base>;
 export const BellIcon = (props: IconProps) => <Base {...props}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></Base>;

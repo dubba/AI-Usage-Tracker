@@ -22,10 +22,13 @@ export function hasNearbyShare(): boolean {
  * popup is shown: Linux has no such setting, and on Android and iPhone no app can open it, so the
  * code screen says where it is instead (`HostCodeView`).
  */
+export type TextRun = string | { strong: string };
+
 export type ReceiveVisibilityHelp = {
-  paragraphs: string[];
+  paragraphs: TextRun[][];
   /** Lines shown together in the box under the paragraphs. */
-  note: string[];
+  note: TextRun[][];
+  noteTone?: "info" | "amber";
   openLabel?: string;
 };
 
@@ -33,21 +36,37 @@ export function receiveVisibilityHelp(): ReceiveVisibilityHelp | null {
   if (isMac()) {
     return {
       paragraphs: [
-        "Unless both devices use the same Apple Account, AirDrop must allow everyone to share with this Mac.",
-        "Click Open AirDrop, set Allow me to be discovered by to Everyone, then return here.",
+        [
+          "You must set ",
+          { strong: "AirDrop" },
+          " to ",
+          { strong: "Everyone" },
+          " to allow devices to sync.",
+        ],
       ],
-      note: ["If System Settings opens instead, go to General → AirDrop & Handoff."],
+      note: [
+        [
+          "Click ",
+          { strong: "Open AirDrop" },
+          ", set ",
+          { strong: "Allow me to be discovered by" },
+          " to ",
+          { strong: "Everyone" },
+          ", then return here to get your link code.",
+        ],
+      ],
+      noteTone: "amber",
       openLabel: "Open AirDrop",
     };
   }
   if (isWindows()) {
     return {
       paragraphs: [
-        "Unless both devices use the same Google account, Quick Share must allow everyone nearby to share with this PC.",
-        "In the Quick Share app, set Receiving to Everyone, then return here.",
+        ["Unless both devices use the same Google account, Quick Share must allow everyone nearby to share with this PC."],
+        ["In the Quick Share app, set Receiving to Everyone, then return here."],
       ],
       note: [
-        "If Windows' own Nearby sharing receives files on this PC, click Open Nearby Sharing Settings and select Everyone nearby.",
+        ["If Windows' own Nearby sharing receives files on this PC, click Open Nearby Sharing Settings and select Everyone nearby."],
       ],
       openLabel: "Open Nearby Sharing Settings",
     };
@@ -116,7 +135,7 @@ export function pairingHeader(input: {
     title = "Show QR Code";
   } else if (waiting && viewMode === "host") {
     title = "Your Link Code";
-    subtitle = "Open this app on the other device, go to Settings → Sync Devices, select Send, and enter this code.";
+    subtitle = "To enter this code, go to Settings → Sync Devices → Send Accounts on the other device.";
   } else if (waiting && viewMode === "scanner") {
     title = "Scan QR Code";
     subtitle =
@@ -131,7 +150,7 @@ export function pairingHeader(input: {
     subtitle = "The accounts arrived as a small file, encrypted with the code.";
   } else if (waiting && viewMode === "code") {
     title = "Enter Link Code";
-    subtitle = "Type the 12-letter link code shown on the receiving device.";
+    subtitle = "Enter the link code from the other device.";
   } else if (status === "roleSelection") {
     title = intendedRole ? "Connecting" : "Send or Receive Accounts";
     subtitle = intendedRole ? "Applying send or receive on this device." : "Choose what this device should do.";

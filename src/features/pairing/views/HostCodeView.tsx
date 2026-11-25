@@ -13,7 +13,6 @@ export function HostCodeView({
   onRegenerate,
   onOtherWays,
   nearbyName,
-  onOpenFile,
 }: {
   status: PairingStatus;
   remainingSecs: number | null;
@@ -26,8 +25,6 @@ export function HostCodeView({
   onOtherWays?: () => void;
   /** "AirDrop" or "Quick Share" where the accounts can come that way; absent where files aren't offered. */
   nearbyName?: string;
-  /** Opens the file by hand, for one that wasn't picked up by itself. */
-  onOpenFile?: () => void;
 }) {
   const host = hostWaitingFields(status);
   const joinCode = host?.joinCode ?? "";
@@ -75,17 +72,9 @@ export function HostCodeView({
         )}
       </div>
 
-      <SearchingRow>
-        {nearby ? `Waiting for the other device on Wi-Fi or ${nearby}…` : "Waiting for the other device to connect…"}
-      </SearchingRow>
+      <SearchingRow>Waiting for the other device to connect…</SearchingRow>
 
       {nearby && (isAndroid() || isIOS()) ? <DiscoverableNote /> : null}
-
-      {nearby && onOpenFile ? (
-        <button type="button" className="pairing-other-ways" onClick={onOpenFile}>
-          Received a file but nothing happened? Open it
-        </button>
-      ) : null}
 
       {onOtherWays ? <OtherWaysLink onClick={onOtherWays} /> : null}
     </div>
@@ -121,13 +110,12 @@ function DiscoverableNote() {
       {ios ? (
         // AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes.
         <p>
-          <strong>For AirDrop:</strong> Unless both devices use the same Apple Account, set AirDrop to{" "}
-          <strong>Everyone for 10 Minutes</strong>.
+          To use <strong>AirDrop</strong>, set it to <strong>Everyone for 10 Minutes</strong> to allow devices to sync.
         </p>
       ) : (
         <p>
-          <strong>For Quick Share:</strong> Unless both devices use the same Google Account, set <strong>Who can share with you</strong> to{" "}
-          <strong>Everyone for 10 Minutes</strong>.
+          To use <strong>Quick Share</strong>, set <strong>Who can share with you</strong> to{" "}
+          <strong>Everyone for 10 minutes</strong> to allow devices to sync.
         </p>
       )}
       <p>

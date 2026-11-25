@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (29 changes)
+## Unreleased (33 changes)
 
 ### Security (1)
 
@@ -11,7 +11,11 @@
 - Settings > Sync Options (under Advanced) has an "Other Ways to Connect" switch. It is off by default, which hides the "Other ways to connect" link in Sync Devices; turn it on to reach the 6-digit code for older app versions and the QR codes. While it is off, the code field ignores digits, so a stray one doesn't switch it to a 6-digit code. The choice is kept on each device.
 - A new Black appearance (Settings > General > Appearance): the dark theme with pure black backgrounds, sidebar and cards instead of dark grays, which looks deeper and saves battery on OLED screens. Its text is a soft light gray instead of bright white, so it is easier on the eyes; text on colored buttons stays white.
 
-### Improved (20)
+### Improved (23)
+
+- Sync Devices screens and discoverability prompts (Mac AirDrop popup with an amber instruction box, iPhone AirDrop note, Android Quick Share note, and link code screens) now use clearer, consistent wording.
+- On Android, the Sync Devices "Allow File Access" dialog now explains why access is needed and that only Sync Devices files are opened inside a two-part card, with matching modal title and subtitle sizing.
+- Dialog close (X) buttons no longer show a "Close" tooltip.
 
 - On phones, entering a link code with the on-screen keyboard open now keeps the letter tiles at full size and shortens the vertical gaps between elements instead.
 - In Sync Devices, the Enter Link Code screen now notes that if the other device isn't on the same network "it uses Quick Share" (or AirDrop on Apple devices), both before typing and during the 10-second countdown, with the method name in bold.
@@ -43,6 +47,10 @@
 - When you type a link code, it now fills two rows of three-letter groups, matching the code on the other device.
 - On the Usage page, switching between 7D, 30D and 90D no longer dims the cards for a moment; the old charts stay until the new ones are drawn.
 - On Android, a phone that shares its hotspot while also connected to Wi-Fi can now enter the link code of a device that joined its hotspot. Before, pairing failed with "The link to the other device broke" unless that phone showed the code instead.
+
+### Removed (1)
+
+- Removed the "Received a file but nothing happened? Open it" button from the Sync Devices link code screen.
 
 ## v0.6.8 - 2026-11-22 (12 changes)
 

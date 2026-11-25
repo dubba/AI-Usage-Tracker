@@ -10,7 +10,6 @@ export function ModalCloseButton({ onClose, disabled }: { onClose: () => void; d
       onClick={onClose}
       disabled={disabled}
       aria-label="Close dialog"
-      data-tooltip="Close"
     >
       <CloseIcon />
     </button>
