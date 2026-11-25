@@ -416,3 +416,46 @@
   color: var(--obsidian-muted);
   text-align: center;
 }
+
+/* Mobile keyboard adaptation: pin the modal to the top safe area above the on-screen
+ * keyboard and compact the 2D picker plane so the title, X button, hex input, and Done
+ * all stay visible instead of getting pushed off the top of the screen. */
+@media (max-width: 768px) {
+  .modal-backdrop.accent-color-modal-backdrop.keyboard-open,
+  html.keyboard-active .modal-backdrop.accent-color-modal-backdrop,
+  .modal-backdrop.accent-color-modal-backdrop:has(.accent-color-modal.keyboard-open) {
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-card.accent-color-modal.keyboard-open,
+  html.keyboard-active .modal-card.accent-color-modal {
+    margin-top: 0;
+    margin-bottom: calc(max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) + 12px);
+    max-height: none;
+    overflow: visible;
+  }
+
+  .modal-card.accent-color-modal.keyboard-open > h2.accent-color-modal-title,
+  html.keyboard-active .modal-card.accent-color-modal > h2.accent-color-modal-title {
+    margin-bottom: 4px;
+    font-size: 1.1rem;
+  }
+
+  .modal-card.accent-color-modal.keyboard-open .accent-custom-view,
+  html.keyboard-active .modal-card.accent-color-modal .accent-custom-view {
+    gap: 10px;
+  }
+
+  .modal-card.accent-color-modal.keyboard-open .accent-sv-plane,
+  html.keyboard-active .modal-card.accent-color-modal .accent-sv-plane {
+    height: 120px;
+  }
+
+  .modal-card.accent-color-modal.keyboard-open .accent-modal-actions,
+  html.keyboard-active .modal-card.accent-color-modal .accent-modal-actions {
+    margin-top: 14px;
+  }
+}
