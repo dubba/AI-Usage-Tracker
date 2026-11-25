@@ -182,14 +182,16 @@ pub(crate) fn open_provider_login_window(
             title,
             start_url: target,
             profile_dir: profile_dir.clone(),
-            init_script: LOGIN_BACK_BUTTON_SCRIPT.to_string(),
+            init_script: crate::platform::tray::with_accent_button_colors(LOGIN_BACK_BUTTON_SCRIPT),
             user_agent: Some(LOGIN_USER_AGENT),
         },
         |builder| {
             builder
                 .on_page_load(move |window, payload| {
                     if matches!(payload.event(), PageLoadEvent::Finished) {
-                        let _ = window.eval(LOGIN_BACK_BUTTON_SCRIPT);
+                        let _ = window.eval(crate::platform::tray::with_accent_button_colors(
+                            LOGIN_BACK_BUTTON_SCRIPT,
+                        ));
                         // A new page here means the popup's job is done: Claude moves on once
                         // Google's popup has handed it the sign-in result.
                         close_provider_login_popups(window.app_handle());

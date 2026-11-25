@@ -332,7 +332,11 @@ pub(crate) fn open_cookie_login_window<'a>(
             title: spec.title,
             start_url: spec.start_url,
             profile_dir: profile_dir.clone(),
-            init_script: format!("{}\n{BACK_BUTTON_SCRIPT}", spec.page_script),
+            init_script: format!(
+                "{}\n{}",
+                spec.page_script,
+                crate::platform::tray::with_accent_button_colors(BACK_BUTTON_SCRIPT)
+            ),
             user_agent: spec.user_agent,
         },
         |builder| {

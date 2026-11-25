@@ -294,7 +294,9 @@ pub fn open_in_main_webview(
                 if !urls_share_origin(&current, &restore_url)
                     && matches!(current.scheme(), "http" | "https")
                 {
-                    let _ = window.eval(BACK_BUTTON_SCRIPT);
+                    let _ = window.eval(crate::platform::tray::with_accent_button_colors(
+                        BACK_BUTTON_SCRIPT,
+                    ));
                     platform::on_provider_page(&window, &current);
                 }
                 on_url(current.clone());

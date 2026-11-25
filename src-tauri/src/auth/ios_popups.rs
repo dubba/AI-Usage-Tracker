@@ -161,7 +161,9 @@ define_class!(
 
         #[unsafe(method(webView:didFinishNavigation:))]
         fn did_finish_navigation(&self, webview: &AnyObject, _navigation: Option<&AnyObject>) {
-            let script = NSString::from_str(CLOSE_BUTTON_SCRIPT);
+            let script = NSString::from_str(&crate::platform::tray::with_accent_button_colors(
+                CLOSE_BUTTON_SCRIPT,
+            ));
             let none: Option<&AnyObject> = None;
             // SAFETY: a WKWebView, on the main thread; a nil completion handler is allowed.
             let _: () = unsafe {

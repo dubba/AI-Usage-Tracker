@@ -96,7 +96,8 @@ pub fn set_autostart(
     Ok(enabled)
 }
 
-/// Paints the desktop native title bar with the user's chosen `#rrggbb` accent color.
+/// Paints the desktop native title bar with the user's chosen `#rrggbb` accent color, and remembers
+/// it (every platform) for the Back and Close buttons the app adds to sign-in pages.
 #[tauri::command]
 pub fn set_title_bar_color(
     #[allow(unused_variables)] app: AppHandle,
@@ -108,7 +109,7 @@ pub fn set_title_bar_color(
     #[cfg(desktop)]
     crate::platform::tray::set_title_bar_rgb(&app, rgb);
     #[cfg(not(desktop))]
-    let _ = rgb;
+    crate::platform::tray::remember_accent_rgb(rgb);
     Ok(())
 }
 

@@ -115,7 +115,8 @@ pub(crate) fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 /// Same purple as the Android status bar overlay (`--purple-fill` in `src/styles/tokens.css`; `src/styles/purple-tokens.test.ts` checks they match).
 const TITLE_BAR_PURPLE_RGB: (u8, u8, u8) = (0x6d, 0x3b, 0xd7);
 
-#[cfg(any(desktop, test))]
+/// The accent color the page last reported (`set_title_bar_color`), on every platform: the desktop
+/// title bar and the buttons the app adds to sign-in pages ([`with_accent_button_colors`]) use it.
 static TITLE_BAR_RGB: parking_lot::Mutex<(u8, u8, u8)> =
     parking_lot::Mutex::new(TITLE_BAR_PURPLE_RGB);
 
@@ -135,13 +136,38 @@ pub(crate) fn parse_hex_rgb(hex: &str) -> Option<(u8, u8, u8)> {
     Some((r, g, b))
 }
 
-#[cfg(any(desktop, test))]
 fn current_title_bar_rgb() -> (u8, u8, u8) {
     *TITLE_BAR_RGB.lock()
 }
 
+/// Remembers the accent color for the sign-in page buttons (all platforms; the desktop title bar
+/// is repainted by [`set_title_bar_rgb`]).
+pub(crate) fn remember_accent_rgb(rgb: (u8, u8, u8)) {
+    *TITLE_BAR_RGB.lock() = rgb;
+}
+
+/// The colors the app's own buttons on sign-in pages are drawn with, as they appear in those
+/// scripts: the default purple fill with a white label.
+pub(crate) const DEFAULT_BUTTON_COLORS: &str = "'background:#6d3bd7', 'color:#fff'";
+
+/// `script` (a sign-in page button script) with [`DEFAULT_BUTTON_COLORS`] replaced by the accent
+/// color and the label color that reads best on it, so the Back and Close buttons follow the
+/// user's accent like the app does.
+pub(crate) fn with_accent_button_colors(script: &str) -> String {
+    let rgb = current_title_bar_rgb();
+    let (r, g, b) = rgb;
+    let label = if title_bar_prefers_dark_text(rgb) {
+        "#1f1b1c"
+    } else {
+        "#fff"
+    };
+    script.replace(
+        DEFAULT_BUTTON_COLORS,
+        &format!("'background:#{r:02x}{g:02x}{b:02x}', 'color:{label}'"),
+    )
+}
+
 /// Whether dark text contrasts better than white text on `rgb` (WCAG relative luminance).
-#[cfg(any(desktop, test))]
 fn title_bar_prefers_dark_text((r, g, b): (u8, u8, u8)) -> bool {
     fn channel(v: u8) -> f64 {
         let n = f64::from(v) / 255.0;
@@ -160,7 +186,7 @@ fn title_bar_prefers_dark_text((r, g, b): (u8, u8, u8)) -> bool {
 /// Stores the active desktop title bar color and repaints every open desktop window.
 #[cfg(desktop)]
 pub(crate) fn set_title_bar_rgb(app: &tauri::AppHandle, rgb: (u8, u8, u8)) {
-    *TITLE_BAR_RGB.lock() = rgb;
+    remember_accent_rgb(rgb);
     for window in app.webview_windows().values() {
         let target = window.clone();
         let _ = window.run_on_main_thread(move || {
@@ -419,9 +445,38 @@ mod tests {
     }
 
     use super::{
-        is_titlebar_chrome_class, parse_hex_rgb, title_bar_prefers_dark_text,
-        windows_caption_colorref,
+        is_titlebar_chrome_class, parse_hex_rgb, remember_accent_rgb, title_bar_prefers_dark_text,
+        windows_caption_colorref, with_accent_button_colors, DEFAULT_BUTTON_COLORS,
     };
+
+    #[test]
+    fn sign_in_page_buttons_take_the_accent_color_and_a_readable_label() {
+        // Every script that draws a button on a sign-in page carries the colors replaced here, so
+        // none of them silently stays purple.
+        for (file, source) in [
+            ("login_window.rs", include_str!("../auth/login_window.rs")),
+            (
+                "oauth/desktop_window.rs",
+                include_str!("../auth/oauth/desktop_window.rs"),
+            ),
+            (
+                "mobile_auth/back_button.js",
+                include_str!("../auth/mobile_auth/back_button.js"),
+            ),
+            ("ios_popups.rs", include_str!("../auth/ios_popups.rs")),
+        ] {
+            assert!(source.contains(DEFAULT_BUTTON_COLORS), "{file}");
+        }
+        let script = format!("x = [{DEFAULT_BUTTON_COLORS}];");
+        remember_accent_rgb((0x56, 0xb6, 0xc2));
+        let sky = with_accent_button_colors(&script);
+        remember_accent_rgb((0x25, 0x63, 0xeb));
+        let blue = with_accent_button_colors(&script);
+        remember_accent_rgb((0x6d, 0x3b, 0xd7));
+        assert_eq!(sky, "x = ['background:#56b6c2', 'color:#1f1b1c'];");
+        assert_eq!(blue, "x = ['background:#2563eb', 'color:#fff'];");
+        assert_eq!(with_accent_button_colors(&script), script);
+    }
 
     #[test]
     fn titlebar_chrome_class_matches_appkit_titlebar_views() {
