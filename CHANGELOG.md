@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (6 changes)
+## Unreleased (8 changes)
 
 ### Added (2)
 
@@ -12,7 +12,10 @@
 - Outlined buttons and dropdowns now fill with a tint of the accent color when you point at them, instead of only changing their border.
 - Copy Diagnostics now shows the exact size and a short fingerprint of each Sync Devices transfer file on both the sending and receiving device, so a wrong code can be told apart from a file that changed on the way.
 
-### Fixed (2)
+### Fixed (4)
+
+- Sync Devices over Wi-Fi now works when an Android phone shows the code and an iPhone or Mac enters it. The iPhone could see the Android but never got its address back; the Android now puts its address in the name it announces, so the other device connects without that lookup. Both devices need this version.
+- After syncing, accounts on the receiving device are refreshed right away. They used to show the sending device's last results, including any errors it had at the time (such as "the connection could not be made" if it was offline), until the next refresh.
 
 - On Android, Sync Devices now advertises link-code sessions through Android's native `NsdManager` and Apple devices prefer IPv4 during Bonjour address lookup, fixing iPhone-to-Android Wi-Fi discovery.
 - On iPhone and iPad, Sync Devices transfer files now support opening in place so tapping a `.aiutpair` file in Files hands it straight to the app.

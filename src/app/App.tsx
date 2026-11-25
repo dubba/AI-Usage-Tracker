@@ -170,7 +170,10 @@ export default function App() {
     await reloadFromBackend();
     // Have the dashboard re-apply any transferred UI state
     requestDashboardResync();
-  }, [load, reloadFromBackend]);
+    // Synced accounts arrive with the other device's last usage check, errors included (it may
+    // have been offline then). Check them from this device now rather than at the next refresh.
+    void refreshAll();
+  }, [load, reloadFromBackend, refreshAll]);
 
   // A sign-in failure is reported here only when no dialog that shows it inline is open,
   // so the subscription is renewed whenever one of those dialogs opens or closes.
