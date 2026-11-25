@@ -25,14 +25,14 @@ export const ACCENT_PRESETS: readonly AccentPreset[] = [
 /** Extended 11-color grid shown inside the custom "Pick accent color" modal (plus the custom + wheel). */
 export const MODAL_ACCENT_PRESETS: readonly AccentPreset[] = [
   { id: "emerald", label: "Emerald", hex: "#0ea472" },
-  { id: "blue", label: "Blue", hex: "#2563eb" },
+  { id: "coral", label: "Coral", hex: "#f96b59" },
   { id: "sky", label: "Sky", hex: "#56b6c2" },
   { id: "lavender", label: "Lavender", hex: "#a78bfa" },
   { id: "forest", label: "Forest", hex: "#3f5940" },
-  { id: "plum", label: "Plum", hex: "#7c2d52" },
+  { id: "blue", label: "Blue", hex: "#2563eb" },
   { id: "teal", label: "Teal", hex: "#0f766e" },
   { id: "purple", label: "Purple", hex: DEFAULT_ACCENT_COLOR },
-  { id: "coral", label: "Coral", hex: "#f96b59" },
+  { id: "plum", label: "Plum", hex: "#7c2d52" },
   { id: "rose", label: "Rose", hex: "#e11d48" },
   { id: "amber", label: "Amber", hex: "#b45309" },
 ] as const;
