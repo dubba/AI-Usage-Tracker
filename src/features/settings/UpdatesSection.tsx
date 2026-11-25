@@ -1,5 +1,5 @@
 import { ArrowUpCircleIcon, DownloadCloudIcon, ExternalLinkIcon } from "../../shared/ui/icons";
-import { FALLBACK_APP_VERSION } from "../../shared/lib/constants";
+import { BUILD_LABEL, FALLBACK_APP_VERSION } from "../../shared/lib/constants";
 import { isIOS } from "../../shared/lib/platform";
 import { SettingsToggleRow } from "./SettingsToggleRow";
 import { useAppSettingsState, useAppUpdateState } from "./settings-context";
@@ -51,7 +51,7 @@ export function UpdatesSection({
           <div className="settings-updates-subcard">
             <div className="settings-updates-subcard-info">
               <span className="settings-installed-version mono">
-                {`Current Version: ${String(update?.currentVersion || installedVersion || FALLBACK_APP_VERSION).replace(/^v/i, "")}`}
+                {`Current Version: ${BUILD_LABEL || String(update?.currentVersion || installedVersion || FALLBACK_APP_VERSION).replace(/^v/i, "")}`}
               </span>
               {updateBusy === "downloading" || updateBusy === "verifying" || updateBusy === "installing" ? null : (
                 <div className={`settings-updates-subcard-status ${!updateBusy && update?.available ? "update-available" : ""}`}>
