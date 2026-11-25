@@ -25,7 +25,6 @@ use crate::{
     },
     state::AppState,
 };
-use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
     net::IpAddr,
@@ -418,8 +417,8 @@ impl PairingSessionManager {
         let epoch = self.next_epoch();
 
         let session_id = Uuid::new_v4();
-        let mut session_nonce = vec![0u8; 16];
-        rand::rngs::OsRng.fill_bytes(&mut session_nonce);
+        // Derived from the id, so a joiner that reads the id from the instance name has it too.
+        let session_nonce = discovery::session_nonce_for(session_id);
 
         let (ip, listener, on_network) = bind_host_listener(get_local_lan_ip())
             .await
@@ -497,7 +496,7 @@ impl PairingSessionManager {
             }
             let advertised = tokio::task::spawn_blocking(move || {
                 discovery::advertise(
-                    &discovery::generate_instance_name(),
+                    &discovery::connect_instance_name(&advertise_ip, port, session_id),
                     &advertise_ip,
                     port,
                     session_id,

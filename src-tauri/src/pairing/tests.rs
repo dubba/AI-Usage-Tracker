@@ -2277,14 +2277,26 @@ mod link_code_interop {
     }
 
     async fn check(advertiser: Side, browser: Side) {
+        check_named(advertiser, browser, false).await;
+    }
+
+    /// `connect_name`: announce the address in the instance name, as hosts do now, instead of
+    /// an older version's random name.
+    async fn check_named(advertiser: Side, browser: Side, connect_name: bool) {
         let ip = transport::get_local_lan_ip();
         let listener = super::super::bind_pairing_listener(&ip)
             .await
             .expect("this test needs a Wi-Fi or Ethernet address");
         let port = listener.local_addr().unwrap().port();
         let session_id = Uuid::new_v4();
-        let nonce = [9u8; 16];
-        let instance = discovery::generate_instance_name();
+        let (nonce, instance) = if connect_name {
+            (
+                discovery::session_nonce_for(session_id),
+                discovery::connect_instance_name(&ip, port, session_id),
+            )
+        } else {
+            (vec![9u8; 16], discovery::generate_instance_name())
+        };
 
         let _dnssd_ad;
         let _mdns_ad;
@@ -2361,6 +2373,18 @@ mod link_code_interop {
     #[ignore = "needs a LAN address and mDNSResponder"]
     async fn link_code_ios_host_ios_joiner() {
         check(Side::DnsSd, Side::DnsSd).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_android_host_ios_joiner_by_name() {
+        check_named(Side::MdnsSd, Side::DnsSd, true).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_android_host_android_joiner_by_name() {
+        check_named(Side::MdnsSd, Side::MdnsSd, true).await;
     }
 }
 

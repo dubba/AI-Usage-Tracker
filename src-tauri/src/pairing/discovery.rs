@@ -56,13 +56,76 @@ const DISCOVERY_SETTLE: Duration = Duration::from_millis(700);
 /// bounds what a flood of fake announcements can make the joiner hold.
 const MAX_DISCOVERED_HOSTS: usize = 8;
 
+/// Prefix of every pairing instance name.
+const INSTANCE_PREFIX: &str = "AIUT-";
+/// What a [`connect_instance_name`] carries after the prefix, as lowercase hex: the host's IPv4
+/// address (4 bytes), its port (2) and the session id (16).
+const CONNECT_NAME_BYTES: usize = 4 + 2 + 16;
+/// Separates the session nonce from every other use of the session id.
+const NONCE_LABEL: &[u8] = b"ai-usage-tracker pairing session nonce v1";
+
+/// The instance name a host announces: its IPv4 address, port and session id, so a joiner can
+/// connect from the name alone. An iPhone joining an Android host saw the name but never got
+/// the service's address and TXT records back ("resolve timed out"); with this it does not need
+/// them. All of it is public anyway (the SRV, A and TXT records carry the same), and the link code
+/// is never in it. A host without an IPv4 address gets a random name and is found the usual way.
+pub(crate) fn connect_instance_name(host_ip: &str, port: u16, session_id: Uuid) -> String {
+    let Ok(ip) = host_ip.parse::<std::net::Ipv4Addr>() else {
+        return generate_instance_name();
+    };
+    let mut bytes = Vec::with_capacity(CONNECT_NAME_BYTES);
+    bytes.extend_from_slice(&ip.octets());
+    bytes.extend_from_slice(&port.to_be_bytes());
+    bytes.extend_from_slice(session_id.as_bytes());
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!("{INSTANCE_PREFIX}{hex}")
+}
+
+/// The session nonce for `session_id`, so a joiner that read the session id from the instance
+/// name ([`host_from_instance_name`]) has the nonce too. The id is random, so the nonce is too.
+pub(crate) fn session_nonce_for(session_id: Uuid) -> Vec<u8> {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::new()
+        .chain_update(NONCE_LABEL)
+        .chain_update(session_id.as_bytes())
+        .finalize();
+    digest[..16].to_vec()
+}
+
+/// The host a [`connect_instance_name`] describes, checked like a resolved service; `None` for
+/// any other name (an older version's random one), which is resolved instead. A rename suffix a
+/// responder adds on a name conflict (`" (2)"`) is ignored.
+pub(crate) fn host_from_instance_name(name: &str) -> Option<Result<DiscoveredHost, ResolveError>> {
+    let hex = name.strip_prefix(INSTANCE_PREFIX)?;
+    let hex = hex.split(' ').next()?;
+    if hex.len() != CONNECT_NAME_BYTES * 2 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let bytes: Vec<u8> = (0..CONNECT_NAME_BYTES)
+        .map(|i| u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16))
+        .collect::<Result<_, _>>()
+        .ok()?;
+    let ip = std::net::Ipv4Addr::new(bytes[0], bytes[1], bytes[2], bytes[3]);
+    let port = u16::from_be_bytes([bytes[4], bytes[5]]);
+    let session_id = Uuid::from_slice(&bytes[6..]).ok()?;
+    let nonce = URL_SAFE_NO_PAD.encode(session_nonce_for(session_id));
+    let version = PROTOCOL_VERSION.to_string();
+    Some(parsed_from_resolved(
+        Some(&ip.to_string()),
+        port,
+        Some(&session_id.to_string()),
+        Some(&nonce),
+        Some(&version),
+    ))
+}
+
 /// A random instance name for one pairing session. It says nothing about the
 /// link code or the session.
 pub(crate) fn generate_instance_name() -> String {
     let mut bytes = [0u8; 4];
     rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut bytes);
     let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
-    format!("AIUT-{hex}")
+    format!("{INSTANCE_PREFIX}{hex}")
 }
 
 /// A code this app shows: a link code ([`is_link_code`]) or, for an older version, six digits.
@@ -358,6 +421,25 @@ pub(crate) async fn discover_dnssd(timeout: Duration) -> Result<Discovery, Strin
                 tried.insert(inst.name.clone());
             }
             saw_instances += batch.len();
+            // A name that carries the host's address needs no lookup, which is the step that
+            // fails between an iPhone and an Android host (see `connect_instance_name`).
+            let mut named = 0usize;
+            let batch: Vec<_> = batch
+                .into_iter()
+                .filter(|inst| match host_from_instance_name(&inst.name) {
+                    Some(host) => {
+                        named += 1;
+                        discovery.add(host);
+                        false
+                    }
+                    None => true,
+                })
+                .collect();
+            if named > 0 {
+                super::sync_log::note(&format!(
+                    "Bonjour found {named} pairing host(s) by name, without a lookup"
+                ));
+            }
 
             // Resolve every newly seen instance in parallel with a bounded per-instance
             // timeout so a stale cached record cannot starve a live host arriving on the LAN.
@@ -675,6 +757,51 @@ mod tests {
                 "an instance name must not look like a link code: {name}"
             );
         }
+    }
+
+    #[test]
+    fn a_connect_name_carries_the_host_and_session_without_the_code() {
+        let sid = Uuid::new_v4();
+        let name = connect_instance_name("192.168.1.42", 51234, sid);
+        // One DNS label at most, also as mdns-sd's host name.
+        assert!(name.len() <= 63, "{name}");
+        assert!(name.starts_with(INSTANCE_PREFIX));
+        let host = host_from_instance_name(&name).unwrap().unwrap();
+        assert_eq!(host.host, "192.168.1.42");
+        assert_eq!(host.port, 51234);
+        assert_eq!(host.session_id, sid);
+        assert_eq!(host.session_nonce, session_nonce_for(sid));
+        assert_eq!(host.session_nonce.len(), 16);
+        // A responder's rename on a name conflict still reads.
+        let renamed = host_from_instance_name(&format!("{name} (2)"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(renamed.session_id, sid);
+    }
+
+    #[test]
+    fn only_connect_names_with_a_local_address_are_read_from_the_name() {
+        // An older version's random name, and other services, are resolved instead.
+        assert!(host_from_instance_name(&generate_instance_name()).is_none());
+        assert!(host_from_instance_name("Living Room TV").is_none());
+        assert!(host_from_instance_name("AIUT-zz").is_none());
+        // A rogue name must not steer the joiner at a public address.
+        let public = connect_instance_name("8.8.8.8", 443, Uuid::new_v4());
+        assert_eq!(
+            host_from_instance_name(&public).unwrap().unwrap_err(),
+            ResolveError::Invalid
+        );
+        // No IPv4 address: a random name, found the usual way.
+        assert!(
+            host_from_instance_name(&connect_instance_name("fe80::1", 1, Uuid::new_v4())).is_none()
+        );
+    }
+
+    #[test]
+    fn the_session_nonce_is_fixed_per_session_and_differs_between_sessions() {
+        let a = Uuid::new_v4();
+        assert_eq!(session_nonce_for(a), session_nonce_for(a));
+        assert_ne!(session_nonce_for(a), session_nonce_for(Uuid::new_v4()));
     }
 
     fn resolved(version: Option<&str>) -> Result<DiscoveredHost, ResolveError> {
