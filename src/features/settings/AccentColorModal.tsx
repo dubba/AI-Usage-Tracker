@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
@@ -13,7 +13,7 @@ import {
   type Hsv,
 } from "../../shared/lib/accent-color";
 import { resolveTheme } from "../../shared/lib/theme";
-import { PlusIcon } from "../../shared/ui/icons";
+import { ChevronIcon, PlusIcon } from "../../shared/ui/icons";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 
 /** Full-spectrum conic gradient for the custom color wheel button (data-driven gradient, not a theme token). */
@@ -38,8 +38,9 @@ function systemPrefersLight(): boolean {
  * Custom in-app "Pick a theme color" dialog:
  * - Always shows the 4 × 3 circular swatch grid (11 curated presets + custom `+` circle).
  * - Tapping an already-selected preset toggles between Light and Dark mode.
- * - Tapping the `+` circle extends the modal downward with an inline "Custom Color" box
- *   (2D saturation/brightness square, hue slider, preview swatch, and hex input) — no OS picker.
+ * - Tapping the `+` circle swaps the grid for the "Custom Color" view in the same dialog
+ *   (2D saturation/brightness square, hue slider, preview swatch, hex input, Reset) — no OS
+ *   picker. "Presets" goes back to the grid; "Done" closes the dialog.
  */
 export function AccentColorModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (!open) return null;
@@ -63,10 +64,22 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
   useModalA11y(dialogRef, true, requestClose);
 
   const isCustomActive = !MODAL_ACCENT_PRESETS.some((preset) => preset.hex === accentColor);
-  const showCustomTileFill = customOpen || isCustomActive;
+  const presetsButtonRef = useRef<HTMLButtonElement>(null);
+  const customTileRef = useRef<HTMLButtonElement>(null);
+  const viewSwitched = useRef(false);
+
+  // Switching views removes the focused button: put focus on the matching control of the new view.
+  useEffect(() => {
+    if (!viewSwitched.current) return;
+    (customOpen ? presetsButtonRef : customTileRef).current?.focus();
+  }, [customOpen]);
+
+  const showView = (custom: boolean) => {
+    viewSwitched.current = true;
+    setCustomOpen(custom);
+  };
 
   const handlePresetClick = (hex: string) => {
-    setCustomOpen(false);
     if (accentColor === hex) {
       const resolved = resolveTheme(themePreference, systemPrefersLight());
       setThemePreference(resolved === "light" ? "dark" : "light");
@@ -77,10 +90,10 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
     setHexDraft(hex.toUpperCase());
   };
 
-  const handleToggleCustom = () => {
+  const openCustom = () => {
     setHsv(hexToHsv(accentColor));
     setHexDraft(accentColor.toUpperCase());
-    setCustomOpen((prev) => !prev);
+    showView(true);
   };
 
   const applyHsv = (next: Hsv) => {
@@ -164,43 +177,20 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
         Tap the color twice to toggle between Light and Dark mode
       </p>
 
-      <div className="accent-color-grid" role="radiogroup" aria-labelledby={titleId}>
-        {MODAL_ACCENT_PRESETS.map((preset) => {
-          const selected = !customOpen && accentColor === preset.hex;
-          return (
-            <button
-              key={preset.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              aria-label={preset.label}
-              title={preset.label}
-              className={`accent-color-tile${selected ? " is-selected" : ""}`}
-              style={{ backgroundColor: preset.hex }}
-              onClick={() => handlePresetClick(preset.hex)}
-            />
-          );
-        })}
-        <button
-          type="button"
-          aria-label="Custom color picker"
-          aria-expanded={customOpen}
-          title={customOpen ? "Hide custom color picker" : "Pick a custom color"}
-          className={`accent-color-tile accent-color-tile-wheel${showCustomTileFill ? " is-selected" : ""}`}
-          style={
-            showCustomTileFill
-              ? { backgroundColor: accentColor, color: contrastingTextOnFill(accentColor) }
-              : { background: RAINBOW_WHEEL_GRADIENT }
-          }
-          onClick={handleToggleCustom}
-        >
-          <PlusIcon className="accent-color-wheel-plus" />
-        </button>
-      </div>
-
       {customOpen ? (
-        <div className="accent-custom-box">
-          <h3 className="accent-custom-box-title">Custom Color</h3>
+        <div className="accent-custom-view">
+          <div className="accent-custom-header">
+            <button
+              ref={presetsButtonRef}
+              type="button"
+              className="button ghost accent-presets-btn"
+              onClick={() => showView(false)}
+            >
+              <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+              <span>Presets</span>
+            </button>
+            <h3 className="accent-custom-title">Custom Color</h3>
+          </div>
 
           <div
             ref={svRef}
@@ -265,8 +255,46 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
               Reset
             </button>
           </div>
+
+          <button type="button" className="button primary accent-done-btn" onClick={requestClose}>
+            Done
+          </button>
         </div>
-      ) : null}
+      ) : (
+        <div className="accent-color-grid" role="radiogroup" aria-labelledby={titleId}>
+          {MODAL_ACCENT_PRESETS.map((preset) => {
+            const selected = accentColor === preset.hex;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={preset.label}
+                title={preset.label}
+                className={`accent-color-tile${selected ? " is-selected" : ""}`}
+                style={{ backgroundColor: preset.hex }}
+                onClick={() => handlePresetClick(preset.hex)}
+              />
+            );
+          })}
+          <button
+            ref={customTileRef}
+            type="button"
+            aria-label="Custom color picker"
+            title="Pick a custom color"
+            className={`accent-color-tile accent-color-tile-wheel${isCustomActive ? " is-selected" : ""}`}
+            style={
+              isCustomActive
+                ? { backgroundColor: accentColor, color: contrastingTextOnFill(accentColor) }
+                : { background: RAINBOW_WHEEL_GRADIENT }
+            }
+            onClick={openCustom}
+          >
+            <PlusIcon className="accent-color-wheel-plus" />
+          </button>
+        </div>
+      )}
     </ModalDialog>,
     document.body,
   );

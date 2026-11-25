@@ -146,7 +146,7 @@ describe("General", () => {
     expect(settings.toggleAutostart).toHaveBeenCalledTimes(1);
   });
 
-  it("opens a custom Theme Accent Color modal without duplicate inline swatches and extends downward for Custom Color", () => {
+  it("opens a custom Theme Accent Color modal without duplicate inline swatches and swaps the grid for the Custom Color view", () => {
     try {
       setAccentColor(DEFAULT_ACCENT_COLOR);
       setThemePreference("dark");
@@ -165,7 +165,7 @@ describe("General", () => {
       expect(modal).not.toBeNull();
       expect(modal.textContent).toContain("Pick a theme color");
       expect(modal.textContent).toContain("Tap the color twice to toggle between Light and Dark mode");
-      expect(modal.querySelector(".accent-custom-box")).toBeNull();
+      expect(modal.querySelector(".accent-custom-view")).toBeNull();
 
       const modalSwatches = [...modal.querySelectorAll<HTMLButtonElement>('.accent-color-grid button[role="radio"]')];
       expect(modalSwatches).toHaveLength(11);
@@ -179,10 +179,10 @@ describe("General", () => {
       click(emerald);
       expect(getThemePreference()).toBe("light");
 
-      // Tapping the + circle extends the Custom Color box below the 4×3 grid (grid remains visible!).
+      // Tapping the + circle swaps the 4×3 grid for the Custom Color view in the same dialog.
       click(modal.querySelector<HTMLButtonElement>('button[aria-label="Custom color picker"]')!);
-      expect(modal.querySelectorAll('.accent-color-grid button[role="radio"]')).toHaveLength(11);
-      const customBox = modal.querySelector(".accent-custom-box")!;
+      expect(modal.querySelector(".accent-color-grid")).toBeNull();
+      const customBox = modal.querySelector(".accent-custom-view")!;
       expect(customBox).not.toBeNull();
       expect(customBox.textContent).toContain("Custom Color");
       expect(customBox.querySelector(".accent-sv-plane")).not.toBeNull();
@@ -208,11 +208,18 @@ describe("General", () => {
       expect(hexInput.value).toBe(DEFAULT_ACCENT_COLOR.toUpperCase());
       expect(resetBtn.disabled).toBe(true);
 
-      // Selecting a preset in the grid above collapses the Custom Color box.
-      const purple = modalSwatches.find((el) => el.getAttribute("aria-label") === "Purple")!;
-      click(purple);
-      expect(modal.querySelector(".accent-custom-box")).toBeNull();
+      // Presets goes back to the grid, with focus on the + circle.
+      click(customBox.querySelector<HTMLButtonElement>(".accent-presets-btn")!);
+      expect(modal.querySelector(".accent-custom-view")).toBeNull();
+      expect(modal.querySelectorAll('.accent-color-grid button[role="radio"]')).toHaveLength(11);
+      expect(document.activeElement?.getAttribute("aria-label")).toBe("Custom color picker");
       expect(trigger.textContent?.trim()).toBe("Purple");
+
+      // Done closes the dialog, keeping the color chosen.
+      click(modal.querySelector<HTMLButtonElement>('button[aria-label="Custom color picker"]')!);
+      click(document.querySelector<HTMLButtonElement>(".accent-done-btn")!);
+      expect(document.querySelector(".accent-color-modal")).toBeNull();
+      expect(getAccentColor()).toBe(DEFAULT_ACCENT_COLOR);
     } finally {
       setThemePreference("dark");
       setAccentColor(DEFAULT_ACCENT_COLOR);
