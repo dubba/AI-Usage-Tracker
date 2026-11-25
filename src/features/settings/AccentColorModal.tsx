@@ -208,6 +208,8 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
       describedBy={customOpen ? undefined : subtitleId}
       className="accent-color-modal"
       backdropClassName="accent-color-modal-backdrop"
+      // Focus starts on the ×, not on the first color.
+      focusCloseFirst
       onClose={requestClose}
     >
       <h2 id={titleId} className="accent-color-modal-title">
@@ -338,8 +340,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
             <span>Presets</span>
           </button>
         ) : null}
-        {/* Focus starts here, not on the first color: opening the dialog changes nothing. */}
-        <button type="button" className="button primary accent-done-btn" data-autofocus onClick={requestClose}>
+        <button type="button" className="button primary accent-done-btn" onClick={requestClose}>
           Done
         </button>
       </div>
