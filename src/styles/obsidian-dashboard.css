@@ -816,8 +816,10 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
   border: 1px solid var(--obsidian-border-strong);
 }
 
+/* Hover fills outlined buttons with the accent's tint, as on the Settings dropdowns, not just
+   the border. */
 .button:hover:not(:disabled):not(.primary):not(.button-green):not(.remove-confirm-button):not(.bucket-delete-button):not(.filter-active-clear-btn):not(.limit-reset-use) {
-  background: var(--c-222121) !important;
+  background: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
 
@@ -1979,7 +1981,7 @@ select.text-input,
 
 select.text-input:hover,
 .alert-threshold select:hover {
-  background-color: var(--c-1a1820) !important;
+  background-color: var(--purple-surface) !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d0bcff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
@@ -2030,7 +2032,7 @@ select.text-input option,
 .custom-dropdown-trigger:hover,
 .custom-dropdown-container.open .custom-dropdown-trigger {
   border-color: var(--obsidian-purple-strong) !important;
-  background-color: var(--c-1a1820) !important;
+  background-color: var(--purple-surface) !important;
 }
 
 .custom-dropdown-trigger:focus-visible {
