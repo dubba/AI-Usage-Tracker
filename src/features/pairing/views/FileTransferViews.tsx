@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CheckIcon, ChevronIcon, NearbyShareIcon } from "../../../shared/ui/icons";
+import { CheckIcon, ChevronIcon, FileIcon, InfoIcon, NearbyShareIcon, SendIcon } from "../../../shared/ui/icons";
 import type { FilePreview } from "../../../types";
 import type { FileSendState } from "../hooks/useFileTransfer";
 import { isIOS } from "../../../shared/lib/platform";
@@ -48,8 +48,9 @@ function SendStepsCard({ steps, current }: { steps: SendStep[]; current: number 
         const active = index === current;
         return (
           <li key={step.title} className={done ? "is-done" : active ? "is-current" : ""}>
+            {/* Status, not numbers: the stepper above already counts the steps. */}
             <span className="pairing-send-step-mark" aria-hidden="true">
-              {done ? <CheckIcon /> : index + 1}
+              {done ? <CheckIcon /> : active ? <SendIcon /> : index + 1}
             </span>
             <div className="pairing-send-step-copy">
               <strong className="pairing-send-step-title">{step.title}</strong>
@@ -98,25 +99,37 @@ export function FileSendView({
         <SendStepsCard steps={steps} current={state.handedOff ? 2 : 1} />
         {state.notOnNetwork ? (
           <div className="pairing-why-card">
-            <strong className="pairing-why-title">Why {nearbyName}?</strong>
+            <strong className="pairing-why-title">
+              <InfoIcon />
+              <span>Why {nearbyName}?</span>
+            </strong>
             <p className="pairing-why-body">
-              Sync directly between nearby devices. Ideal when they can&apos;t find each other over Wi-Fi or when a VPN gets in the way.
+              Sync directly between nearby devices. Ideal when they can&apos;t find each other over Wi-Fi or when a VPN
+              gets in the way.
             </p>
           </div>
         ) : null}
         {isIOS() ? null : (
-          <button type="button" className="pairing-other-ways pairing-file-save-link" disabled={busy} onClick={onSave}>
-            Save to a file instead
+          <button type="button" className="pairing-file-save-link" disabled={busy} onClick={onSave}>
+            <FileIcon />
+            <span>Save to a file instead</span>
           </button>
         )}
+        {/* Done is the one filled button; sending again is the quieter way back. */}
         <div className={`pairing-nav-row pairing-file-send-actions${canShare ? "" : " is-single"}`}>
           {canShare ? (
-            <button type="button" className="button primary pairing-nearby-btn" disabled={busy} onClick={onShare}>
+            <button
+              type="button"
+              className="button pairing-nearby-btn pairing-send-again-btn"
+              aria-label={`Send again via ${nearbyName}`}
+              disabled={busy}
+              onClick={onShare}
+            >
               <NearbyShareIcon />
-              <span>Send again via {nearbyName}</span>
+              <span>Send again</span>
             </button>
           ) : null}
-          <button type="button" className="button settings-update-action button-green" onClick={onDone}>
+          <button type="button" className="button primary pairing-send-done-btn" onClick={onDone}>
             Done
           </button>
         </div>

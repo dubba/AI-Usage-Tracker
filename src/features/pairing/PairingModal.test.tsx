@@ -750,7 +750,7 @@ describe("transfer by file", () => {
     expect(current()).toContain("Accept and confirm");
     expect(document.querySelectorAll(".pairing-send-steps li.is-done")).toHaveLength(2);
     // Sending again starts over at choosing the device.
-    await press("Send again via AirDrop");
+    await press("Send again");
     expect(current()).toContain("Select the other device");
     share("chosen");
     expect(current()).toContain("Accept and confirm");
@@ -763,7 +763,7 @@ describe("transfer by file", () => {
 
   it("sends the file again or saves a copy", async () => {
     await sendWithCode();
-    await press("Send again via AirDrop");
+    await press("Send again");
     expect(api.shareFile).toHaveBeenCalledTimes(2);
     await press("Save to a file instead");
     expect(api.saveFile).toHaveBeenCalledTimes(1);
@@ -775,7 +775,7 @@ describe("transfer by file", () => {
     await sendWithCode();
     expect(api.saveFile).toHaveBeenCalledTimes(1);
     expect(api.shareFile).not.toHaveBeenCalled();
-    expect(text()).not.toContain("Send again via");
+    expect(text()).not.toContain("Send again");
     expect(text()).toContain("Save to a file instead");
   });
 
@@ -1182,7 +1182,7 @@ describe("transfer by file", () => {
     typeInto(codeInput(), CODE);
     await settle();
     expect(api.shareFile).toHaveBeenCalledTimes(1);
-    expect(text()).toContain("Send again via AirDrop");
+    expect(button("Send again").getAttribute("aria-label")).toBe("Send again via AirDrop");
     // Save to Files is in the share sheet.
     expect(text()).not.toContain("Save to a file");
   });
@@ -1252,7 +1252,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     expect(text()).toContain(
       "Sync directly between nearby devices. Ideal when they can't find each other over Wi-Fi or when a VPN gets in the way.",
     );
-    expect(text()).toContain("Send again via Quick Share");
+    expect(button("Send again").getAttribute("aria-label")).toBe("Send again via Quick Share");
   });
 
   it("still connects over Wi-Fi to a device found late in the search", async () => {

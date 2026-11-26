@@ -1706,7 +1706,8 @@
   display: block;
   width: 8px;
   height: 8px;
-  margin: 0 auto 6px;
+  /* Every mark sits in the same 16px row, centred, so the line between them stays straight. */
+  margin: 4px auto 10px;
   border-radius: 50%;
   background: rgba(149, 142, 160, 0.45);
 }
@@ -1714,9 +1715,9 @@
 .pairing-step-dots li:not(:last-child)::after {
   content: "";
   position: absolute;
-  top: 3px;
-  left: calc(50% + 8px);
-  right: calc(-50% + 8px);
+  top: 7px;
+  left: calc(50% + 12px);
+  right: calc(-50% + 12px);
   height: 2px;
   border-radius: 1px;
   background: rgba(149, 142, 160, 0.28);
@@ -1730,10 +1731,26 @@
   color: var(--obsidian-purple);
 }
 
-.pairing-step-dots li.is-active::before,
-.pairing-step-dots li.is-complete::before {
+.pairing-step-dots li.is-active::before {
+  width: 10px;
+  height: 10px;
+  margin: 3px auto 9px;
   background: var(--obsidian-purple);
   box-shadow: 0 0 8px rgb(var(--purple-accent-rgb) / 0.55);
+}
+
+/* A finished step gets a tick in the accent, like the stepper's own colour. */
+.pairing-step-dots li.is-complete::before {
+  content: "\2713";
+  width: 16px;
+  height: 16px;
+  margin: 0 auto 6px;
+  background: var(--obsidian-purple);
+  color: var(--purple-on-text);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
 }
 
 .pairing-step-dots li.is-complete:not(:last-child)::after {
@@ -2093,6 +2110,9 @@
   text-align: left;
 }
 
+/* The Sending screen. One accent (the stepper's) marks what is active and the main action;
+   success green is kept for what is done. Surfaces are a shade lighter than the dialog with a
+   hairline edge, instead of hard gray borders. */
 .pairing-send-steps {
   display: flex;
   flex-direction: column;
@@ -2100,9 +2120,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  background: var(--c-171616);
-  border: 1px solid var(--obsidian-border);
-  border-radius: 10px;
+  background: color-mix(in srgb, var(--obsidian-text) 4%, var(--obsidian-surface-low));
+  border: 1px solid color-mix(in srgb, var(--obsidian-text) 8%, transparent);
+  border-radius: 14px;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -2115,7 +2135,7 @@
 }
 
 .pairing-send-steps li + li {
-  border-top: 1px solid var(--c-2d2c2c);
+  border-top: 1px solid color-mix(in srgb, var(--obsidian-text) 6%, transparent);
 }
 
 .pairing-send-step-mark {
@@ -2123,32 +2143,39 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: var(--obsidian-surface-container);
-  border: 1px solid var(--obsidian-border);
+  background: color-mix(in srgb, var(--obsidian-text) 8%, transparent);
   color: var(--obsidian-muted);
   font-size: 0.75rem;
   font-weight: 700;
 }
 
 .pairing-send-step-mark svg {
-  width: 13px;
-  height: 13px;
-  stroke-width: 2.8;
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.6;
 }
 
 .pairing-send-steps li.is-done .pairing-send-step-mark {
-  border-color: transparent;
   background: var(--obsidian-green);
   color: var(--c-000000);
 }
 
 .pairing-send-steps li.is-current .pairing-send-step-mark {
-  border-color: transparent;
   background: var(--purple-fill);
   color: var(--purple-on-fill);
+  box-shadow: 0 0 0 4px rgb(var(--purple-accent-rgb) / 0.14);
+}
+
+.pairing-send-steps li.is-current .pairing-send-step-mark svg {
+  stroke-width: 2.2;
+}
+
+/* What is still to come recedes, so the current step reads as the task at hand. */
+.pairing-send-steps li:not(.is-done):not(.is-current) .pairing-send-step-copy {
+  opacity: 0.5;
 }
 
 .pairing-send-step-copy {
@@ -2171,45 +2198,92 @@
   line-height: 1.35;
 }
 
+/* Why AirDrop / Quick Share: a quiet note, not a second card. */
 .pairing-why-card {
   width: 100%;
-  padding: 14px 16px;
-  background: var(--c-171616);
-  border: 1px solid var(--obsidian-border);
-  border-radius: 10px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--obsidian-text) 4%, transparent);
+  border: 0;
+  border-radius: 12px;
   box-sizing: border-box;
   text-align: left;
 }
 
 .pairing-why-title {
-  display: block;
-  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
   color: var(--obsidian-text);
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 600;
   line-height: 1.3;
 }
 
+.pairing-why-title svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--obsidian-muted);
+}
+
 .modal-card.pairing-modal .pairing-why-card p.pairing-why-body {
+  max-width: none;
   margin: 0;
   color: var(--obsidian-muted);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   line-height: 1.45;
 }
 
+/* Save to a file: a plain text action with its icon, no underline. */
 .pairing-file-send-view .pairing-file-save-link {
   align-self: center;
-  color: var(--obsidian-text);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  text-decoration-color: var(--obsidian-purple);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--obsidian-muted);
+  font: inherit;
   font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pairing-file-send-view .pairing-file-save-link svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pairing-file-send-view .pairing-file-save-link:hover:not(:disabled),
+.pairing-file-send-view .pairing-file-save-link:focus-visible {
+  color: var(--obsidian-purple);
+}
+
+.pairing-file-send-view .pairing-file-save-link:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .pairing-file-send-view .pairing-file-send-actions {
   width: 100%;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* Send again: tinted with the accent and outlined, so Done stays the one filled button. */
+.button.pairing-send-again-btn {
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.4);
+  background: rgb(var(--purple-accent-rgb) / 0.08);
+  color: var(--obsidian-purple);
+}
+
+.button.pairing-send-done-btn {
+  min-height: 44px;
+  min-width: 96px;
+  justify-content: center;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2221,5 +2295,27 @@
   .pairing-fallback-fill,
   .pairing-code-expiry-fill {
     transition: none;
+  }
+}
+
+/* Sync Devices' ×: a quiet round button, as far from the right edge as the text is from the left,
+   and centred on the SYNC DEVICES line. Hover, focus and press keep the red every dialog's × has. */
+:root .modal-card.pairing-modal > .ui-modal-close {
+  top: 16px;
+  right: 24px;
+  border-radius: 50%;
+}
+
+:root .modal-card.pairing-modal > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--obsidian-text) 8%, transparent);
+  color: var(--obsidian-muted);
+}
+
+/* The dialog's padding is 20px 16px here (obsidian-dashboard.css). */
+@media (max-width: 860px) {
+  :root .modal-card.pairing-modal > .ui-modal-close {
+    top: 12px;
+    right: 16px;
   }
 }

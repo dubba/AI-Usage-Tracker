@@ -252,3 +252,28 @@ export const WifiIcon = (props: IconProps) => (
     <path d="M12 19.5h.01" />
   </Base>
 );
+
+/** A paper plane: something being sent (the Sending screen's current step). */
+export const SendIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="m21.5 2.5-7 19-4-8.5-8.5-4z" />
+    <path d="M21.5 2.5 10.5 13" />
+  </Base>
+);
+
+/** A circled "i": a note that explains, not an action. */
+export const InfoIcon = (props: IconProps) => (
+  <Base {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5" />
+    <path d="M12 7.6h.01" />
+  </Base>
+);
+
+/** A page with a folded corner: a file. */
+export const FileIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+    <path d="M14 3v5h5" />
+  </Base>
+);
