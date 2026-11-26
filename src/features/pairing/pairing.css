@@ -2403,11 +2403,14 @@
   }
 }
 
-/* Sync Devices' × (and its stacked discoverability prompt): a quiet round button, in the corner
-   where every dialog has it (modal-close.css). Hover, focus and press keep the red every dialog's × has. */
-:root .modal-card.pairing-modal > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active),
-:root .modal-card.discoverable-dialog > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active) {
-  border-color: transparent;
-  background: color-mix(in srgb, var(--obsidian-text) 8%, transparent);
-  color: var(--obsidian-muted);
+/* Sync Devices' × (and its stacked discoverability prompt): a quiet round button at rest on
+   desktop pointer devices, in the corner where every dialog has it (modal-close.css). On mobile
+   and touch devices, modal-close.css keeps it solid red with a white × like every other dialog. */
+@media (min-width: 861px) and (hover: hover) and (pointer: fine) {
+  :root .modal-card.pairing-modal > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active),
+  :root .modal-card.discoverable-dialog > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active) {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--obsidian-text) 8%, transparent);
+    color: var(--obsidian-muted);
+  }
 }

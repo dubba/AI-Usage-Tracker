@@ -155,6 +155,9 @@ describe("Button hover and active state invariants", () => {
     expect(UI_REFINEMENTS_CSS).toMatch(
       /@media\s*\(max-width:\s*860px\),\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn:not\(:disabled\),[\s\S]*?\.mobile-sidebar-close-btn:not\(:disabled\)\s*\{[^}]*background:\s*var\(--danger-fill-hover\)\s*!important;[^}]*border-color:\s*var\(--danger-line-hover\)\s*!important;[^}]*color:\s*var\(--white\)\s*!important;/,
     );
+    expect(PAIRING_CSS).toMatch(
+      /@media\s*\(min-width:\s*861px\)\s+and\s+\(hover:\s*hover\)\s+and\s+\(pointer:\s*fine\)\s*\{[\s\S]*?\.modal-card\.pairing-modal\s*>\s*\.ui-modal-close/,
+    );
   });
 
   it("centers X icons inside their buttons and sizes the sidebar close button like the dialogs' ×, in the filter button's 40px footprint", () => {
