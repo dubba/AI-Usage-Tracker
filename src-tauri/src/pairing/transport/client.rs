@@ -269,6 +269,36 @@ pub async fn run_client_connector(
     .await;
 }
 
+/// How long a found host has to accept a connection before it counts as gone.
+const REACHABLE_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// The hosts among `hosts` that accept a TCP connection now, in the same order. A browse can
+/// return an announcement still cached from a session that ended, or from a device that has left
+/// the Wi-Fi (its name carries an address, `discovery::connect_instance_name`, so no lookup weeds
+/// it out). Joining one would fail with "the link broke" instead of falling back to AirDrop or
+/// Quick Share. Each check's connection closes at once; the host takes it as an empty attempt and
+/// keeps waiting (`host::accept_handshake`).
+pub async fn reachable_hosts(hosts: Vec<DiscoveredHost>) -> Vec<DiscoveredHost> {
+    if let Some(ip) = hosts
+        .first()
+        .and_then(|host| host.host.parse::<std::net::IpAddr>().ok())
+    {
+        crate::platform::lan_binding::route_pairing_connection(ip).await;
+    }
+    let checks = hosts.into_iter().map(|host| async move {
+        let ip = host.host.parse::<std::net::IpAddr>().ok()?;
+        match timeout(REACHABLE_TIMEOUT, TcpStream::connect((ip, host.port))).await {
+            Ok(Ok(_)) => Some(host),
+            _ => None,
+        }
+    });
+    futures_util::future::join_all(checks)
+        .await
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
 /// Opens the TCP connection to a host found on the network.
 async fn connect_to_host(host: &DiscoveredHost) -> Result<TcpStream, String> {
     let ip = host

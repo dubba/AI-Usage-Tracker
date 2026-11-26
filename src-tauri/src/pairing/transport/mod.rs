@@ -9,7 +9,7 @@ pub(crate) mod lan;
 mod qr;
 mod transfer;
 
-pub use client::{run_client_connector, RoleChannels};
+pub use client::{reachable_hosts, run_client_connector, RoleChannels};
 pub use events::{ClientEvent, HostEvent};
 pub use host::{run_host_listener, HostSession};
 pub use lan::get_local_lan_ip;

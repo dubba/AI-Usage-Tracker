@@ -2756,3 +2756,26 @@ fn pairing_failures_are_sentences_with_codes() {
         assert_eq!(error.message, super::LINK_BROKE);
     }
 }
+
+/// A host whose announcement outlived its session (or whose device left the Wi-Fi) is dropped
+/// before joining, so the page falls back to AirDrop or Quick Share instead of "the link broke".
+#[tokio::test]
+async fn only_hosts_that_accept_a_connection_are_joined() {
+    let live = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let live_port = live.local_addr().unwrap().port();
+    let gone = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let gone_port = gone.local_addr().unwrap().port();
+    drop(gone);
+    let host = |port| DiscoveredHost {
+        host: "127.0.0.1".into(),
+        port,
+        session_id: Uuid::new_v4(),
+        session_nonce: vec![1; 16],
+    };
+    let reachable = super::transport::reachable_hosts(vec![host(gone_port), host(live_port)]).await;
+    assert_eq!(reachable.len(), 1);
+    assert_eq!(reachable[0].port, live_port);
+    assert!(super::transport::reachable_hosts(vec![host(gone_port)])
+        .await
+        .is_empty());
+}

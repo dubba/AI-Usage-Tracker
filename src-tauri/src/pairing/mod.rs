@@ -655,8 +655,22 @@ impl PairingSessionManager {
                 return Err(error);
             }
         };
+        let found = hosts.len();
+        let hosts = transport::reachable_hosts(hosts).await;
+        if hosts.is_empty() {
+            // Only announcements of sessions that are gone (or devices that left the Wi-Fi): as
+            // good as finding no one, so the page offers AirDrop or Quick Share.
+            sync_log::failed_text(
+                &format!(
+                    "link code: found {found} device(s) showing a code, but none answered in {:.1} s",
+                    started.elapsed().as_secs_f32()
+                ),
+                discovery::NOT_FOUND,
+            );
+            return Err(discovery::NOT_FOUND.into());
+        }
         sync_log::note(&format!(
-            "link code: entered a code, found {} device(s) showing a code on the network in {:.1} s",
+            "link code: entered a code, found {} device(s) showing a code on the network ({found} announced) in {:.1} s",
             hosts.len(),
             started.elapsed().as_secs_f32()
         ));
