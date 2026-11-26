@@ -2271,6 +2271,14 @@ select.text-input option,
   background: var(--purple-fill) !important;
 }
 
+/* The keyboard ring every switch shows, as in Settings (ui-refinements.css): outside the track, so
+   the knob stays put. It also beats the "on" state's hidden outline. */
+.toggle:focus-visible,
+.toggle.on:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
