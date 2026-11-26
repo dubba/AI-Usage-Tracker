@@ -252,7 +252,7 @@ describe("CustomDropdown", () => {
     expect(menu.querySelector(".scroll-thumb")).toBeNull();
   });
 
-  it("reserves scrollbar space when the menu content overflows", () => {
+  it("reserves scrollbar space when the menu content overflows and never pushes the thumb past scrollHeight", () => {
     vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(400);
     vi.spyOn(HTMLUListElement.prototype, "clientHeight", "get").mockReturnValue(200);
     app = mount(
@@ -262,8 +262,17 @@ describe("CustomDropdown", () => {
     click(document.getElementById("provider")!);
     const menu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
     expect(menu.classList.contains("has-overflow")).toBe(true);
-    const thumb = menu.querySelector(".scroll-thumb");
+    const thumb = menu.querySelector<HTMLElement>(".scroll-thumb");
     expect(thumb?.getAttribute("aria-hidden")).toBe("true");
     expect(menu.querySelectorAll('[role="option"]')).toHaveLength(OPTIONS.length);
+
+    menu.scrollTop = 260;
+    act(() => {
+      menu.dispatchEvent(new Event("scroll"));
+    });
+    const height = parseFloat(thumb!.style.height);
+    const match = thumb!.style.transform.match(/translateY\(([-\d.]+)px\)/);
+    const y = Number(match?.[1] ?? NaN);
+    expect(y + height).toBeLessThanOrEqual(400);
   });
 });

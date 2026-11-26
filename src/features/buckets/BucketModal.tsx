@@ -267,14 +267,6 @@ export function BucketModal({
 
           <div className="bucket-account-picker-list">
             <div ref={accountScrollRef} className={`bucket-account-picker-scroll${accountThumb.overflows ? " has-overflow" : ""}`}>
-              {accountThumb.overflows && (
-                <div
-                  ref={accountThumb.thumbRef as RefObject<HTMLDivElement>}
-                  aria-hidden="true"
-                  className="scroll-thumb"
-                  onPointerDown={accountThumb.onThumbPointerDown}
-                />
-              )}
               {filteredAccounts.length ? filteredAccounts.map((account) => {
                 const isSelected = selectedAccountIds.includes(account.id);
                 const sessionWindow = cardWindows(account.lastUsage?.windows ?? [], account.provider)[0];
@@ -305,6 +297,14 @@ export function BucketModal({
                 <div className="bucket-picker-empty">No accounts match the selected filter.</div>
               )}
             </div>
+            {accountThumb.overflows && (
+              <div
+                ref={accountThumb.thumbRef as RefObject<HTMLDivElement>}
+                aria-hidden="true"
+                className="scroll-thumb"
+                onPointerDown={accountThumb.onThumbPointerDown}
+              />
+            )}
           </div>
         </div>
 

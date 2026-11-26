@@ -249,7 +249,7 @@ describe("Button hover and active state invariants", () => {
     // The background shorthand on :hover/:active resets background-clip: content-box back to border-box,
     // painting the full 14px hit track instead of the 6px thumb.
     expect(OBSIDIAN_CSS).not.toMatch(/::-webkit-scrollbar-thumb:(?:hover|active)[^{]*\{[^}]*\bbackground\s*:/);
-    expect(UI_REFINEMENTS_CSS).toMatch(/\.scroll-thumb::before\s*\{[^}]*inset:/);
+    expect(UI_REFINEMENTS_CSS).toMatch(/\.scroll-thumb::before\s*\{[^}]*inset:\s*0\s+-4px\s+0\s+-8px;/);
     expect(UI_REFINEMENTS_CSS).not.toMatch(/\.scroll-thumb:(?:hover|active)\s*\{[^}]*width:/);
   });
 

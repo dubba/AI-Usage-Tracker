@@ -249,14 +249,14 @@ export function UpdateNotesModal({
 
       <UpdateProgressBar busy={updateBusy ?? null} percent={updatePercent ?? null} className="update-notes-progress" />
 
-      <div className="modal-actions update-notes-actions">
-        <button type="button" className="button ghost" onClick={onClose}>
+      <div className="modal-actions is-split update-notes-actions">
+        <button type="button" className="button ghost button-tertiary" onClick={onClose}>
           Close
         </button>
         {onInstallUpdate ? (
           <button
             type="button"
-            className="button settings-update-action button-green"
+            className="button primary settings-update-action"
             disabled={updateBusy != null}
             onClick={() => {
               onInstallUpdate();

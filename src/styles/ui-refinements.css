@@ -683,11 +683,13 @@
   will-change: transform;
 }
 
-/* Generous invisible hover & drag target around the sleek 6px thumb. */
+/* Generous invisible hover & drag target around the sleek 6px thumb.
+   Keep vertical inset at 0 so the hit target never protrudes past the thumb
+   and inflates a scrollable ancestor's scrollHeight. */
 .scroll-thumb::before {
   content: "";
   position: absolute;
-  inset: -6px -4px -6px -8px;
+  inset: 0 -4px 0 -8px;
 }
 
 @media (hover: hover) {

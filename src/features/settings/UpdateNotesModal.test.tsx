@@ -9,7 +9,7 @@ afterEach(() => {
   mounted = null;
 });
 
-const show = (releaseNotes: string) => {
+const show = (releaseNotes: string, onInstallUpdate?: () => void) => {
   mounted = mount(
     <UpdateNotesModal
       open
@@ -17,6 +17,7 @@ const show = (releaseNotes: string) => {
       currentVersion="0.6.4"
       releaseDate="2026-11-20T18:06:02Z"
       releaseNotes={releaseNotes}
+      onInstallUpdate={onInstallUpdate}
       onClose={() => {}}
       onOpenLink={() => {}}
     />,
@@ -33,7 +34,14 @@ describe("UpdateNotesModal", () => {
   });
 
   it("names the new version when the notes are for that release only", () => {
-    expect(show("## v0.6.7 - 2026-11-20\n\n- seven")).toBe("What changed in v0.6.7");
+    expect(show("## v0.6.7 - 2026-11-20\n\n- seven", () => {})).toBe("What changed in v0.6.7");
     expect(document.querySelector(".update-notes-subtitle")!.textContent).toMatch(/^Published /);
+    const actions = document.querySelector(".update-notes-actions")!;
+    expect(actions.classList.contains("is-split")).toBe(true);
+    const closeBtn = [...actions.querySelectorAll("button")].find((el) => el.textContent?.trim() === "Close");
+    expect(closeBtn?.classList.contains("button-tertiary")).toBe(true);
+    const updateBtn = actions.querySelector<HTMLButtonElement>(".settings-update-action");
+    expect(updateBtn?.classList.contains("primary")).toBe(true);
+    expect(updateBtn?.classList.contains("button-green")).toBe(false);
   });
 });

@@ -574,13 +574,13 @@
   font-weight: 700;
 }
 
-/* Idle info footer under the code input: quiet weight paired with a subtle network icon. */
+/* Idle info footer under the code input: quiet weight paired with an inline network icon so
+   multi-line wraps keep the icon aligned with the first line instead of floating between lines. */
 .pairing-code-help-footer,
 .modal-card.pairing-modal .pairing-code-help-footer {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  display: block;
+  text-align: center;
+  text-wrap: balance;
   font-size: 0.72rem;
   line-height: 1.4;
   color: var(--obsidian-muted);
@@ -588,9 +588,11 @@
 }
 
 .pairing-code-help-icon {
-  flex: 0 0 auto;
+  display: inline-block;
   width: 13px;
   height: 13px;
+  margin-right: 6px;
+  vertical-align: -2px;
   color: var(--obsidian-muted);
   opacity: 0.85;
 }

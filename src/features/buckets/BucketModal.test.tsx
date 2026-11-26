@@ -137,6 +137,41 @@ describe("BucketModal create provider filter", () => {
     expect(list?.contains(scroll)).toBe(true);
     expect(scroll?.querySelectorAll(".bucket-account-item")).toHaveLength(5);
   });
+
+  it("renders the scroll thumb outside the scroller and clamps its position at the bottom", () => {
+    const scrollHeightSpy = vi.spyOn(HTMLDivElement.prototype, "scrollHeight", "get").mockReturnValue(360);
+    const clientHeightSpy = vi.spyOn(HTMLDivElement.prototype, "clientHeight", "get").mockReturnValue(180);
+    try {
+      renderCreate([
+        makeAccount("a1", "anthropic"),
+        makeAccount("a2", "openai"),
+        makeAccount("a3", "grok"),
+        makeAccount("a4", "google_ai_studio"),
+        makeAccount("a5", "antigravity"),
+      ]);
+      const list = document.querySelector<HTMLElement>(".bucket-account-picker-list")!;
+      const scroll = document.querySelector<HTMLElement>(".bucket-account-picker-scroll")!;
+      const thumb = list.querySelector<HTMLElement>(".scroll-thumb");
+      expect(thumb).not.toBeNull();
+      expect(scroll.contains(thumb)).toBe(false);
+      expect(thumb?.parentElement).toBe(list);
+
+      // Even if scrollTop overshoots the range (rubber-band overscroll), the thumb stays inside the 180px track.
+      scroll.scrollTop = 260;
+      act(() => {
+        scroll.dispatchEvent(new Event("scroll"));
+      });
+      const height = parseFloat(thumb!.style.height);
+      const match = thumb!.style.transform.match(/translateY\(([-\d.]+)px\)/);
+      const y = Number(match?.[1] ?? NaN);
+      expect(height).toBe(90);
+      expect(y).toBe(90);
+      expect(y + height).toBeLessThanOrEqual(180);
+    } finally {
+      scrollHeightSpy.mockRestore();
+      clientHeightSpy.mockRestore();
+    }
+  });
 });
 
 describe("BucketModal account percentages", () => {

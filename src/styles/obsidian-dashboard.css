@@ -2014,25 +2014,21 @@ button.account-card-provider-icon:active {
 }
 
 /* Green action buttons: the Updates card's Update / Install Update button when an update is
-   available, the What's Changed modal's Update button, and the Paseo Bridge window's Regenerate. */
-.settings-update-action.button-green,
-.update-notes-actions .settings-update-action {
+   available, and the Paseo Bridge window's Regenerate. */
+.settings-update-action.button-green {
   background: var(--success-fill) !important;
   border: 1px solid var(--success-line) !important;
   color: var(--white) !important;
 }
 
 .settings-update-action.button-green:hover:not(:disabled),
-.settings-update-action.button-green:focus-visible,
-.update-notes-actions .settings-update-action:hover:not(:disabled),
-.update-notes-actions .settings-update-action:focus-visible {
+.settings-update-action.button-green:focus-visible {
   background: var(--success-fill-hover) !important;
   border-color: var(--success-line-hover) !important;
   color: var(--white) !important;
 }
 
-.settings-update-action.button-green:active:not(:disabled),
-.update-notes-actions .settings-update-action:active:not(:disabled) {
+.settings-update-action.button-green:active:not(:disabled) {
   background: var(--success-fill-active) !important;
   border-color: var(--success-line-active) !important;
   color: var(--white) !important;
@@ -2680,7 +2676,7 @@ select.text-input option,
 
 .update-notes-actions {
   display: flex !important;
-  justify-content: flex-end !important;
+  justify-content: space-between;
   align-items: center !important;
   margin-top: 0 !important;
   gap: 10px !important;
@@ -2929,6 +2925,7 @@ select.text-input option,
 }
 
 .bucket-account-picker-list {
+  position: relative;
   --bucket-visible-rows: 3;
   --bucket-gap: 0px;
   --bucket-list-pad-y: 0px;
@@ -2950,8 +2947,9 @@ select.text-input option,
 }
 
 /* Inner scroller, not the frame, so the frame clips the thumb to the radius.
-   It draws its own thumb (.scroll-thumb, useScrollThumb) in the right padding;
-   see the note there for why the native bar is hidden. */
+   The drawn thumb (.scroll-thumb, useScrollThumb) sits in the frame outside the
+   scroller so it can never extend scrollHeight; see ui-refinements.css for why
+   the native bar is hidden. */
 .bucket-account-picker-scroll {
   position: relative;
   display: flex;
@@ -2968,7 +2966,7 @@ select.text-input option,
   padding-right: 10px;
 }
 
-.bucket-account-picker-scroll .scroll-thumb {
+.bucket-account-picker-list > .scroll-thumb {
   width: 4px;
   right: 3px;
 }
@@ -3035,10 +3033,10 @@ select.text-input option,
   content: "";
   width: 4px;
   height: 7px;
-  margin-top: -1px;
   border: solid var(--purple-on-fill);
   border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+  /* A 45deg-rotated L-border sits ~1.4px below its box center; shift after rotation to center optically. */
+  transform: translateY(-1.5px) rotate(45deg);
 }
 
 .bucket-account-item input[type="checkbox"]:focus-visible + .bucket-account-check {

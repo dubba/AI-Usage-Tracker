@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (3 changes)
+
+### Improved (2)
+
+- In the **What's Changed** update dialog, **Close** now uses muted borderless styling on the left and **Update** uses the primary accent fill on the right.
+- In **Sync Devices**, the help note under the link-code input now wraps with its network icon aligned to the first line, and **Create Group** account checkboxes center their checkmark.
+
+### Fixed (1)
+
+- Custom scrollbars in **Create Group** and dropdown menus now stay within list bounds during overscroll instead of extending the scrollable area at the bottom.
 
 ## v0.7.2 - 2026-11-26 (8 changes)
 

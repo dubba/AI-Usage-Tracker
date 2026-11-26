@@ -24,13 +24,22 @@ export function useScrollThumb<T extends HTMLElement>(scrollRef: RefObject<T | n
     setOverflows(next);
     const thumb = thumbRef.current;
     if (!thumb || !next) return;
-    const height = Math.max(MIN_THUMB, (clientHeight * clientHeight) / scrollHeight);
-    const range = scrollHeight - clientHeight;
-    const top = range > 0 ? ((clientHeight - height) * scrollTop) / range : 0;
-    // The thumb is absolutely positioned inside the scroller, so it scrolls
-    // with the content; offsetting by scrollTop keeps it in view.
+    const height = Math.min(clientHeight, Math.max(MIN_THUMB, Math.floor((clientHeight * clientHeight) / scrollHeight)));
+    const range = Math.max(0, scrollHeight - clientHeight);
+    const clampedScroll = Math.max(0, Math.min(range, scrollTop));
+    const top = range > 0 ? Math.floor(((clientHeight - height) * clampedScroll) / range) : 0;
+    // When rendered as a sibling inside a non-scrolling frame (e.g. BucketModal),
+    // `top` alone positions the thumb without fighting compositor scrolling or
+    // touching the scroller's scrollHeight. When rendered inside the scroller
+    // itself (e.g. CustomDropdown), offset by clampedScroll and clamp the bottom
+    // to scrollHeight so neither overscroll nor subpixel rounding can grow
+    // scrollHeight into an infinite-scroll loop.
+    const insideScroller = el.contains(thumb);
+    const translateY = insideScroller
+      ? Math.min(Math.floor(clampedScroll) + top, Math.max(0, scrollHeight - height))
+      : top;
     thumb.style.height = `${height}px`;
-    thumb.style.transform = `translateY(${scrollTop + top}px)`;
+    thumb.style.transform = `translateY(${translateY}px)`;
   }, [scrollRef]);
 
   useLayoutEffect(() => {
