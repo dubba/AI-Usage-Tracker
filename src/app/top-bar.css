@@ -64,9 +64,9 @@
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    /* Colour only. The purple fill slides on its own (segment-indicator.css); a fading
-       background here would leave a second pill behind. */
-    transition: color 120ms ease;
+    /* Background fades for the inactive hover highlight; .is-active drops the background
+       transition below so clicking an option never fades a second pill over the sliding fill. */
+    transition: background 120ms ease, color 120ms ease;
   }
 
   /* The same icons as the phone's bottom bar (BottomNav.tsx), at Group's 18px. */
@@ -80,6 +80,7 @@
     border-color: var(--purple-fill);
     background: var(--purple-fill);
     color: var(--purple-on-fill);
+    transition: color 120ms ease;
   }
 
   /* The Left / Used switch (on the Accounts page, AccountsView.tsx) and the Usage page's 7D / 30D
@@ -109,12 +110,13 @@
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transition: color 120ms ease;
+    transition: background 120ms ease, color 120ms ease;
   }
 
   .top-bar-segmented button.active {
     background: var(--purple-fill);
     color: var(--purple-on-fill);
+    transition: color 120ms ease;
   }
 
   .top-bar-actions {
@@ -199,6 +201,7 @@
   @media (hover: hover) {
     .top-bar-nav-item:not(.is-active):hover,
     .top-bar-segmented button:not(.active):hover {
+      background: var(--purple-surface);
       color: var(--obsidian-text);
     }
 

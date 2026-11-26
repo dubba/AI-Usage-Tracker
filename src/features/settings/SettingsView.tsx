@@ -1,13 +1,14 @@
 import { useEffect, useRef } from "react";
+import { useSyncOtherWays } from "../../shared/hooks/usePreferences";
 import { DevicesIcon, SettingsIcon } from "../../shared/ui/icons";
 import type { BridgeStatus } from "../../types";
 import { SETTINGS_DESCRIPTION } from "../../shared/lib/constants";
 import { isMobileDevice } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
 import { DataSection } from "./DataSection";
-import { SyncOptionsSection } from "./SyncOptionsSection";
 import { GeneralSection } from "./GeneralSection";
 import { LocalApiSection } from "./LocalApiSection";
+import { SettingsToggleRow } from "./SettingsToggleRow";
 import { UpdatesSection } from "./UpdatesSection";
 import { SETTINGS_JUMP_SECTIONS, type SettingsSectionId } from "./settings-sections";
 import "./settings-layout.css";
@@ -44,6 +45,7 @@ export function SettingsView({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const suppressScrollSpyRef = useRef(false);
+  const [otherWays, setOtherWays] = useSyncOtherWays();
 
   useEffect(() => {
     if (!jumpTarget) return;
@@ -164,9 +166,13 @@ export function SettingsView({
               <span>Sync Devices</span>
             </button>
           </div>
+          <SettingsToggleRow checked={otherWays} labelledBy="setting-sync-other-ways-label" onChange={setOtherWays}>
+            <div>
+              <strong id="setting-sync-other-ways-label">Other Ways to Connect</strong>
+              <small>Show a 6-digit code for older app versions and QR codes in Sync Devices.</small>
+            </div>
+          </SettingsToggleRow>
         </section>
-
-        <SyncOptionsSection />
 
         <DataSection onAllDataDeleted={onAllDataDeleted} />
 

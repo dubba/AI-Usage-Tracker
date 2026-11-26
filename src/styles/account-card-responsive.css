@@ -189,8 +189,15 @@
   }
 
   .dashboard-scroll::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb) !important;
+    border: 0;
+    background: var(--scrollbar-thumb);
     border-radius: 999px !important;
+  }
+
+  .dashboard-scroll::-webkit-scrollbar-thumb:hover,
+  .dashboard-scroll::-webkit-scrollbar-thumb:active {
+    border: 0;
+    background: var(--scrollbar-thumb-hover);
   }
 
   .obsidian-shell .provider-account-cards,
@@ -368,6 +375,11 @@
 .mobile-dropdown-menu::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 4px;
+}
+
+.mobile-dropdown-menu::-webkit-scrollbar-thumb:hover,
+.mobile-dropdown-menu::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-hover);
 }
 
 .provider-account-card {

@@ -281,13 +281,16 @@ describe("General", () => {
     }
   });
 
-  it("hides Sync Devices' other ways to connect by default, with a switch under Sync Options to show them", () => {
+  it("hides Sync Devices' other ways to connect by default, with a switch under Devices to show them", () => {
     try {
       setSyncOtherWays("off");
       app = mount(view());
-      expect(document.getElementById("settings-section-sync-options")?.textContent).toBe("Sync Options");
-      expect(document.body.textContent).toContain("Show a 6-digit code for older app versions and QR codes in Sync Devices.");
+      const devicesCard = document.getElementById("settings-section-devices")?.closest(".settings-card");
+      expect(devicesCard).not.toBeNull();
+      expect(document.getElementById("settings-section-sync-options")).toBeNull();
+      expect(devicesCard?.textContent).toContain("Show a 6-digit code for older app versions and QR codes in Sync Devices.");
       const toggle = toggleLabelled("setting-sync-other-ways-label");
+      expect(devicesCard?.contains(toggle)).toBe(true);
       expect(toggle.getAttribute("aria-checked")).toBe("false");
       click(toggle);
       expect(getSyncOtherWays()).toBe("on");
@@ -477,7 +480,7 @@ describe("SettingsView section layout and jump navigation (L3)", () => {
   it("labels all Settings cards directly with h2 headings", () => {
     app = mount(view());
     const headings = [...document.querySelectorAll("h2.settings-card-heading")].map((el) => el.textContent?.trim());
-    expect(headings).toEqual(["General", "Updates", "Devices", "Sync Options", "Data & Diagnostics", "Integrations", "Keyboard Shortcuts"]);
+    expect(headings).toEqual(["General", "Updates", "Devices", "Data & Diagnostics", "Integrations", "Keyboard Shortcuts"]);
   });
 
   it("scrolls the target section when jumpTarget changes", () => {
@@ -522,7 +525,6 @@ describe("SettingsView section layout and jump navigation (L3)", () => {
       "settings-section-general": 18,
       "settings-section-updates": 270,
       "settings-section-devices": 620,
-      "settings-section-sync-options": 680,
       "settings-section-data": 740,
       "settings-section-integrations": 990,
       "settings-section-shortcuts": 1170,

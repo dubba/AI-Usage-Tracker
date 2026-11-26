@@ -102,12 +102,13 @@
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transition: color 120ms ease;
+    transition: background 120ms ease, color 120ms ease;
   }
 
   .activity-period-switch button.active {
     background: var(--purple-fill);
     color: var(--purple-on-fill);
+    transition: color 120ms ease;
   }
 
   .activity-period-switch button:focus-visible {
@@ -121,6 +122,7 @@
     }
 
     .activity-period-switch button:not(.active):hover {
+      background: var(--purple-surface);
       color: var(--obsidian-text);
     }
 

@@ -677,8 +677,27 @@
   list-style: none;
   border-radius: 999px;
   background: var(--scrollbar-thumb);
+  cursor: pointer;
+  transition: background 120ms ease;
   touch-action: none;
   will-change: transform;
+}
+
+/* Generous invisible hover & drag target around the sleek 6px thumb. */
+.scroll-thumb::before {
+  content: "";
+  position: absolute;
+  inset: -6px -4px -6px -8px;
+}
+
+@media (hover: hover) {
+  .scroll-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+}
+
+.scroll-thumb:active {
+  background: var(--scrollbar-thumb-hover);
 }
 
 .custom-dropdown-menu.has-overflow {

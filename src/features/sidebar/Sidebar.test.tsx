@@ -195,7 +195,6 @@ describe("Sidebar", () => {
         "Updates",
         "Devices",
         "#Advanced Section",
-        "Sync Options",
         "Data & Diagnostics",
         "Integrations",
         "Keyboard Shortcuts",

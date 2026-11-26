@@ -221,6 +221,10 @@
     .accent-color-tile:hover {
       transform: scale(1.07);
     }
+
+    .accent-color-tile:not(.is-selected):hover {
+      box-shadow: 0 0 0 2px var(--obsidian-text);
+    }
   }
 
   .accent-color-tile:active {

@@ -92,9 +92,12 @@
     --obsidian-purple-strong: var(--purple-accent);
     /* Idle outline on hamburger, pen, Settings, Link Devices, etc. */
     --chrome-border: rgb(var(--purple-accent-rgb) / 0.4);
-    /* Scroll bar thumbs: same purple as the mobile status bar overlay. */
+    /* Scroll bar thumbs: same accent fill as primary buttons, brightening on hover like Add account. */
     --scrollbar-thumb: var(--purple-fill);
+    --scrollbar-thumb-hover: var(--purple-fill-hover);
     --scrollbar-size: 6px;
+    /* Wider invisible hit track on desktop (6px thumb + 4px transparent border on each side). */
+    --scrollbar-hit-size: 14px;
     --scrollbar-gap: 10px;
     --obsidian-green: #4edea3;
     --obsidian-amber: #ffb869;

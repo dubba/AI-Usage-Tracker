@@ -42,6 +42,7 @@
   @media (hover: hover) {
     .compact-dashboard-toggle:not(.active):hover {
       border-color: var(--purple-accent);
+      background: var(--purple-surface);
       color: var(--obsidian-text);
     }
 

@@ -26,12 +26,27 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
+  background-color: var(--scrollbar-thumb);
   border-radius: 999px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb);
+/* Use background-color (not the background shorthand) so hover/active never resets
+   background-clip: content-box back to border-box and widens the visible thumb. */
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: var(--scrollbar-hit-size);
+    height: var(--scrollbar-hit-size);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 4px solid transparent;
+    background-clip: content-box;
+  }
 }
 
 html,
@@ -192,7 +207,7 @@ body {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  transition: color 120ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .provider-window-toggle button:last-child {
@@ -203,6 +218,7 @@ body {
 .provider-window-toggle button.active {
   color: var(--purple-on-fill);
   background: var(--purple-fill);
+  transition: color 120ms ease;
 }
 
 .provider-window-toggle button:focus-visible {
@@ -221,7 +237,7 @@ body {
 
   .provider-window-toggle button:hover:not(.active) {
     color: var(--c-f0edef);
-    background: rgb(var(--purple-accent-rgb) / 0.14);
+    background: var(--purple-surface);
   }
 
   :root:not([data-theme="light"]) .provider-window-toggle button.active:hover {
@@ -529,8 +545,8 @@ body {
 }
 
 .dashboard-scroll::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
   display: block;
 }
 
@@ -539,8 +555,25 @@ body {
 }
 
 .dashboard-scroll::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
+  background-color: var(--scrollbar-thumb);
   border-radius: 999px;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb:hover,
+.dashboard-scroll::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-scroll::-webkit-scrollbar {
+    width: var(--scrollbar-hit-size);
+    height: var(--scrollbar-hit-size);
+  }
+
+  .dashboard-scroll::-webkit-scrollbar-thumb {
+    border: 4px solid transparent;
+    background-clip: content-box;
+  }
 }
 
 .summary-strip,
@@ -2261,7 +2294,7 @@ select.text-input option,
 }
 
 .modal-backdrop::-webkit-scrollbar {
-  width: 6px;
+  width: var(--scrollbar-size);
 }
 
 .modal-backdrop::-webkit-scrollbar-track {
@@ -2269,8 +2302,24 @@ select.text-input option,
 }
 
 .modal-backdrop::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
+  background-color: var(--scrollbar-thumb);
   border-radius: 999px;
+}
+
+.modal-backdrop::-webkit-scrollbar-thumb:hover,
+.modal-backdrop::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .modal-backdrop::-webkit-scrollbar {
+    width: var(--scrollbar-hit-size);
+  }
+
+  .modal-backdrop::-webkit-scrollbar-thumb {
+    border: 4px solid transparent;
+    background-clip: content-box;
+  }
 }
 
 .modal-card.provider-connection-modal {
@@ -2348,16 +2397,28 @@ select.text-input option,
 }
 
 .update-notes-content::-webkit-scrollbar {
-  width: 6px;
+  width: var(--scrollbar-size);
 }
 
 .update-notes-content::-webkit-scrollbar-thumb {
-  background: var(--c-3a373f);
+  background-color: var(--c-3a373f);
   border-radius: 999px;
 }
 
-.update-notes-content::-webkit-scrollbar-thumb:hover {
-  background: var(--c-504c57);
+.update-notes-content::-webkit-scrollbar-thumb:hover,
+.update-notes-content::-webkit-scrollbar-thumb:active {
+  background-color: var(--c-504c57);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .update-notes-content::-webkit-scrollbar {
+    width: var(--scrollbar-hit-size);
+  }
+
+  .update-notes-content::-webkit-scrollbar-thumb {
+    border: 4px solid transparent;
+    background-clip: content-box;
+  }
 }
 
 .update-notes-heading-2 {

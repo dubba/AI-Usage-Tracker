@@ -480,6 +480,7 @@
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
   background: var(--obsidian-surface-container-high);
+  transition: background 120ms ease, border-color 120ms ease;
 }
 
 .provider-summary-row .provider-summary-icon > svg,
@@ -488,7 +489,14 @@
   height: 22px;
 }
 
+@media (hover: hover) {
+  .provider-summary-row:not(.selected):hover .provider-summary-icon {
+    border-color: var(--obsidian-purple-strong);
+  }
+}
+
 .provider-summary-row.selected .provider-summary-icon {
+  border-color: rgb(var(--purple-accent-rgb) / 0.35);
   background: rgb(var(--purple-accent-rgb) / 0.16);
 }
 

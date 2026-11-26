@@ -718,7 +718,7 @@ describe("transfer by file", () => {
     expect(text()).toContain("Complete syncing on the other device");
     expect(text()).toContain("Why AirDrop?");
     expect(text()).toContain(
-      "The other device wasn't found on this Wi-Fi network. A VPN may also prevent local discovery. AirDrop lets you sync instead.",
+      "Sync directly between nearby devices. Ideal when they can't find each other over Wi-Fi or when a VPN gets in the way.",
     );
     // Nothing comes back: the sender waits for no file.
     expect(api.watchForFile).not.toHaveBeenCalled();
@@ -1250,7 +1250,7 @@ describe("AirDrop or Quick Share when the code finds no one on the network", () 
     expect(title()).toBe("Sending by Quick Share");
     expect(text()).toContain("Why Quick Share?");
     expect(text()).toContain(
-      "The other device wasn't found on this Wi-Fi network. A VPN may also prevent local discovery. Quick Share lets you sync instead.",
+      "Sync directly between nearby devices. Ideal when they can't find each other over Wi-Fi or when a VPN gets in the way.",
     );
     expect(text()).toContain("Send again via Quick Share");
   });

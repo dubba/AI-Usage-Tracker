@@ -100,7 +100,7 @@ export function FileSendView({
           <div className="pairing-why-card">
             <strong className="pairing-why-title">Why {nearbyName}?</strong>
             <p className="pairing-why-body">
-              The other device wasn&apos;t found on this Wi-Fi network. A VPN may also prevent local discovery. {nearbyName} lets you sync instead.
+              Sync directly between nearby devices. Ideal when they can&apos;t find each other over Wi-Fi or when a VPN gets in the way.
             </p>
           </div>
         ) : null}

@@ -10,6 +10,7 @@ const MODAL_CLOSE_CSS = readFileSync(join(STYLES, "modal-close.css"), "utf8");
 const UI_REFINEMENTS_CSS = readFileSync(join(STYLES, "ui-refinements.css"), "utf8");
 const CARD_RESPONSIVE_CSS = readFileSync(join(STYLES, "account-card-responsive.css"), "utf8");
 const TOP_BAR_CSS = readFileSync(join(STYLES, "../app/top-bar.css"), "utf8");
+const ACTIVITY_CSS = readFileSync(join(STYLES, "../features/activity/activity.css"), "utf8");
 const SIDEBAR_LIST_CSS = readFileSync(join(STYLES, "sidebar-list.css"), "utf8");
 const PAIRING_CSS = readFileSync(join(STYLES, "../features/pairing/pairing.css"), "utf8");
 const TOKENS_CSS = readFileSync(join(STYLES, "tokens.css"), "utf8");
@@ -221,5 +222,27 @@ describe("Button hover and active state invariants", () => {
     expect(CARD_RESPONSIVE_CSS).toMatch(
       /\.provider-account-card\s+\.limit-resets-section\s*\{[^}]*margin:\s*0;[^}]*border-top:\s*1px solid var\(--obsidian-border\);[^}]*background:\s*var\(--obsidian-canvas\);/,
     );
+  });
+
+  it("highlights inactive switcher options on hover with --purple-surface like outlined buttons", () => {
+    expect(TOP_BAR_CSS).toMatch(
+      /\.top-bar-nav-item:not\(\.is-active\):hover,\s*\.top-bar-segmented button:not\(\.active\):hover\s*\{[^}]*background:\s*var\(--purple-surface\);[^}]*color:\s*var\(--obsidian-text\);/,
+    );
+    expect(ACTIVITY_CSS).toMatch(
+      /\.activity-period-switch button:not\(\.active\):hover\s*\{[^}]*background:\s*var\(--purple-surface\);[^}]*color:\s*var\(--obsidian-text\);/,
+    );
+    expect(OBSIDIAN_CSS).toMatch(
+      /\.provider-window-toggle button:hover:not\(\.active\)\s*\{[^}]*background:\s*var\(--purple-surface\);/,
+    );
+  });
+
+  it("keeps the scrollbar's visible thickness fixed on hover while preserving its wider hit target", () => {
+    expect(OBSIDIAN_CSS).toContain("width: var(--scrollbar-hit-size);");
+    expect(OBSIDIAN_CSS).not.toMatch(/::-webkit-scrollbar-thumb:(?:hover|active)[^{]*\{[^}]*border-width:/);
+    // The background shorthand on :hover/:active resets background-clip: content-box back to border-box,
+    // painting the full 14px hit track instead of the 6px thumb.
+    expect(OBSIDIAN_CSS).not.toMatch(/::-webkit-scrollbar-thumb:(?:hover|active)[^{]*\{[^}]*\bbackground\s*:/);
+    expect(UI_REFINEMENTS_CSS).toMatch(/\.scroll-thumb::before\s*\{[^}]*inset:/);
+    expect(UI_REFINEMENTS_CSS).not.toMatch(/\.scroll-thumb:(?:hover|active)\s*\{[^}]*width:/);
   });
 });
