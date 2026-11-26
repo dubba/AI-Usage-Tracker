@@ -349,56 +349,62 @@ export function CodeEntryView({
 
   return (
     <div className="pairing-code-entry-view">
-      <label className={`pairing-code-tiles${busy ? " is-busy" : ""}${legacy ? "" : " is-long"}`}>
-        <input
-          ref={inputRef}
-          id="pairing-join-code-input"
-          aria-label="Link code"
-          className="pairing-code-input"
-          inputMode="text"
-          autoCapitalize="characters"
-          autoCorrect="off"
-          autoComplete="off"
-          spellCheck={false}
-          value={displayValue}
-          autoFocus
-          disabled={busy}
-          onFocus={() => {
-            if (isMobileDevice()) setKeyboardOpen(true);
-          }}
-          onBlur={() => {
-            setTimeout(() => {
-              const activeEl = document.activeElement;
-              if (activeEl?.id !== "pairing-join-code-input") {
-                const vv = window.visualViewport;
-                if (!vv || window.innerHeight - vv.height <= 100) {
-                  setKeyboardOpen(false);
-                }
-              }
-            }, 120);
-          }}
-          onClick={handleInputClick}
-          onPaste={handlePaste}
-          onChange={(event) => handleInputChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          aria-describedby="pairing-code-help"
-        />
-        {slots.map((digit, index) => (
-          <span
-            key={index}
-            ref={(el) => {
-              tileRefs.current[index] = el;
+      {/* In the same card as the code it is copied from (HostCodeView). */}
+      <div className="pairing-code-hero pairing-code-entry-hero">
+        <span className="pairing-code-hero-tag" aria-hidden="true">
+          Link code
+        </span>
+        <label className={`pairing-code-tiles${busy ? " is-busy" : ""}${legacy ? "" : " is-long"}`}>
+          <input
+            ref={inputRef}
+            id="pairing-join-code-input"
+            aria-label="Link code"
+            className="pairing-code-input"
+            inputMode="text"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
+            value={displayValue}
+            autoFocus
+            disabled={busy}
+            onFocus={() => {
+              if (isMobileDevice()) setKeyboardOpen(true);
             }}
-            aria-hidden="true"
-            onClick={() => selectTile(index)}
-            className={`pairing-code-tile${digit ? " is-filled" : ""}${
-              index === activeTileIndex ? " is-active" : ""
-            }${startsGroupInRow(index) ? " group-start" : ""}`}
-          >
-            {digit}
-          </span>
-        ))}
-      </label>
+            onBlur={() => {
+              setTimeout(() => {
+                const activeEl = document.activeElement;
+                if (activeEl?.id !== "pairing-join-code-input") {
+                  const vv = window.visualViewport;
+                  if (!vv || window.innerHeight - vv.height <= 100) {
+                    setKeyboardOpen(false);
+                  }
+                }
+              }, 120);
+            }}
+            onClick={handleInputClick}
+            onPaste={handlePaste}
+            onChange={(event) => handleInputChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            aria-describedby="pairing-code-help"
+          />
+          {slots.map((digit, index) => (
+            <span
+              key={index}
+              ref={(el) => {
+                tileRefs.current[index] = el;
+              }}
+              aria-hidden="true"
+              onClick={() => selectTile(index)}
+              className={`pairing-code-tile${digit ? " is-filled" : ""}${
+                index === activeTileIndex ? " is-active" : ""
+              }${startsGroupInRow(index) ? " group-start" : ""}`}
+            >
+              {digit}
+            </span>
+          ))}
+        </label>
+      </div>
 
       <div id="pairing-code-help" className="pairing-code-status">
         {searching ? (

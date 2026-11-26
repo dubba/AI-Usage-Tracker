@@ -1301,6 +1301,20 @@
     gap: 12px;
   }
 
+  /* The card round the tiles gives up its label and some padding while the keyboard is open. */
+  .modal-card.pairing-modal.keyboard-open .pairing-code-entry-hero,
+  html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-hero,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-hero {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .modal-card.pairing-modal.keyboard-open .pairing-code-entry-hero .pairing-code-hero-tag,
+  html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-hero .pairing-code-hero-tag,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-hero .pairing-code-hero-tag {
+    display: none;
+  }
+
   .modal-card.pairing-modal.keyboard-open .pairing-code-status,
   html.keyboard-active .modal-card.pairing-modal .pairing-code-status,
   .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-status {
