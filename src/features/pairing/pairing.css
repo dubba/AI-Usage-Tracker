@@ -1861,6 +1861,11 @@
   color: var(--obsidian-muted);
 }
 
+/* Inside the code card, under the code: on a narrow phone the line wraps, centred. */
+.pairing-code-hero .pairing-searching-row {
+  text-align: center;
+}
+
 .pairing-pulse {
   position: relative;
   flex: none;

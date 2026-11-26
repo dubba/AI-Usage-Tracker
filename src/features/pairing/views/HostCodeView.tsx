@@ -69,19 +69,19 @@ export function HostCodeView({
       <div className="pairing-code-hero" aria-label={`Link code ${formatted}`}>
         <span className="pairing-code-hero-tag">Link code</span>
         <CodeDigits code={joinCode} />
+        {/* Under the code, above its countdown: what this device is doing with it. */}
+        <SearchingRow>Waiting for the other device to connect…</SearchingRow>
         {remainingSecs !== null && (
           <div className="pairing-code-expiry">
             <div className="pairing-code-expiry-track" aria-hidden="true">
               <div className="pairing-code-expiry-fill" style={{ transform: `scaleX(${left})` }} />
             </div>
             <span>
-              Expires in <strong>{formatCountdown(remainingSecs)}</strong>
+              Code Expires in <strong>{formatCountdown(remainingSecs)}</strong>
             </span>
           </div>
         )}
       </div>
-
-      <SearchingRow>Waiting for the other device to connect…</SearchingRow>
 
       {nearby && (isAndroid() || isIOS()) ? <DiscoverableNote autoPickup={autoPickup} /> : null}
 
