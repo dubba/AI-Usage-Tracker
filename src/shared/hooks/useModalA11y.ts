@@ -21,8 +21,8 @@ export function focusableElements(container: HTMLElement): HTMLElement[] {
  * - traps Tab / Shift+Tab within the dialog while it is open
  * - closes on Escape (unless an inner dropdown menu is open; the dropdown
  *   consumes Escape to close itself first)
- * - moves focus into the dialog on open (to an element marked `data-autofocus`, else the first
- *   control other than the close button) and restores it on close
+ * - moves focus into the dialog on open (to an element marked `data-autofocus`, else its ×, so
+ *   the first Tab reaches its first control) and restores it on close
  * - locks background scrolling by disabling body overflow
  *
  * `onRequestClose` should perform the modal's own close logic (including any
@@ -51,18 +51,19 @@ export function useModalA11y(
 
     if (!container.contains(document.activeElement)) {
       const candidates = focusableElements(container);
+      // Focus starts on the dialog's ×, with no ring, so the first Tab lands on its first control
+      // (shown with a ring). A control marked `data-autofocus` (a field to type in) comes first.
       const initial =
         container.querySelector<HTMLElement>("[data-autofocus]:not([disabled])") ??
-        candidates.find((el) => !el.classList.contains("ui-modal-close")) ??
+        container.querySelector<HTMLElement>(":scope > .ui-modal-close:not([disabled])") ??
         candidates[0] ??
         container;
       // A touch screen has no keyboard to need the ring, and the browser draws one for focus
       // moved by script; it showed as a box around the dialog's first button on the phones.
       const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-      // The browser decides whether the first control shows its ring: yes when the dialog was
-      // opened from the keyboard, no when it was clicked open. A dialog that starts on its ×
-      // (Pick Accent Color) never shows it there on opening: the × turns red with focus, which
-      // looks like a warning. Tab moves on to a control that shows one.
+      // The × never shows its ring on opening: it turns red with focus, which looks like a
+      // warning. Anything else is the browser's call: a ring when the dialog was opened from the
+      // keyboard, none when it was clicked open.
       const onClose = initial.classList.contains("ui-modal-close");
       initial.focus(touch || onClose ? { preventScroll: true, focusVisible: false } : { preventScroll: true });
     }

@@ -57,14 +57,14 @@ describe("useModalA11y", () => {
     expect(document.activeElement).toBe(opener);
   });
 
-  it("starts on a marked × without showing its focus ring", () => {
+  it("starts on the × without showing its focus ring", () => {
     const focus = vi.spyOn(HTMLElement.prototype, "focus");
     function CloseFirst() {
       const ref = useRef<HTMLElement>(null);
       useModalA11y(ref, true, () => {});
       return (
         <section ref={ref} role="dialog" aria-modal="true">
-          <button type="button" className="ui-modal-close" data-autofocus>
+          <button type="button" className="ui-modal-close">
             ×
           </button>
           <button type="button">First action</button>

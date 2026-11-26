@@ -372,15 +372,26 @@ export function PairingModal({
     });
   }, [open, status.status, intendedRole, setErrorMessage]);
 
-  // Focus management when the view or status changes so focus doesn't get lost
+  // Focus management when the view or status changes so focus doesn't get lost. On opening, focus
+  // rests on the × (useModalA11y) so the first Tab reaches the first control; when the screen
+  // changes after that, focus resting on the × moves to the new screen's control (Try Again…).
+  const focusOpeningRef = useRef(true);
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      focusOpeningRef.current = true;
+      return;
+    }
     const container = dialogRef.current;
     if (!container) return;
+    // Only the run for opening itself: a screen change before its timer fires is not one.
+    const opening = focusOpeningRef.current;
+    focusOpeningRef.current = false;
 
     const timer = setTimeout(() => {
       if (!container.isConnected) return;
-      if (!container.contains(document.activeElement)) {
+      const active = document.activeElement;
+      const onClose = active instanceof HTMLElement && active.classList.contains("ui-modal-close");
+      if (!container.contains(active) || (onClose && !opening)) {
         const retry = container.querySelector<HTMLButtonElement>(".pairing-retry-btn");
         if (retry) {
           retry.focus({ preventScroll: true });

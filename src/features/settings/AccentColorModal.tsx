@@ -208,8 +208,6 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
       describedBy={customOpen ? undefined : subtitleId}
       className="accent-color-modal"
       backdropClassName="accent-color-modal-backdrop"
-      // Focus starts on the hex input in Custom Color, and on the × in Presets.
-      focusCloseFirst={!customOpen}
       onClose={requestClose}
     >
       <div className="modal-kicker">Accent color</div>

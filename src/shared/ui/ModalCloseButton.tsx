@@ -2,17 +2,9 @@ import { CloseIcon } from "./icons";
 
 /**
  * The × in a dialog's top corner. `onClose` should be the same handler as the dialog's Cancel button.
- * `focusFirst` makes it where focus starts when the dialog opens (`useModalA11y`'s `data-autofocus`).
+ * Focus starts here when the dialog opens (`useModalA11y`).
  */
-export function ModalCloseButton({
-  onClose,
-  disabled,
-  focusFirst,
-}: {
-  onClose: () => void;
-  disabled?: boolean;
-  focusFirst?: boolean;
-}) {
+export function ModalCloseButton({ onClose, disabled }: { onClose: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -21,7 +13,6 @@ export function ModalCloseButton({
       onClick={onClose}
       disabled={disabled}
       aria-label="Close dialog"
-      data-autofocus={focusFirst || undefined}
     >
       <CloseIcon />
     </button>

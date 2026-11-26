@@ -20,7 +20,6 @@ export function ModalDialog({
   backdropClassName = "",
   onClose,
   closeDisabled,
-  focusCloseFirst,
   afterDialog,
   children,
 }: {
@@ -35,8 +34,6 @@ export function ModalDialog({
   backdropClassName?: string;
   onClose: () => void;
   closeDisabled?: boolean;
-  /** Focus starts on the × when the dialog opens, instead of its first control. */
-  focusCloseFirst?: boolean;
   /** Rendered inside the backdrop, after the dialog section: dialogs opened from this one. */
   afterDialog?: ReactNode;
   children: ReactNode;
@@ -52,7 +49,7 @@ export function ModalDialog({
         aria-describedby={describedBy}
         tabIndex={-1}
       >
-        <ModalCloseButton onClose={onClose} disabled={closeDisabled} focusFirst={focusCloseFirst} />
+        <ModalCloseButton onClose={onClose} disabled={closeDisabled} />
         {children}
       </section>
       {afterDialog}
