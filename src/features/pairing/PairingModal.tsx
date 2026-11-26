@@ -42,7 +42,7 @@ import { CodeEntryView } from "./views/CodeEntryView";
 import { FileReceiveView, FileSendView } from "./views/FileTransferViews";
 import { HostCodeView } from "./views/HostCodeView";
 import { ModeSelectView } from "./views/ModeSelectView";
-import { RoleSelectView } from "./views/RoleSelectView";
+import { RoleSelectView, SecurityNote } from "./views/RoleSelectView";
 import { ScannerView } from "./views/ScannerView";
 import {
   ApplyingRolePanel,
@@ -712,6 +712,8 @@ export function PairingModal({
           {isWaitingState && (viewMode === "select-mode" || viewMode === "host") ? (
             <BackButton onClick={goBack} />
           ) : null}
+          {/* Step 1: the encryption note on the left, Cancel on the right. */}
+          {isWaitingState && viewMode === "select-role" ? <SecurityNote /> : null}
           {status.status === "failed" ? (
             <>
               <BackButton onClick={() => leaveAttempt("select-role")} />

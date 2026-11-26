@@ -583,34 +583,29 @@
   cursor: default;
 }
 
+/* Step 1's footer note: muted text with the shield, not a pill, on the left of Cancel. */
 .pairing-security-note {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  font-size: 0.71rem;
+  margin-right: auto;
+  font-size: 0.76rem;
   line-height: 1.25;
   white-space: nowrap;
   color: var(--obsidian-muted);
-  background: rgb(var(--purple-accent-rgb) / 0.06);
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.15);
-  border-radius: 8px;
-  padding: 6px 10px;
-  box-sizing: border-box;
 }
 
 @media (max-width: 360px) {
   .pairing-security-note {
-    font-size: 0.68rem;
-    padding: 5px 8px;
+    font-size: 0.7rem;
     gap: 5px;
   }
 }
 
 .pairing-security-note svg {
-  width: 14px;
-  height: 14px;
-  color: var(--obsidian-green);
+  width: 15px;
+  height: 15px;
+  color: var(--obsidian-muted);
   flex-shrink: 0;
 }
 
@@ -636,63 +631,73 @@
   color: var(--obsidian-muted);
 }
 
+/* Send and Receive: the main choice, two rows of one raised card (the Sending screen's surface),
+   each with a chevron as it moves the flow on. Both icons use the accent. */
 .pairing-role-cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   width: 100%;
+  background: color-mix(in srgb, var(--obsidian-text) 5%, var(--obsidian-surface-low));
+  border: 1px solid color-mix(in srgb, var(--obsidian-text) 9%, transparent);
+  border-radius: 14px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .pairing-role-card {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  /* Bottom inset matches .pairing-settings-toggle so the description
-     does not sit on the card border. */
-  padding: 12px 10px 10px;
-  background: var(--obsidian-surface-low);
-  border: 1px solid var(--obsidian-border);
-  border-radius: 10px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 14px 14px 16px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   text-align: left;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: background-color 0.15s ease;
   color: var(--obsidian-text);
+  font: inherit;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
+.pairing-role-card + .pairing-role-card {
+  border-top: 1px solid color-mix(in srgb, var(--obsidian-text) 7%, transparent);
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .pairing-role-card:hover {
-    background: var(--obsidian-surface-container, #222124);
-    border-color: var(--obsidian-purple-strong);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  .pairing-role-card:hover:not(:disabled) {
+    background: var(--purple-surface);
   }
 }
 
-.pairing-role-card:active {
-  transform: translateY(0);
-  background: var(--obsidian-surface-container, #222124);
+.pairing-role-card:active:not(:disabled) {
+  background: var(--purple-surface-active);
 }
 
-.pairing-role-card-icon {
+.pairing-role-card:focus-visible {
+  outline: 2px solid var(--obsidian-purple);
+  outline-offset: -2px;
+}
+
+.pairing-role-card:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pairing-role-card-icon,
+.pairing-role-card-icon.send,
+.pairing-role-card-icon.receive {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 9px;
+  border-radius: 50%;
   flex-shrink: 0;
-}
-
-.pairing-role-card-icon.send {
   background: rgb(var(--purple-accent-rgb) / 0.14);
   color: var(--obsidian-purple);
-}
-
-.pairing-role-card-icon.receive {
-  background: rgb(var(--tint-green-rgb) / 0.14);
-  color: var(--obsidian-green);
 }
 
 .pairing-role-card-icon svg {
@@ -708,7 +713,7 @@
 .pairing-role-card-title {
   display: block;
   margin: 0 0 2px 0;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   font-weight: 600;
   color: var(--obsidian-text);
 }
@@ -723,9 +728,16 @@
 .pairing-role-card-desc {
   display: block;
   margin: 0;
-  font-size: 0.775rem;
+  font-size: 0.78rem;
   color: var(--obsidian-muted);
-  line-height: 1.3;
+  line-height: 1.35;
+}
+
+.pairing-role-card-chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--obsidian-muted);
 }
 
 /* Status Panels */
@@ -872,72 +884,46 @@
   animation: fadeIn 0.2s ease-in-out;
 }
 
-.pairing-settings-toggle {
+/* Also sync settings and layout: a quiet row with the app's switch, under the choices it applies
+   to, the same width as them. */
+.modal-card.pairing-modal .pairing-settings-toggle {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 14px;
   width: 100%;
-  max-width: 380px;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.22);
-  border-radius: 10px;
-  background: rgb(var(--purple-accent-rgb) / 0.06);
+  margin: 0;
+  padding: 12px 14px 12px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--obsidian-text) 3%, transparent);
   cursor: pointer;
   text-align: left;
-}
-
-.pairing-settings-toggle input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  display: grid;
-  place-items: center;
   box-sizing: border-box;
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
-  padding: 0;
-  border: 1.5px solid var(--obsidian-border-strong);
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
-.pairing-settings-toggle input[type="checkbox"]:checked {
-  background: var(--purple-fill);
-  border-color: var(--purple-fill);
-}
-
-.pairing-settings-toggle input[type="checkbox"]:checked::after {
-  content: "";
-  width: 4px;
-  height: 7px;
-  margin-top: -1px;
-  border: solid var(--purple-on-fill);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.pairing-settings-toggle input[type="checkbox"]:focus-visible {
-  outline: 2px solid var(--purple-fill);
-  outline-offset: 2px;
-}
-
-.pairing-settings-toggle span {
+.pairing-settings-toggle-text {
   display: grid;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pairing-settings-toggle-text strong {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--obsidian-text);
   line-height: 1.25;
 }
 
-.pairing-settings-toggle small {
-  font-size: 0.74rem;
+.pairing-settings-toggle-text small {
+  font-size: 0.76rem;
   font-weight: 400;
   color: var(--obsidian-muted);
-  line-height: 1.3;
+  line-height: 1.35;
+}
+
+.pairing-settings-toggle .toggle {
+  flex: none;
 }
 
 .airgap-sender-content .pairing-settings-toggle {

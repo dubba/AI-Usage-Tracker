@@ -1,8 +1,13 @@
+import { useId } from "react";
+import { SettingsToggleRow } from "../../settings/SettingsToggleRow";
 import { ShieldIcon } from "../../../shared/ui/icons";
 import type { IntendedRole } from "../lib/view-model";
 import { RoleCards } from "./RoleCards";
 
-/** Step 1: send or receive, and whether to bring settings and layout along. */
+/**
+ * Step 1: send or receive, and whether to bring settings and layout along. The two choices are
+ * the main actions; the settings option is a quiet switch under them, read before either is tapped.
+ */
 export function RoleSelectView({
   includeSettings,
   onIncludeSettingsChange,
@@ -12,24 +17,32 @@ export function RoleSelectView({
   onIncludeSettingsChange: (include: boolean) => void;
   onChoose: (role: IntendedRole) => void;
 }) {
+  const labelId = useId();
   return (
     <div className="pairing-role-selection-view">
       <RoleCards onChoose={onChoose} />
 
-      <label className="pairing-settings-toggle">
-        <input type="checkbox" checked={includeSettings} onChange={(e) => onIncludeSettingsChange(e.target.checked)} />
-        <span>
-          Also Sync Settings and Layout
-          <small>
-            Includes appearance, menu bar labels, launch at startup, account refresh intervals, automatic updates, app alerts, and card ordering.
-          </small>
-        </span>
-      </label>
+      <SettingsToggleRow
+        className="pairing-settings-toggle"
+        checked={includeSettings}
+        labelledBy={labelId}
+        onChange={onIncludeSettingsChange}
+      >
+        <div className="pairing-settings-toggle-text">
+          <strong id={labelId}>Also sync settings and layout</strong>
+          <small>Includes appearance, alerts, refresh intervals, and card order.</small>
+        </div>
+      </SettingsToggleRow>
+    </div>
+  );
+}
 
-      <div className="pairing-security-note">
-        <ShieldIcon />
-        <span>End-to-end encrypted device sync</span>
-      </div>
+/** The reassurance in step 1's footer, beside Cancel: muted text, not a control. */
+export function SecurityNote() {
+  return (
+    <div className="pairing-security-note">
+      <ShieldIcon />
+      <span>End-to-end encrypted device sync</span>
     </div>
   );
 }

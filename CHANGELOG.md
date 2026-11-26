@@ -9,7 +9,7 @@
 
 ### Improved (4)
 
-- Dialogs have rounder corners and round close (X) buttons, and the Sync Devices "Sending by …" screen is calmer: one accent color for the current step and the main button, a quiet note instead of the "Why AirDrop?" card, and Done as the one filled button.
+- Dialogs have rounder corners and round close (X) buttons, and the Sync Devices "Sending by …" screen is calmer: one accent color for the current step and the main button, a quiet note instead of the "Why AirDrop?" card, and Done as the one filled button. Its first screen leads with "Send from this device" and "Receive on this device" as one card with arrows, with "Also sync settings and layout" as a switch below and the encryption note beside Cancel.
 - When sending by AirDrop, Quick Share or Nearby Sharing, the "Sending by …" screen now moves on to "Accept and confirm" once the file has gone: on a Mac or iPhone when AirDrop reports the other device accepted it, on Android or Windows once Quick Share or Nearby Sharing is chosen (those systems report nothing after). If AirDrop fails or the menu is closed, it stays on "Select the other device".
 - Outlined buttons and dropdowns now fill with a tint of the accent color when you point at them, instead of only changing their border.
 - Copy Diagnostics now shows the exact size and a short fingerprint of each Sync Devices transfer file on both the sending and receiving device, so a wrong code can be told apart from a file that changed on the way.

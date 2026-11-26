@@ -176,7 +176,7 @@ export function pairingHeader(input: {
     subtitle = "For a device with an older version of the app, or one that is not on the same Wi-Fi.";
   } else if (waiting && viewMode === "select-role") {
     title = "Send or Receive Accounts";
-    subtitle = "Step 1: Choose a role for this device.";
+    subtitle = "Choose a role for this device.";
   }
 
   // The air-gap receiver has every frame: it asks to add the accounts.
