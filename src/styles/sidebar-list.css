@@ -252,6 +252,19 @@
     text-transform: none;
   }
 
+  /* Mobile Settings scrolls as one page (header + cards together) so the borderless title scrolls
+     off with the content instead of pinning at the top. */
+  .obsidian-shell .settings-style-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .obsidian-shell .settings-style-content .dashboard-scroll {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
   /* Mobile Settings header: seamless canvas background without a bottom border, framed gear badge,
      natural white title, and visible subtitle underneath. */
   .settings-style-content .dashboard-header {

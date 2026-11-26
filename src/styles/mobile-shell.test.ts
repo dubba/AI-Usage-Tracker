@@ -107,6 +107,12 @@ describe("mobile shell clears the bottom bar", () => {
       /\.sidebar-mobile-header\s+\.eyebrow\.sidebar-title\s*\{[^}]*color:\s*var\(--c-ffffff\);[^}]*text-transform:\s*none;/,
     );
     expect(mobileCss).toMatch(
+      /\.obsidian-shell\s+\.settings-style-content\s*\{[^}]*overflow-y:\s*auto;[^}]*overflow-x:\s*hidden;/,
+    );
+    expect(mobileCss).toMatch(
+      /\.obsidian-shell\s+\.settings-style-content\s+\.dashboard-scroll\s*\{[^}]*flex:\s*0 0 auto;[^}]*overflow:\s*visible;/,
+    );
+    expect(mobileCss).toMatch(
       /\.settings-style-content\s+\.dashboard-header\s*\{[^}]*background:\s*var\(--obsidian-canvas\);[^}]*border-bottom:\s*0;/,
     );
     expect(mobileCss).toMatch(

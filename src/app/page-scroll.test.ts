@@ -57,6 +57,32 @@ describe("page scroll memory", () => {
     expect(settings.scrollTop).toBe(150);
   });
 
+  it("remembers and restores scroll on the outer Settings container when mobile scrolls header and cards together", () => {
+    document.body.innerHTML = `
+      <main class="main-stage">
+        <div class="kept-page" data-page="settings">
+          <div class="content-scroll dashboard-content settings-style-content">
+            <header class="dashboard-header"></header>
+            <div class="dashboard-scroll"></div>
+          </div>
+        </div>
+      </main>`;
+    const outer = document.querySelector<HTMLElement>(".settings-style-content")!;
+    const inner = document.querySelector<HTMLElement>(".dashboard-scroll")!;
+    Object.defineProperty(outer, "scrollHeight", { configurable: true, get: () => 2000 });
+    Object.defineProperty(outer, "clientHeight", { configurable: true, get: () => 500 });
+    Object.defineProperty(inner, "scrollHeight", { configurable: true, get: () => 1800 });
+    Object.defineProperty(inner, "clientHeight", { configurable: true, get: () => 1800 });
+
+    outer.scrollTop = 260;
+    rememberVisiblePageScroll();
+    outer.scrollTop = 0;
+
+    expect(restorePageScroll("settings")).toBe(true);
+    expect(outer.scrollTop).toBe(260);
+    expect(inner.scrollTop).toBe(0);
+  });
+
   it("keeps the saved place while the page is too short to scroll", () => {
     const { usage } = installPages();
     usage.scrollTop = 320;

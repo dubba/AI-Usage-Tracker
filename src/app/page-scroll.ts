@@ -8,9 +8,18 @@ const positions = new Map<string, number>();
 
 const PAGES = new Set(["activity", "accounts", "settings"]);
 
+function scrollerIn(page: HTMLElement | null): HTMLElement | null {
+  if (!page) return null;
+  const inner = page.querySelector<HTMLElement>(".dashboard-scroll");
+  if (inner && inner.scrollHeight > inner.clientHeight) return inner;
+  const outer = page.querySelector<HTMLElement>(".settings-style-content");
+  if (outer && outer.scrollHeight > outer.clientHeight) return outer;
+  return inner ?? outer;
+}
+
 function scrollerFor(page: string): HTMLElement | null {
-  return document.querySelector<HTMLElement>(
-    `.main-stage .kept-page[data-page="${CSS.escape(page)}"] .dashboard-scroll`,
+  return scrollerIn(
+    document.querySelector<HTMLElement>(`.main-stage .kept-page[data-page="${CSS.escape(page)}"]`),
   );
 }
 
@@ -18,7 +27,7 @@ function scrollerFor(page: string): HTMLElement | null {
 export function rememberVisiblePageScroll(): void {
   const page = document.querySelector<HTMLElement>(".main-stage .kept-page:not([hidden])");
   const key = page?.dataset.page;
-  const scroller = page?.querySelector<HTMLElement>(".dashboard-scroll");
+  const scroller = scrollerIn(page);
   if (!key || !scroller || !PAGES.has(key)) return;
   positions.set(key, scroller.scrollTop);
 }
