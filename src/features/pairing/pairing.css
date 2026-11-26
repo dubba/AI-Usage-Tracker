@@ -2303,7 +2303,6 @@
 :root .modal-card.pairing-modal > .ui-modal-close {
   top: 16px;
   right: 24px;
-  border-radius: 50%;
 }
 
 :root .modal-card.pairing-modal > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active) {

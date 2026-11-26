@@ -2328,7 +2328,7 @@ select.text-input option,
 
 .modal-card {
   border: 1px solid var(--obsidian-border-strong);
-  border-radius: 8px;
+  border-radius: 16px;
   background: var(--obsidian-surface-low);
   box-shadow: 0 22px 80px rgba(0, 0, 0, 0.52);
   overflow: visible;

@@ -24,7 +24,8 @@
   /* A quiet outlined button at rest, in both themes: red is kept for hover, focus and press, so it
      does not outshout the dialog's own actions. In light these tokens are #c4bfd0 / #ffffff. */
   border: 1px solid var(--obsidian-border-strong);
-  border-radius: 8px;
+  /* Round, like the dialogs' softer corners. */
+  border-radius: 50%;
   background: var(--obsidian-surface-low);
   color: var(--muted);
   line-height: 0;
