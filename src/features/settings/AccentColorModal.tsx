@@ -224,8 +224,6 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
 
       {customOpen ? (
         <div className="accent-custom-view">
-          <h3 className="accent-custom-title">Custom Color</h3>
-
           <div
             ref={svRef}
             className="accent-sv-plane"

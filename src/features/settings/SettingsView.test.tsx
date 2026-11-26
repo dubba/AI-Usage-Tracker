@@ -193,7 +193,8 @@ describe("General", () => {
       expect(modal.textContent).not.toContain("Tap the color twice");
       const customBox = modal.querySelector(".accent-custom-view")!;
       expect(customBox).not.toBeNull();
-      expect(customBox.textContent).toContain("Custom Color");
+      // No heading of its own: the dialog's title says what it is.
+      expect(customBox.querySelector("h3")).toBeNull();
       expect(customBox.querySelector(".accent-sv-plane")).not.toBeNull();
       expect(customBox.querySelector('[role="slider"][aria-label="Hue"]')).not.toBeNull();
 

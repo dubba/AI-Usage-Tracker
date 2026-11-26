@@ -261,15 +261,6 @@
     margin-top: 14px;
   }
 
-  .accent-custom-title {
-    margin: 0;
-    font-size: 1.05rem;
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--obsidian-text);
-    text-align: center;
-  }
-
   /* Done on the right in both views; Presets (back to the grid) on the left in the custom view. */
   .accent-modal-actions {
     display: flex;
