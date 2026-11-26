@@ -158,12 +158,13 @@ describe("General", () => {
       const trigger = document.querySelector<HTMLButtonElement>("#setting-accent-color")!;
       expect(trigger.textContent?.trim()).toBe("Purple");
 
-      // Open the custom "Pick accent color" modal.
+      // Open the custom "Pick Accent Color" modal.
       click(trigger);
       expect(document.querySelector(".modal-backdrop.accent-color-modal-backdrop")).not.toBeNull();
       const modal = document.querySelector(".accent-color-modal")!;
       expect(modal).not.toBeNull();
-      expect(modal.textContent).toContain("Pick accent color");
+      expect(modal.textContent).toContain("Accent color");
+      expect(modal.textContent).toContain("Pick Accent Color");
       expect(modal.textContent).toContain("Tap the color twice to toggle between Light and Dark mode");
       expect(modal.querySelector(".accent-custom-view")).toBeNull();
 

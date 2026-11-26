@@ -267,6 +267,7 @@
     font-weight: 700;
     line-height: 1.25;
     color: var(--obsidian-text);
+    text-align: center;
   }
 
   /* Done on the right in both views; Presets (back to the grid) on the left in the custom view. */
@@ -396,27 +397,14 @@
   width: calc(100vw - 32px);
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
-  padding: 28px 24px 26px;
-  text-align: center;
 }
 
-.modal-card.accent-color-modal > h2.accent-color-modal-title {
-  margin: 0 0 8px;
-  padding: 0 24px;
-  font-size: 1.25rem;
-  font-weight: 750;
-  line-height: 1.25;
-  color: var(--obsidian-text);
-  text-align: center;
-}
-
+/* Kicker, title and padding are every dialog's; the subtitle matches Sync Devices'. */
 .modal-card.accent-color-modal > p.accent-color-modal-subtitle {
-  margin: 0 auto 22px;
-  max-width: 260px;
-  font-size: 0.9rem;
+  margin: 0 0 20px;
+  font-size: 0.84rem;
   line-height: 1.4;
   color: var(--obsidian-muted);
-  text-align: center;
 }
 
 /* Mobile keyboard adaptation: shrink the backdrop to the space above the on-screen
