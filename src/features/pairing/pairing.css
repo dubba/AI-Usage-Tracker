@@ -676,9 +676,19 @@
   background: var(--purple-surface-active);
 }
 
+/* The keyboard ring follows the card's rounded corners: the top row's top ones, the bottom row's
+   bottom ones (the card is 14px round with a 1px edge). */
 .pairing-role-card:focus-visible {
   outline: 2px solid var(--obsidian-purple);
   outline-offset: -2px;
+}
+
+.pairing-role-card:first-child {
+  border-radius: 13px 13px 0 0;
+}
+
+.pairing-role-card:last-child {
+  border-radius: 0 0 13px 13px;
 }
 
 .pairing-role-card:disabled {
