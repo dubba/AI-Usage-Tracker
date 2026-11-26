@@ -1130,293 +1130,55 @@
   }
 }
 
-/* Mobile Keyboard Adaptation: Move modals 20px above on-screen keyboard when keyboard appears */
+/* Mobile Keyboard Adaptation: shrink the backdrop to the space above the on-screen keyboard and
+   safely center the full-size modal between the status bar and keyboard without squeezing it. */
 @media (max-width: 768px) {
   .modal-backdrop.keyboard-open:has(.pairing-modal),
   .modal-backdrop.keyboard-open:has(.provider-connection-modal),
+  .modal-backdrop.keyboard-open:has(.bucket-modal-card),
   html.keyboard-active .modal-backdrop:has(.pairing-modal),
   html.keyboard-active .modal-backdrop:has(.provider-connection-modal),
+  html.keyboard-active .modal-backdrop:has(.bucket-modal-card),
   .modal-backdrop:has(.pairing-modal.keyboard-open),
   .modal-backdrop:has(.pairing-modal.view-code-entry.keyboard-open),
-  .modal-backdrop:has(.provider-connection-modal.keyboard-open) {
-    align-items: flex-end !important;
+  .modal-backdrop:has(.provider-connection-modal.keyboard-open),
+  .modal-backdrop:has(.bucket-modal-card.keyboard-open) {
+    bottom: max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) !important;
+    height: auto !important;
+    max-height: none !important;
+    align-items: flex-start !important;
     justify-content: center !important;
     padding-top: calc(max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) + 8px) !important;
-    padding-bottom: calc(max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 240px) + 20px) !important;
+    padding-bottom: 12px !important;
     overflow-y: auto !important;
     overscroll-behavior: contain !important;
     -webkit-overflow-scrolling: touch !important;
   }
 
   .modal-card.pairing-modal,
-  .modal-card.provider-connection-modal {
+  .modal-card.provider-connection-modal,
+  .modal-card.bucket-modal-card {
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease, margin 0.22s ease;
   }
 
   .modal-card.pairing-modal.keyboard-open,
   html.keyboard-active .modal-card.pairing-modal,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open {
-    margin-top: auto !important;
-    margin-bottom: 0 !important;
-    transform: translateY(0) !important;
-    padding: 14px 14px 16px !important;
-    overflow: visible !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
-  }
-
+  .modal-card.pairing-modal.view-code-entry.keyboard-open,
   .modal-card.provider-connection-modal.keyboard-open,
-  html.keyboard-active .modal-card.provider-connection-modal {
-    margin-top: auto !important;
-    margin-bottom: 0 !important;
-    transform: translateY(0) !important;
-    padding: 16px 18px 18px !important;
-    overflow: visible !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
-  }
-
-  /* Compact header in keyboard mode only for Add Account modal */
-  .modal-card.provider-connection-modal.keyboard-open .modal-kicker,
-  html.keyboard-active .modal-card.provider-connection-modal .modal-kicker {
-    font-size: 8px !important;
-    margin-bottom: 2px !important;
-  }
-
-  .modal-card.provider-connection-modal.keyboard-open h2,
-  html.keyboard-active .modal-card.provider-connection-modal h2 {
-    font-size: 18px !important;
-    margin: 2px 0 4px !important;
-  }
-
-  /* Compact copy and fields in Add Account modal when keyboard is open */
-  .modal-card.provider-connection-modal.keyboard-open p,
-  html.keyboard-active .modal-card.provider-connection-modal p {
-    margin: 0 0 10px 0 !important;
-    font-size: 0.78rem !important;
-    line-height: 1.35 !important;
-  }
-
-  .modal-card.provider-connection-modal.keyboard-open .field-spaced,
-  html.keyboard-active .modal-card.provider-connection-modal .field-spaced {
-    margin-top: 8px !important;
-  }
-
-  .modal-card.provider-connection-modal.keyboard-open .field-label,
-  html.keyboard-active .modal-card.provider-connection-modal .field-label {
-    font-size: 0.78rem !important;
-    margin-bottom: 3px !important;
-  }
-
-  .modal-card.provider-connection-modal.keyboard-open .text-input,
-  html.keyboard-active .modal-card.provider-connection-modal .text-input {
-    padding: 8px 12px !important;
-    font-size: 0.88rem !important;
-  }
-
-  .modal-card.provider-connection-modal.keyboard-open .credential-note,
-  html.keyboard-active .modal-card.provider-connection-modal .credential-note {
-    margin-top: 4px !important;
-    font-size: 10px !important;
-    line-height: 1.35 !important;
-  }
-
-  .modal-card.provider-connection-modal.keyboard-open .guided-login-card,
-  html.keyboard-active .modal-card.provider-connection-modal .guided-login-card {
-    margin-top: 8px !important;
-    padding: 8px 12px !important;
-  }
-
-  .modal-card.provider-connection-modal.keyboard-open .guided-login-card ol,
-  html.keyboard-active .modal-card.provider-connection-modal .guided-login-card ol {
-    margin: 6px 0 8px !important;
-  }
-
-  .modal-card.provider-connection-modal.keyboard-open .google-model-list,
-  html.keyboard-active .modal-card.provider-connection-modal .google-model-list {
-    max-height: 140px !important;
-  }
-
-  .modal-card.provider-connection-modal.keyboard-open .modal-actions,
-  html.keyboard-active .modal-card.provider-connection-modal .modal-actions {
-    margin-top: 12px !important;
-  }
-
-  /* Create / Edit Group Modal: Pin to top ceiling when keyboard is open on mobile */
-  .modal-card.bucket-modal-card {
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease, margin 0.22s ease;
-  }
-
-  .modal-backdrop.keyboard-open:has(.bucket-modal-card),
-  html.keyboard-active .modal-backdrop:has(.bucket-modal-card),
-  .modal-backdrop:has(.bucket-modal-card.keyboard-open) {
-    align-items: flex-start !important;
-    justify-content: center !important;
-    padding-top: calc(max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) + 6px) !important;
-    padding-bottom: calc(max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) + 10px) !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
+  html.keyboard-active .modal-card.provider-connection-modal,
   .modal-card.bucket-modal-card.keyboard-open,
   html.keyboard-active .modal-card.bucket-modal-card {
-    margin-top: 0 !important;
+    margin-top: auto !important;
     margin-bottom: auto !important;
+    max-height: none !important;
     transform: translateY(0) !important;
-    padding: 14px 16px 16px !important;
     overflow: visible !important;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
-  }
-
-  /* Compact header and elements for Group modal when keyboard is open */
-  .modal-card.bucket-modal-card.keyboard-open .modal-kicker,
-  html.keyboard-active .modal-card.bucket-modal-card .modal-kicker {
-    font-size: 8px !important;
-    margin-bottom: 2px !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open h2,
-  html.keyboard-active .modal-card.bucket-modal-card h2 {
-    font-size: 17px !important;
-    margin: 2px 0 3px !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open p,
-  html.keyboard-active .modal-card.bucket-modal-card p {
-    font-size: 0.74rem !important;
-    margin: 0 0 6px 0 !important;
-    line-height: 1.3 !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open .bucket-modal-form,
-  html.keyboard-active .modal-card.bucket-modal-card .bucket-modal-form {
-    margin-top: 6px !important;
-    gap: 8px !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open .field-label,
-  html.keyboard-active .modal-card.bucket-modal-card .field-label {
-    font-size: 0.76rem !important;
-    margin-bottom: 2px !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open .text-input,
-  html.keyboard-active .modal-card.bucket-modal-card .text-input {
-    padding: 6px 10px !important;
-    font-size: 0.85rem !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open .bucket-account-heading,
-  html.keyboard-active .modal-card.bucket-modal-card .bucket-account-heading {
-    margin-bottom: 4px !important;
-    gap: 8px !important;
   }
 
   .modal-card.bucket-modal-card.keyboard-open .bucket-account-picker-list,
   html.keyboard-active .modal-card.bucket-modal-card .bucket-account-picker-list {
     max-height: 140px !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open .bucket-account-picker-scroll,
-  html.keyboard-active .modal-card.bucket-modal-card .bucket-account-picker-scroll {
-    padding: 4px !important;
-    gap: 4px !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open .bucket-account-picker-scroll.has-overflow,
-  html.keyboard-active .modal-card.bucket-modal-card .bucket-account-picker-scroll.has-overflow {
-    padding-right: calc(4px + var(--scrollbar-size)) !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open .bucket-account-item,
-  html.keyboard-active .modal-card.bucket-modal-card .bucket-account-item {
-    padding: 6px 8px !important;
-    gap: 8px !important;
-  }
-
-  .modal-card.bucket-modal-card.keyboard-open .bucket-modal-actions,
-  html.keyboard-active .modal-card.bucket-modal-card .bucket-modal-actions {
-    margin-top: 6px !important;
-    gap: 8px !important;
-  }
-
-  /* Shorten the gaps between elements when the keyboard pushes the modal up, keeping the 12 letter
-     tiles at their full size while Back and Connect stay comfortably visible above the keyboard. */
-  .modal-card.pairing-modal.keyboard-open h2,
-  html.keyboard-active .modal-card.pairing-modal h2,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open h2 {
-    margin: 4px 0 4px;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-step-dots,
-  html.keyboard-active .modal-card.pairing-modal .pairing-step-dots,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-step-dots {
-    margin: 8px auto;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-subtitle,
-  .modal-card.pairing-modal.keyboard-open p.pairing-subtitle,
-  .modal-card.pairing-modal.keyboard-open:has(.pairing-code-entry-view) p.pairing-subtitle,
-  html.keyboard-active .modal-card.pairing-modal .pairing-subtitle,
-  html.keyboard-active .modal-card.pairing-modal p.pairing-subtitle,
-  html.keyboard-active .modal-card.pairing-modal:has(.pairing-code-entry-view) p.pairing-subtitle,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-subtitle,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open p.pairing-subtitle {
-    margin: 0 0 12px 0;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-code-entry-view,
-  html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-view,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-view {
-    gap: 12px;
-  }
-
-  /* The code group drops its sub-header and tightens its gap while the keyboard is open. */
-  .modal-card.pairing-modal.keyboard-open .pairing-code-entry-hero,
-  html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-hero,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-hero {
-    gap: 8px;
-    padding: 0;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-code-entry-hero .pairing-code-hero-tag,
-  html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-hero .pairing-code-hero-tag,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-hero .pairing-code-hero-tag {
-    display: none;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-code-status,
-  html.keyboard-active .modal-card.pairing-modal .pairing-code-status,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-status {
-    min-height: 0;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-code-help,
-  html.keyboard-active .modal-card.pairing-modal .pairing-code-help,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-help {
-    font-size: 0.72rem !important;
-    margin: 0 !important;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-security-note,
-  html.keyboard-active .modal-card.pairing-modal .pairing-security-note,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-security-note {
-    font-size: 0.68rem !important;
-    padding: 4px 8px !important;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-scanner-controls,
-  html.keyboard-active .modal-card.pairing-modal .pairing-scanner-controls,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-scanner-controls {
-    margin-top: 0 !important;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-scanner-controls .button,
-  html.keyboard-active .modal-card.pairing-modal .pairing-scanner-controls .button,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-scanner-controls .button {
-    padding: 10px 14px !important;
-    font-size: 0.85rem !important;
   }
 }
 

@@ -71,14 +71,18 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
   useModalA11y(dialogRef, true, requestClose);
 
   const isCustomActive = !MODAL_ACCENT_PRESETS.some((preset) => preset.hex === accentColor);
-  const hexInputRef = useRef<HTMLInputElement>(null);
   const customTileRef = useRef<HTMLButtonElement>(null);
   const viewSwitched = useRef(false);
 
-  // Switching views removes the focused button: move focus into the new view.
+  // Switching views removes the focused button: move focus into the new view without pulling up
+  // the mobile keyboard on the hex input.
   useEffect(() => {
     if (!viewSwitched.current) return;
-    (customOpen ? hexInputRef : customTileRef).current?.focus();
+    if (customOpen) {
+      dialogRef.current?.focus({ preventScroll: true });
+    } else {
+      customTileRef.current?.focus();
+    }
   }, [customOpen]);
 
   const showView = (custom: boolean) => {
@@ -264,7 +268,6 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
               Hex color
             </label>
             <input
-              ref={hexInputRef}
               id="accent-custom-hex-input"
               type="text"
               className="text-input accent-hex-input"
@@ -273,7 +276,6 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
               spellCheck={false}
               autoComplete="off"
               aria-label="Hex color"
-              data-autofocus
               onChange={(event) => onHexChange(event.target.value)}
             />
             <button

@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Fixed (1)
+
+- On phones, opening or switching to Custom Color in Pick Accent Color no longer auto-focuses the hex input (so the on-screen keyboard stays closed until you tap it), and modals with an open keyboard now center across the full space up to the status bar instead of squeezing or hugging the keyboard.
 
 ## v0.7.1 - 2026-11-26 (12 changes)
 
