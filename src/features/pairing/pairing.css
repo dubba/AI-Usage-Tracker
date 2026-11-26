@@ -1773,7 +1773,9 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 16px 16px 14px;
+  /* More at the bottom than the top: the label's line leaves more room above its letters
+     than the last line leaves below its own, so the space you see is the same (about 20px). */
+  padding: 16px 16px 18px;
   border-radius: 16px;
   border: 1px solid rgb(var(--purple-accent-rgb) / 0.3);
   background:
