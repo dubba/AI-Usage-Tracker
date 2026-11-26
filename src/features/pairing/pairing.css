@@ -632,30 +632,30 @@
 }
 
 /* Send and Receive: the main choice, two rows of one raised card (the Sending screen's surface),
-   each with a chevron as it moves the flow on. Both icons use the accent. */
+   each with a chevron as it moves the flow on. Both icons use the accent. Each row owns its
+   1px border (overlapping by 1px at the shared seam) so hovering one row highlights its full
+   border without shifting layout or highlighting the other row. */
 .pairing-role-cards {
   display: flex;
   flex-direction: column;
   width: 100%;
-  background: color-mix(in srgb, var(--obsidian-text) 5%, var(--obsidian-surface-low));
-  border: 1px solid color-mix(in srgb, var(--obsidian-text) 9%, transparent);
   border-radius: 14px;
-  overflow: hidden;
   box-sizing: border-box;
 }
 
 .pairing-role-card {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
   width: 100%;
   padding: 14px 14px 14px 16px;
-  background: transparent;
-  border: 0;
+  background: color-mix(in srgb, var(--obsidian-text) 5%, var(--obsidian-surface-low));
+  border: 1px solid color-mix(in srgb, var(--obsidian-text) 9%, transparent);
   border-radius: 0;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
   color: var(--obsidian-text);
   font: inherit;
   touch-action: manipulation;
@@ -663,32 +663,37 @@
 }
 
 .pairing-role-card + .pairing-role-card {
-  border-top: 1px solid color-mix(in srgb, var(--obsidian-text) 7%, transparent);
+  margin-top: -1px;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .pairing-role-card:hover:not(:disabled) {
+    z-index: 1;
+    border-color: var(--obsidian-purple-strong);
     background: var(--purple-surface);
   }
 }
 
 .pairing-role-card:active:not(:disabled) {
+  z-index: 1;
+  border-color: var(--obsidian-purple-strong);
   background: var(--purple-surface-active);
 }
 
 /* The keyboard ring follows the card's rounded corners: the top row's top ones, the bottom row's
    bottom ones (the card is 14px round with a 1px edge). */
 .pairing-role-card:focus-visible {
+  z-index: 2;
   outline: 2px solid var(--obsidian-purple);
   outline-offset: -2px;
 }
 
 .pairing-role-card:first-child {
-  border-radius: 13px 13px 0 0;
+  border-radius: 14px 14px 0 0;
 }
 
 .pairing-role-card:last-child {
-  border-radius: 0 0 13px 13px;
+  border-radius: 0 0 14px 14px;
 }
 
 .pairing-role-card:disabled {
@@ -903,12 +908,43 @@
   width: 100%;
   margin: 0;
   padding: 12px 14px 12px 16px;
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--obsidian-text) 9%, transparent);
   border-radius: 12px;
   background: color-mix(in srgb, var(--obsidian-text) 3%, transparent);
   cursor: pointer;
   text-align: left;
   box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.pairing-settings-toggle .toggle {
+  flex: none;
+  outline: 1px solid var(--obsidian-border-strong);
+  outline-offset: 0;
+  transition: outline-color 140ms ease, background-color 140ms ease;
+}
+
+.pairing-settings-toggle .toggle.on {
+  outline-color: var(--purple-fill);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .modal-card.pairing-modal .pairing-settings-toggle:hover {
+    border-color: var(--obsidian-purple-strong);
+    background: var(--purple-surface);
+  }
+
+  .pairing-settings-toggle .toggle:hover:not(:disabled),
+  .pairing-settings-toggle:hover .toggle:not(:disabled) {
+    background-color: var(--purple-surface);
+    outline-color: var(--obsidian-purple-strong);
+  }
+
+  .pairing-settings-toggle .toggle.on:hover:not(:disabled),
+  .pairing-settings-toggle:hover .toggle.on:not(:disabled) {
+    background-color: var(--purple-fill-hover);
+    outline-color: var(--obsidian-purple-strong);
+  }
 }
 
 .pairing-settings-toggle-text {
@@ -930,10 +966,6 @@
   font-weight: 400;
   color: var(--obsidian-muted);
   line-height: 1.35;
-}
-
-.pairing-settings-toggle .toggle {
-  flex: none;
 }
 
 .airgap-sender-content .pairing-settings-toggle {

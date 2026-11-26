@@ -245,4 +245,19 @@ describe("Button hover and active state invariants", () => {
     expect(UI_REFINEMENTS_CSS).toMatch(/\.scroll-thumb::before\s*\{[^}]*inset:/);
     expect(UI_REFINEMENTS_CSS).not.toMatch(/\.scroll-thumb:(?:hover|active)\s*\{[^}]*width:/);
   });
+
+  it("matches modal action buttons to the 44px height, 10px corners, and 650 weight of top-bar and Settings buttons", () => {
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /\.modal-card\s+\.button:not\(\.compact-button\):not\(\.ui-modal-close\),\s*\.modal-actions\s+\.button:not\(\.compact-button\)\s*\{[^}]*min-height:\s*44px;[^}]*border-radius:\s*10px\s*!important;[^}]*font-weight:\s*650;/,
+    );
+  });
+
+  it("highlights the hovered Sync Devices role card border just like buttons", () => {
+    expect(PAIRING_CSS).toMatch(
+      /\.pairing-role-card:hover:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--obsidian-purple-strong\);[^}]*background:\s*var\(--purple-surface\);/,
+    );
+    expect(PAIRING_CSS).toMatch(
+      /\.modal-card\.pairing-modal\s+\.pairing-settings-toggle:hover\s*\{[^}]*border-color:\s*var\(--obsidian-purple-strong\);[^}]*background:\s*var\(--purple-surface\);/,
+    );
+  });
 });

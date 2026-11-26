@@ -1542,11 +1542,12 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   border-radius: 6px !important;
 }
 
-/* Modals: action buttons (Cancel, Save, Back, Create Group, Connect, etc.) use 44px height and 6px radius */
+/* Modals: action buttons (Cancel, Save, Back, Create Group, Connect, etc.) match the 44px height, 10px radius, and 650 weight of Settings & top bar buttons */
 .modal-card .button:not(.compact-button):not(.ui-modal-close),
 .modal-actions .button:not(.compact-button) {
   min-height: 44px;
-  border-radius: 6px !important;
+  border-radius: 10px !important;
+  font-weight: 650;
 }
 
 /* Settings: toggles match the purple hover of the View / Link Devices buttons.
