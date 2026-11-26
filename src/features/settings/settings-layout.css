@@ -159,7 +159,7 @@
   .settings-card-heading {
     margin: 0;
     padding: 10px 19px;
-    border-radius: 7px 7px 0 0;
+    border-radius: 13px 13px 0 0;
     background: var(--purple-surface);
     color: var(--purple-text);
     font-size: 11px;

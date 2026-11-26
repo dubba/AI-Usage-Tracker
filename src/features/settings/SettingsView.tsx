@@ -137,7 +137,9 @@ export function SettingsView({
         <div>
           <div className="dashboard-title-row">
             <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>
-              <SettingsIcon className="settings-title-icon" />
+              <span className="settings-title-icon-badge" aria-hidden="true">
+                <SettingsIcon className="settings-title-icon" />
+              </span>
               <span>App Settings</span>
             </h1>
           </div>

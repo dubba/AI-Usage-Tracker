@@ -271,18 +271,17 @@
     --danger-banner-surface: rgba(253, 242, 242, 0.97);
     --danger-banner-border: rgba(208, 58, 58, 0.45);
   }
-  /* OLED black: the dark theme with every page, panel and card surface turned pure black, so the
-   * pixels behind them switch off on OLED screens. Cards keep their borders to stay visible;
-   * raised surfaces (dropdowns, the bottom bar, toasts) stay a near-black gray so they still lift
-   * off the page. Everything not listed here is the dark theme's value. */
+  /* OLED black: the dark theme with the page canvas and chrome turned pure black so OLED pixels
+   * switch off around the layout, while cards use a subtle near-black gray (#111114) so they still
+   * lift cleanly off the black background. Everything not listed here is the dark theme's value. */
   :root[data-theme="oled"] {
     --bg: #000000;
-    --panel: #000000;
-    --panel-2: #0a0a0a;
+    --panel: #111114;
+    --panel-2: #16161a;
     --obsidian-canvas: #000000;
-    --obsidian-surface-low: #000000;
-    --obsidian-surface-container: #0c0c0c;
-    --obsidian-surface-container-high: #121016;
+    --obsidian-surface-low: #111114;
+    --obsidian-surface-container: #16161a;
+    --obsidian-surface-container-high: #1b1922;
     --modal-field-bg: #121213;
     --modal-field-border: rgba(255, 255, 255, 0.12);
     --modal-field-divider: rgba(255, 255, 255, 0.09);

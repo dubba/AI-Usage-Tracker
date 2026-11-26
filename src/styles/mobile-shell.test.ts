@@ -88,19 +88,52 @@ describe("mobile shell clears the bottom bar", () => {
     expect(activityCss).toMatch(/@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.activity-period-label\s*\{[^}]*display:\s*none;/);
   });
 
-  it("styles mobile App Settings and AI Usage Tracker headers white without uppercase, with App Settings aligned to All Accounts", () => {
-    expect(SIDEBAR_LIST).toMatch(
-      /\.settings-style-content\s+\.dashboard-header\s+h1\.eyebrow,\s*\.sidebar-mobile-header\s+\.eyebrow\.sidebar-title\s*\{[^}]*color:\s*var\(--c-ffffff\);[^}]*text-transform:\s*none;/,
+  it("styles the mobile Settings header borderless on the canvas with a framed gear badge, natural white title, and visible subtitle while keeping desktop unchanged", () => {
+    const settingsLayout = readFileSync(join(__dirname, "..", "features", "settings", "settings-layout.css"), "utf8");
+    const mobileIndex = SIDEBAR_LIST.indexOf("@media (max-width: 860px)");
+    expect(mobileIndex).toBeGreaterThan(-1);
+    const desktopCss = SIDEBAR_LIST.slice(0, mobileIndex);
+    const mobileCss = SIDEBAR_LIST.slice(mobileIndex);
+
+    expect(desktopCss).toMatch(
+      /\.settings-style-content\s+\.dashboard-header\s+\.settings-title-icon-badge,\s*\.settings-style-content\s+\.dashboard-header\s+\.settings-title-icon\s*\{[^}]*display:\s*none;/,
     );
-    expect(SIDEBAR_LIST).toMatch(
-      /\.settings-style-content\s+\.dashboard-header\s+h1\.eyebrow\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*gap:\s*8px;[^}]*min-height:\s*40px;[^}]*font-size:\s*15px;[^}]*padding-left:\s*13px;/,
+    expect(desktopCss).not.toMatch(/\.settings-style-content\s+\.dashboard-header\s*\{/);
+    expect(UI).toMatch(
+      /\.obsidian-shell\s+\.settings-style-content\s+\.dashboard-header\s*>\s*div:first-child\s*\{[^}]*border-bottom:\s*1px solid var\(--c-1f1e1f\);/,
     );
-    expect(SIDEBAR_LIST).toMatch(
-      /\.settings-style-content\s+\.dashboard-header\s+\.settings-title-icon\s*\{[^}]*display:\s*block;[^}]*width:\s*16px;[^}]*height:\s*16px;[^}]*opacity:\s*0\.75;/,
+
+    expect(mobileCss).toMatch(
+      /\.sidebar-mobile-header\s+\.eyebrow\.sidebar-title\s*\{[^}]*color:\s*var\(--c-ffffff\);[^}]*text-transform:\s*none;/,
+    );
+    expect(mobileCss).toMatch(
+      /\.settings-style-content\s+\.dashboard-header\s*\{[^}]*background:\s*var\(--obsidian-canvas\);[^}]*border-bottom:\s*0;/,
+    );
+    expect(mobileCss).toMatch(
+      /\.settings-style-content\s+\.dashboard-header\s+h1\.eyebrow\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*gap:\s*10px;[^}]*font-size:\s*21px;[^}]*font-weight:\s*700;[^}]*text-transform:\s*none;[^}]*color:\s*var\(--c-ffffff\);/,
+    );
+    expect(mobileCss).toMatch(
+      /\.settings-style-content\s+\.dashboard-header\s+\.settings-title-icon-badge\s*\{[^}]*display:\s*inline-grid;[^}]*width:\s*28px;[^}]*height:\s*28px;[^}]*border-radius:\s*8px;[^}]*background:\s*var\(--settings-pill-bg\);[^}]*border:\s*1px solid var\(--settings-pill-border\);/,
+    );
+    expect(mobileCss).toMatch(
+      /\.settings-style-content\s+\.dashboard-header\s+\.dashboard-description\s*\{[^}]*display:\s*block;/,
+    );
+    expect(OBSIDIAN).toMatch(
+      /\.settings-style-content\s+\.settings-card,\s*\.settings-card\s*\{[^}]*border-radius:\s*14px;/,
+    );
+    expect(settingsLayout).toMatch(
+      /\.settings-card-heading\s*\{[^}]*border-radius:\s*13px 13px 0 0;/,
     );
     expect(SIDEBAR_LIST).toMatch(
       /\.mobile-sidebar-toggle-label\s*\{[^}]*font-size:\s*15px;/,
     );
+  });
+
+  it("uses subtle near-black gray card surfaces on a pure black canvas in OLED mode", () => {
+    const oledBlock = TOKENS.slice(TOKENS.indexOf(':root[data-theme="oled"]'));
+    expect(oledBlock).toMatch(/--obsidian-canvas:\s*#000000;/);
+    expect(oledBlock).toMatch(/--obsidian-surface-low:\s*#111114;/);
+    expect(oledBlock).toMatch(/--panel:\s*#111114;/);
   });
 
   it("styles the compact card plan badge identically to the expanded card plan pill on mobile", () => {

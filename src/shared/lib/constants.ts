@@ -19,4 +19,4 @@ export const BUILD_LABEL: string = import.meta.env.VITE_BUILD_LABEL?.trim() ?? "
 export const DEFAULT_ACCOUNT_REFRESH_MINUTES = 15;
 
 /** What the Settings page is for: under its title. */
-export const SETTINGS_DESCRIPTION = "Manage app preferences, updates, and sync devices";
+export const SETTINGS_DESCRIPTION = "Customize app preferences, updates, and sync devices";

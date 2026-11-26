@@ -1716,7 +1716,7 @@ button.account-card-provider-icon:active {
   margin-top: 0 !important;
   margin-bottom: 8px;
   border: 1px solid var(--obsidian-border);
-  border-radius: 8px;
+  border-radius: 14px;
   background: var(--obsidian-surface-low);
   box-shadow: none;
   overflow: visible;
@@ -3563,8 +3563,8 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   }
 
   .dashboard-header p {
-    font-size: 13px !important;
-    line-height: 1.2 !important;
+    font-size: 13px;
+    line-height: 1.2;
     color: var(--obsidian-muted);
     margin: 0;
   }

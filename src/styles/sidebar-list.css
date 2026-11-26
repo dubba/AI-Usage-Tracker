@@ -127,6 +127,7 @@
   box-shadow: none !important;
 }
 
+.settings-style-content .dashboard-header .settings-title-icon-badge,
 .settings-style-content .dashboard-header .settings-title-icon {
   display: none;
 }
@@ -242,7 +243,6 @@
     margin-left: auto;
   }
 
-  .settings-style-content .dashboard-header h1.eyebrow,
   .sidebar-mobile-header .eyebrow.sidebar-title {
     color: var(--c-ffffff);
     font-size: 16px;
@@ -252,16 +252,48 @@
     text-transform: none;
   }
 
-  /* Match the 1px border + 12px left padding, 16px icon, 8px gap, and 40px row height of the
-     Dashboard/Usage All Accounts pill so the gear aligns with the funnel and App Settings aligns
-     with All Accounts. */
+  /* Mobile Settings header: seamless canvas background without a bottom border, framed gear badge,
+     natural white title, and visible subtitle underneath. */
+  .settings-style-content .dashboard-header {
+    background: var(--obsidian-canvas);
+    border-bottom: 0;
+    padding: calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 12px) max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) 6px max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px));
+  }
+
+  .settings-style-content .dashboard-header > div:first-child {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .settings-style-content .dashboard-header .dashboard-title-row {
+    min-height: 0;
+  }
+
   .settings-style-content .dashboard-header h1.eyebrow {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    min-height: 40px;
-    font-size: 15px;
-    padding-left: 13px;
+    gap: 10px;
+    padding-left: 0;
+    font-size: 21px;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    text-transform: none;
+    color: var(--c-ffffff);
+  }
+
+  .settings-style-content .dashboard-header .settings-title-icon-badge {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: var(--settings-pill-bg);
+    border: 1px solid var(--settings-pill-border);
+    color: var(--c-ffffff);
   }
 
   .settings-style-content .dashboard-header .settings-title-icon {
@@ -269,7 +301,14 @@
     width: 16px;
     height: 16px;
     flex-shrink: 0;
-    opacity: 0.75;
+  }
+
+  .settings-style-content .dashboard-header .dashboard-description {
+    display: block;
+    margin: 0;
+    color: var(--obsidian-muted);
+    font-size: 13px;
+    line-height: 1.4;
   }
 
   /* Title-as-filter pill on Dashboard and Usage: matches the header's 40px height, displays the
