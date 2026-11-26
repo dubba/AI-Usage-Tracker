@@ -1315,32 +1315,6 @@
     display: none;
   }
 
-/* The code (shown or typed) sits about 18px from the label above it and from the line below it:
-   3px on top of the card's 12px gap, plus the room each line of text leaves around its letters.
-   The line under that keeps the plain 12px gap to the countdown. */
-.pairing-code-hero > .pairing-code-hero-tag {
-  margin-bottom: 3px;
-}
-
-.pairing-code-hero > .pairing-code-digits {
-  margin-bottom: 3px;
-}
-
-/* 1px less: the line under the entry tiles leaves more room above its letters. */
-.pairing-code-hero > .pairing-code-tiles {
-  margin-bottom: 2px;
-}
-
-/* In the Enter Link Code card the card's padding frames the line under the tiles, which then needs
-   no reserved height of its own (it keeps one outside a card, so the page does not jump). */
-.pairing-code-hero > .pairing-code-status {
-  min-height: 0;
-}
-
-.pairing-code-hero > .pairing-code-status > * {
-  margin: 0;
-}
-
   .modal-card.pairing-modal.keyboard-open .pairing-code-status,
   html.keyboard-active .modal-card.pairing-modal .pairing-code-status,
   .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-status {
@@ -1818,6 +1792,32 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--obsidian-purple);
+}
+
+/* The code (shown or typed) sits about 18px from the label above it and from the line below it:
+   3px on top of the card's 12px gap, plus the room each line of text leaves around its letters.
+   The line under that keeps the plain 12px gap to the countdown. */
+.pairing-code-hero > .pairing-code-hero-tag {
+  margin-bottom: 3px;
+}
+
+.pairing-code-hero > .pairing-code-digits {
+  margin-bottom: 3px;
+}
+
+/* 1px less: the line under the entry tiles leaves more room above its letters. */
+.pairing-code-hero > .pairing-code-tiles {
+  margin-bottom: 2px;
+}
+
+/* In the Enter Link Code card the card's padding frames the line under the tiles, which then needs
+   no reserved height of its own (it keeps one outside a card, so the page does not jump). */
+.pairing-code-hero > .pairing-code-status {
+  min-height: 0;
+}
+
+.pairing-code-hero > .pairing-code-status > * {
+  margin: 0;
 }
 
 .pairing-code-digits {
