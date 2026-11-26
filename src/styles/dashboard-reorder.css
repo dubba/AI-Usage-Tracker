@@ -281,12 +281,6 @@ html.dashboard-reordering .provider-list {
   }
 }
 
-@media (min-width: 1400px) {
-  .provider-account-cards .dashboard-reorder-placeholder {
-    grid-column: auto;
-  }
-}
-
 .provider-reorder-placeholder {
   border-radius: 5px;
 }

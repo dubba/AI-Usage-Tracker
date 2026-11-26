@@ -1,7 +1,7 @@
 /* Accounts Dashboard improvements (L7):
  * - Compact toggle beside the Show (% Used / % Left) switch in the desktop Dashboard header.
  * - Slim single-row compact account card layout (.provider-account-card.is-compact).
- * - Two-column card grid once two cards fit side by side (compact cards: @media (min-width: 1400px)).
+ * - Two-column card grid once two regular cards fit side by side (compact cards stay single-column).
  *
  * Layered in `@layer components` with zero `!important` flags and zero raw color literals
  * (tokens only; see docs/CSS_ARCHITECTURE.md and src/styles/css-debt.test.ts).
@@ -77,16 +77,9 @@
     }
   }
 
-  /* ---- Compact cards: 2 columns on very wide windows (1400px+) ---- */
-  @media (min-width: 1400px) {
-    .obsidian-shell .provider-account-cards.is-compact {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      align-items: stretch;
-    }
-  }
-
-  /* ---- Compact single-row account cards ---- */
+  /* ---- Compact single-row account cards (always stacked in one column) ---- */
   .obsidian-shell .provider-account-cards.is-compact {
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
 
@@ -311,6 +304,41 @@
     align-items: center;
     gap: 6px;
     flex: 0 0 auto;
+  }
+
+  @media (min-width: 861px) {
+    /* Keep the desktop bars block centered in the card with uniform two-column alignment across
+       rows (even for 1- or 2-bar cards and differing Resets lengths): reserve enough minimum width
+       for the identity/trailing tracks so short cards do not steal extra bar width, and use a
+       1.35fr trailing track so the bars sit slightly closer to the badge than the trailing col. */
+    .compact-card-row {
+      display: grid;
+      grid-template-columns: auto minmax(156px, 1fr) minmax(160px, 354px) minmax(210px, 1.35fr);
+    }
+
+    .compact-card-identity {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .compact-card-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      width: 100%;
+    }
+
+    .compact-card-metrics .compact-metric-item {
+      min-width: 0;
+      max-width: none;
+    }
+
+    .compact-card-trailing {
+      min-width: 210px;
+      margin-left: 0;
+      justify-content: flex-end;
+      justify-self: end;
+    }
   }
 
   @media (max-width: 860px), (pointer: coarse) {
