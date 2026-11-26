@@ -89,7 +89,7 @@ export function FileSendView({
   const steps: SendStep[] = [
     { title: "Accounts encrypted", desc: "Protected with your link code" },
     { title: "Select the other device", desc: `Choose it in the ${nearbyName} menu` },
-    { title: "Accept and confirm", desc: "Complete syncing on the other device" },
+    { title: "Accept and confirm", desc: "Accept the file there, then tap Add Accounts" },
   ];
   if (state.made) {
     return (

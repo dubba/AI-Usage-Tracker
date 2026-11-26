@@ -715,7 +715,7 @@ describe("transfer by file", () => {
     expect(text()).toContain("Select the other device");
     expect(text()).toContain("Choose it in the AirDrop menu");
     expect(text()).toContain("Accept and confirm");
-    expect(text()).toContain("Complete syncing on the other device");
+    expect(text()).toContain("Accept the file there, then tap Add Accounts");
     expect(text()).toContain("Why AirDrop?");
     expect(text()).toContain(
       "Sync directly between nearby devices. Ideal when they can't find each other over Wi-Fi or when a VPN gets in the way.",
