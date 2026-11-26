@@ -94,7 +94,8 @@ export function FileSendView({
   if (state.made) {
     return (
       <div className="pairing-panel-status pairing-file-view pairing-file-send-view">
-        <SendStepsCard steps={steps} current={1} />
+        {/* Step 3 is never ticked here: the other device does not report back over a file. */}
+        <SendStepsCard steps={steps} current={state.handedOff ? 2 : 1} />
         {state.notOnNetwork ? (
           <div className="pairing-why-card">
             <strong className="pairing-why-title">Why {nearbyName}?</strong>

@@ -6,7 +6,9 @@
 use std::cell::RefCell;
 use windows::{
     core::{factory, AgileReference, Interface, Ref, Result, HSTRING},
-    ApplicationModel::DataTransfer::{DataRequestedEventArgs, DataTransferManager},
+    ApplicationModel::DataTransfer::{
+        DataRequestedEventArgs, DataTransferManager, TargetApplicationChosenEventArgs,
+    },
     Foundation::TypedEventHandler,
     Storage::{IStorageItem, StorageFile},
     Win32::{Foundation::HWND, UI::Shell::IDataTransferManagerInterop},
@@ -23,13 +25,18 @@ pub fn open_file(path: &str) -> Result<AgileReference<StorageFile>> {
 }
 
 thread_local! {
-    /// The window's data-request handler, removed before the next share adds its own (window
-    /// thread only).
-    static HANDLER: RefCell<Option<(DataTransferManager, i64)>> = const { RefCell::new(None) };
+    /// The window's data-request and app-chosen handlers' tokens, removed before the next share
+    /// adds its own (window thread only).
+    static HANDLER: RefCell<Option<(DataTransferManager, i64, i64)>> = const { RefCell::new(None) };
 }
 
-/// On the window's thread: shows the share panel for `file` over the window `hwnd`.
-pub fn show(hwnd: HWND, file: &AgileReference<StorageFile>) -> Result<()> {
+/// On the window's thread: shows the share panel for `file` over the window `hwnd`. `on_chosen`
+/// runs when an app is chosen in it (Nearby Sharing, Quick Share…); Windows reports nothing after.
+pub fn show(
+    hwnd: HWND,
+    file: &AgileReference<StorageFile>,
+    on_chosen: impl Fn() + Send + 'static,
+) -> Result<()> {
     let interop = factory::<DataTransferManager, IDataTransferManagerInterop>()?;
     // SAFETY: `hwnd` is the app's top-level window, alive while this runs on its thread.
     let manager: DataTransferManager = unsafe { interop.GetForWindow(hwnd)? };
@@ -47,12 +54,20 @@ pub fn show(hwnd: HWND, file: &AgileReference<StorageFile>) -> Result<()> {
             Ok(())
         },
     );
+    let chosen = TypedEventHandler::new(
+        move |_: Ref<DataTransferManager>, _: Ref<TargetApplicationChosenEventArgs>| {
+            on_chosen();
+            Ok(())
+        },
+    );
     HANDLER.with(|slot| -> Result<()> {
-        if let Some((previous, token)) = slot.borrow_mut().take() {
-            let _ = previous.RemoveDataRequested(token);
+        if let Some((previous, requested, chose)) = slot.borrow_mut().take() {
+            let _ = previous.RemoveDataRequested(requested);
+            let _ = previous.RemoveTargetApplicationChosen(chose);
         }
-        let token = manager.DataRequested(&handler)?;
-        *slot.borrow_mut() = Some((manager.clone(), token));
+        let requested = manager.DataRequested(&handler)?;
+        let chose = manager.TargetApplicationChosen(&chosen)?;
+        *slot.borrow_mut() = Some((manager.clone(), requested, chose));
         Ok(())
     })?;
     // SAFETY: as above; the handler that fills the panel is registered for this window.

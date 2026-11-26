@@ -2,8 +2,12 @@ package com.dubba.ai.usage.tracker
 
 import android.Manifest
 import android.app.Activity
+import android.app.PendingIntent
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -23,7 +27,19 @@ import java.io.IOException
  * or writing the `content://` files the system open and save dialogs hand back. A file holds the
  * accounts encrypted with the link code, which never passes through here.
  */
-internal class TransferFiles(private val activity: Activity) {
+internal class TransferFiles(
+  private val activity: Activity,
+  /**
+   * Called when an app is chosen in the share sheet ([share]): Android says which (Quick Share,
+   * Messages…), not whether the file went, so the sending screen moves on to the other device.
+   */
+  private val onShareChosen: () -> Unit,
+) {
+  private val chosenReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) = onShareChosen()
+  }
+  private var chosenReceiverRegistered = false
+
   /** A file tapped in another app (Quick Share's notification) that the app has not opened yet. */
   @Volatile private var tapped: Uri? = null
 
@@ -84,9 +100,37 @@ internal class TransferFiles(private val activity: Activity) {
       putExtra(Intent.EXTRA_STREAM, uri)
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
+    // The chooser sends this once an app is picked. It goes to this app only, and the chosen
+    // app's name it could carry is not needed, so it stays immutable.
+    val chosen = PendingIntent.getBroadcast(
+      activity,
+      SHARE_CHOSEN_REQUEST,
+      Intent(SHARE_CHOSEN_ACTION).setPackage(activity.packageName),
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
     activity.runOnUiThread {
-      activity.startActivity(Intent.createChooser(send, "Send the transfer file"))
+      if (!chosenReceiverRegistered) {
+        ContextCompat.registerReceiver(
+          activity,
+          chosenReceiver,
+          IntentFilter(SHARE_CHOSEN_ACTION),
+          ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        chosenReceiverRegistered = true
+      }
+      activity.startActivity(Intent.createChooser(send, "Send the transfer file", chosen.intentSender))
     }
+  }
+
+  /** Stops listening for share sheet choices (the activity is going away). */
+  fun release() {
+    if (!chosenReceiverRegistered) return
+    try {
+      activity.unregisterReceiver(chosenReceiver)
+    } catch (e: IllegalArgumentException) {
+      // Already gone.
+    }
+    chosenReceiverRegistered = false
   }
 
   /**
@@ -170,5 +214,8 @@ internal class TransferFiles(private val activity: Activity) {
     private const val BUFFER_BYTES = 64 * 1024
     /** Request code of the storage prompt before Android 11 (the result is read by polling). */
     private const val DOWNLOADS_PERMISSION_REQUEST = 4711
+    /** The broadcast the share sheet sends this app once an app is chosen in it. */
+    private const val SHARE_CHOSEN_ACTION = "com.dubba.ai.usage.tracker.TRANSFER_FILE_SHARE_CHOSEN"
+    private const val SHARE_CHOSEN_REQUEST = 4712
   }
 }

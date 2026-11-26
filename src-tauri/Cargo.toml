@@ -84,7 +84,7 @@ objc2 = "0.6"
 # The share menu for transfer files (platform/share_sheet.rs). The same versions tao already
 # pulls in.
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSResponder", "NSSharingService", "NSView"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSArray", "NSGeometry", "NSObject", "NSString", "NSURL"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSArray", "NSError", "NSGeometry", "NSObject", "NSString", "NSURL"] }
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 # Apple Keychain services for credential cleanup on fresh installs.

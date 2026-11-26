@@ -1,14 +1,15 @@
 # Changelog
 
-## Unreleased (8 changes)
+## Unreleased (9 changes)
 
 ### Added (2)
 
 - Settings > General now includes an **Accent Color** option with a custom "Pick accent color" dialog (11 preset colors, tap a selected color again to toggle Light and Dark mode, and a **Custom Color** view with a color square, hue slider, hex input, and Reset). Your chosen color applies across the app, the desktop title bar and the Back button on sign-in pages, and stays saved across restarts and synced devices. On light colors such as Sky and Lavender, text on colored buttons, tooltips and tabs turns dark so it stays easy to read.
 - On iPhone and iPad, Sync Devices now asks once for Downloads folder access so AirDrop transfer files saved to Files are picked up automatically when you return to the app, and also offers an "Open File from Files" fallback button on the link code screen.
 
-### Improved (2)
+### Improved (3)
 
+- When sending by AirDrop, Quick Share or Nearby Sharing, the "Sending by …" screen now moves on to "Accept and confirm" once the file has gone: on a Mac or iPhone when AirDrop reports the other device accepted it, on Android or Windows once Quick Share or Nearby Sharing is chosen (those systems report nothing after). If AirDrop fails or the menu is closed, it stays on "Select the other device".
 - Outlined buttons and dropdowns now fill with a tint of the accent color when you point at them, instead of only changing their border.
 - Copy Diagnostics now shows the exact size and a short fingerprint of each Sync Devices transfer file on both the sending and receiving device, so a wrong code can be told apart from a file that changed on the way.
 

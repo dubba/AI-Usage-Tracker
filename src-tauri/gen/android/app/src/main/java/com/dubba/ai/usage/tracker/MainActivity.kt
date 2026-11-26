@@ -23,6 +23,8 @@ internal const val LOG_TAG = "AIUsagePairing"
 
 /** The window event that tells the page a transfer file was tapped (useTappedTransferFile.ts). */
 internal const val TRANSFER_FILE_TAPPED_EVENT = "aiut-transfer-file-tapped"
+/** What became of the share sheet, for the sending screen (`platform/share_sheet.rs` `SHARE_OUTCOME_EVENT`). */
+internal const val SHARE_OUTCOME_EVENT = "aiut-file-share-outcome"
 
 /** onPageFinished runs on the WebView client. The view's context may be the activity or a wrapper around it. */
 fun reapplyWindowInsetsFrom(view: WebView) {
@@ -70,7 +72,11 @@ class MainActivity : TauriActivity() {
   private var appShellUrl: String = "http://tauri.localhost/"
 
   private val pairingNetwork = PairingNetwork(this)
-  private val transferFiles = TransferFiles(this)
+  private val transferFiles = TransferFiles(this) {
+    activeWebView?.evaluateJavascript(
+      "window.dispatchEvent(new CustomEvent('$SHARE_OUTCOME_EVENT', { detail: 'chosen' }))", null
+    )
+  }
   private val signInTabs = SignInTabLauncher(this)
   private val updateNotifications = UpdateNotifications(this)
   private val updateInstaller = AppUpdateInstaller(this, updateNotifications)
@@ -309,6 +315,7 @@ class MainActivity : TauriActivity() {
 
   override fun onDestroy() {
     pairingNetwork.unregisterMdnsService()
+    transferFiles.release()
     signInTabs.disconnectSession()
     updateInstaller.activityDestroyed()
     activeWebView = null

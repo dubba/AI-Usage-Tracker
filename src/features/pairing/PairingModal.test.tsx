@@ -737,6 +737,30 @@ describe("transfer by file", () => {
     expect(api.sendFile).toHaveBeenCalledWith(CODE, false, undefined);
   });
 
+  it("moves on to the other device once the share menu says the file went", async () => {
+    await sendWithCode();
+    const current = () => document.querySelector(".pairing-send-steps li.is-current")?.textContent ?? "";
+    const share = (outcome: string) =>
+      act(() => {
+        window.dispatchEvent(new CustomEvent("aiut-file-share-outcome", { detail: outcome }));
+      });
+    expect(current()).toContain("Select the other device");
+    // AirDrop sent it (Mac, iPhone), or an app was chosen for it (Android, Windows).
+    share("sent");
+    expect(current()).toContain("Accept and confirm");
+    expect(document.querySelectorAll(".pairing-send-steps li.is-done")).toHaveLength(2);
+    // Sending again starts over at choosing the device.
+    await press("Send again via AirDrop");
+    expect(current()).toContain("Select the other device");
+    share("chosen");
+    expect(current()).toContain("Accept and confirm");
+    // AirDrop failed or the menu was closed: back to choosing.
+    share("failed");
+    expect(current()).toContain("Select the other device");
+    share("nonsense");
+    expect(current()).toContain("Select the other device");
+  });
+
   it("sends the file again or saves a copy", async () => {
     await sendWithCode();
     await press("Send again via AirDrop");

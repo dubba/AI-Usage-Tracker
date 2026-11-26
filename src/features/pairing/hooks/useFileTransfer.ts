@@ -5,8 +5,19 @@ import { collectUiState } from "../../layout/ui-state";
 import type { ViewMode } from "../lib/view-model";
 import type { PairingActionContext } from "./usePairingSession";
 
-/** The sender's file: being made, then made and handed to the share menu. */
-export type FileSendState = { made: boolean; notOnNetwork: boolean };
+/**
+ * The sender's file: being made, then made and handed to the share menu, then `handedOff` once
+ * the system says it went to the other device (AirDrop on a Mac or iPhone) or that an app was
+ * chosen for it (Quick Share on Android, Nearby Sharing on Windows).
+ */
+export type FileSendState = { made: boolean; notOnNetwork: boolean; handedOff: boolean };
+
+/**
+ * The window event the native share menus send (`platform/share_sheet.rs` `SHARE_OUTCOME_EVENT`,
+ * Android's `MainActivity.SHARE_OUTCOME_EVENT`). Its `detail` is `"sent"`, `"chosen"`, `"failed"`
+ * or `"cancelled"`.
+ */
+export const SHARE_OUTCOME_EVENT = "aiut-file-share-outcome";
 
 /**
  * Transfer by file, for two devices that are not on one network. The sender, with the link code
@@ -77,7 +88,25 @@ export function useFileTransfer({
     action?.();
   }, [queued]);
 
-  const share = () => step("Couldn't open the share menu", () => pairingApi.shareFile(), () => {});
+  /** The share menu's outcome, while the sending screen is shown. */
+  const sending = sendState !== null;
+  useEffect(() => {
+    if (!sending) return;
+    const onOutcome = (event: Event) => {
+      const outcome = (event as CustomEvent<unknown>).detail;
+      const handedOff = outcome === "sent" || outcome === "chosen";
+      if (!handedOff && outcome !== "failed" && outcome !== "cancelled") return;
+      setSendState((current) => (current ? { ...current, handedOff } : current));
+    };
+    window.addEventListener(SHARE_OUTCOME_EVENT, onOutcome);
+    return () => window.removeEventListener(SHARE_OUTCOME_EVENT, onOutcome);
+  }, [sending]);
+
+  /** Opens the share menu; the other device is current again until it reports where the file went. */
+  const share = () => {
+    setSendState((current) => (current ? { ...current, handedOff: false } : current));
+    return step("Couldn't open the share menu", () => pairingApi.shareFile(), () => {});
+  };
   const save = () => step("Couldn't save the file", () => pairingApi.saveFile(), () => {});
 
   /** Sender: makes the file for the code typed last and sends it. */
@@ -127,7 +156,7 @@ export function useFileTransfer({
      */
     send: (code: string, notOnNetwork = false) => {
       codeRef.current = code;
-      setSendState({ made: false, notOnNetwork });
+      setSendState({ made: false, notOnNetwork, handedOff: false });
       showView("file-send");
       afterViewChange(() => void makeFile());
     },
