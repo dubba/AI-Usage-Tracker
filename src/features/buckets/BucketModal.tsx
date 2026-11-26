@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { bridgeApi } from "../../shared/lib/api";
 import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
-import { TrashIcon } from "../../shared/ui/icons";
+import { AlertTriangleIcon, TrashIcon } from "../../shared/ui/icons";
 import { PROVIDER_META } from "../../shared/lib/providers";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../../types";
@@ -41,6 +41,7 @@ export function BucketModal({
   onDeleted?: (bucketId: string) => void;
 }) {
   const [name, setName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<Provider | "all">("all");
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const accountScrollRef = useRef<HTMLDivElement>(null);
@@ -96,6 +97,7 @@ export function BucketModal({
         initialIds = [];
       }
       setName(initialName);
+      setNameError(null);
       setSelectedProvider(initialProviderChoice);
       setSelectedAccountIds(initialIds);
       setBaseline({ name: initialName, provider: initialProviderChoice, accountIds: initialIds });
@@ -135,9 +137,10 @@ export function BucketModal({
     event.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Please enter a name for this group.");
+      setNameError("Please enter a name for this group.");
       return;
     }
+    setNameError(null);
 
     // The saved provider comes only from the dropdown the user actually
     // touched ("all" stores null); it is no longer derived from membership,
@@ -202,42 +205,64 @@ export function BucketModal({
       <p>Group accounts together in the sidebar to track their combined usage and limits. Groups can be empty.</p>
 
       <form onSubmit={handleSave} className="bucket-modal-form">
-        <label className="field-group">
-          <span className="field-label">Group Name</span>
+        <div className="field-group">
+          <label className="field-label" htmlFor="bucket-name-input">Group Name</label>
           <input
+            id="bucket-name-input"
             type="text"
-            className="text-input"
+            className={`text-input${nameError ? " has-error" : ""}`}
             placeholder="e.g. Antigravity - Work or Grok Team A"
             value={name}
-            autoFocus
             disabled={busy}
-            onChange={(event) => setName(event.target.value)}
+            aria-invalid={nameError ? true : undefined}
+            aria-describedby={nameError ? "bucket-name-error" : undefined}
+            onChange={(event) => {
+              setName(event.target.value);
+              if (nameError) setNameError(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !name.trim()) {
+                event.preventDefault();
+                setNameError("Please enter a name for this group.");
+              }
+            }}
           />
-        </label>
+          {nameError ? (
+            <div id="bucket-name-error" className="field-inline-error" role="alert">
+              <AlertTriangleIcon aria-hidden="true" />
+              <span>{nameError}</span>
+            </div>
+          ) : null}
+        </div>
 
         <div className="field-group">
           <div className="bucket-account-heading">
             <span className="field-label">
               Select Accounts <span className="bucket-selected-count">({selectedAccountIds.length} selected)</span>
             </span>
-            <div className="bucket-filter-actions">
-              <CustomDropdown<Provider | "all">
-                aria-label="Filter by provider"
-                value={selectedProvider}
-                disabled={busy}
-                options={[
-                  { value: "all", label: "All Providers" },
-                  ...ALL_PROVIDERS.map((item) => ({
-                    value: item.id,
-                    label: item.label,
-                  })),
-                ]}
-                onChange={(val) => setSelectedProvider(val)}
-              />
-              <button type="button" className="button ghost compact-button" onClick={selectAllFiltered} disabled={busy || !filteredAccounts.length}>
-                {filteredAccounts.length && filteredAccounts.every((a) => selectedAccountIds.includes(a.id)) ? "Deselect All" : "Select All"}
-              </button>
-            </div>
+            <button
+              type="button"
+              className="bucket-select-all-btn"
+              onClick={selectAllFiltered}
+              disabled={busy || !filteredAccounts.length}
+            >
+              {filteredAccounts.length && filteredAccounts.every((a) => selectedAccountIds.includes(a.id)) ? "Deselect All" : "Select All"}
+            </button>
+          </div>
+          <div className="bucket-filter-actions">
+            <CustomDropdown<Provider | "all">
+              aria-label="Filter by provider"
+              value={selectedProvider}
+              disabled={busy}
+              options={[
+                { value: "all", label: "All Providers" },
+                ...ALL_PROVIDERS.map((item) => ({
+                  value: item.id,
+                  label: item.label,
+                })),
+              ]}
+              onChange={(val) => setSelectedProvider(val)}
+            />
           </div>
 
           <div className="bucket-account-picker-list">

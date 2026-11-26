@@ -333,7 +333,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
         {customOpen ? (
           <button
             type="button"
-            className="button ghost accent-presets-btn"
+            className="button ghost button-tertiary accent-presets-btn"
             onClick={() => showView(false)}
           >
             <ArrowLeftIcon />

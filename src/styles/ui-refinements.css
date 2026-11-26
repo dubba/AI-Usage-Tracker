@@ -1680,15 +1680,15 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--obsidian-purple) !important;
 }
 
-/* Phone drawer close button: the same size as the dialogs' × (.ui-modal-close): a 32px square with
-   8px corners and a 20px X. It sits where the filter button was and keeps its 40px of room (a 4px
+/* Phone drawer close button: matches the dialogs' × (.ui-modal-close): a 32px circle
+   with a 20px X. It sits where the filter button was and keeps its 40px of room (a 4px
    margin all round), and a 44px invisible tap area around it. */
 .sidebar-mobile-header .mobile-sidebar-close-btn,
 .mobile-sidebar-close-btn {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   border: 1px solid var(--obsidian-border-strong) !important;
-  border-radius: 8px !important;
-  color: var(--c-ffffff) !important;
+  border-radius: 50% !important;
+  color: var(--muted) !important;
   box-sizing: border-box;
   width: 32px;
   height: 32px;

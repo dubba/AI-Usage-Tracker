@@ -39,4 +39,12 @@
       padding: 5px 8px;
     }
   }
+
+  @media (hover: none), (pointer: coarse) {
+    [data-tooltip]:not(input):not(textarea) {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+  }
 }

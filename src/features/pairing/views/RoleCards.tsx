@@ -14,7 +14,7 @@ export function RoleCards({ disabled, onChoose }: { disabled?: boolean; onChoose
         </div>
         <div className="pairing-role-card-content">
           <span className="pairing-role-card-title">Send from this device</span>
-          <span className="pairing-role-card-desc">Export accounts, tokens, and groups to another device</span>
+          <span className="pairing-role-card-desc">Export accounts and groups to another device</span>
         </div>
         <ChevronIcon className="pairing-role-card-chevron" aria-hidden="true" />
       </button>
@@ -25,7 +25,7 @@ export function RoleCards({ disabled, onChoose }: { disabled?: boolean; onChoose
         </div>
         <div className="pairing-role-card-content">
           <span className="pairing-role-card-title pairing-role-title-receive">Receive on this device</span>
-          <span className="pairing-role-card-desc">Import accounts, tokens, and groups from another device</span>
+          <span className="pairing-role-card-desc">Import accounts and groups from another device</span>
         </div>
         <ChevronIcon className="pairing-role-card-chevron" aria-hidden="true" />
       </button>

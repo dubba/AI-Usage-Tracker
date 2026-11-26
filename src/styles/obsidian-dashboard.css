@@ -856,12 +856,12 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
   border-color: var(--obsidian-purple-strong) !important;
 }
 
-/* Borderless secondary/tertiary action buttons (Back, Not Now) so the primary solid purple action
-   remains the clear focal point in modal footers. */
+/* Borderless secondary/tertiary action buttons (Cancel, Back, Not Now) muted so the solid primary
+   action remains the clear focal point in modal footers. */
 .button.ghost.button-tertiary {
   border-color: transparent;
   background: transparent;
-  color: var(--obsidian-muted-bright);
+  color: var(--obsidian-muted);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2051,9 +2051,9 @@ select.text-input option,
 }
 
 .alert-threshold select:hover,
-.text-input:hover,
+.text-input:not(.has-error):hover,
 .alert-threshold select:focus,
-.text-input:focus {
+.text-input:not(.has-error):focus {
   border-color: var(--obsidian-purple-strong) !important;
 }
 
@@ -2356,6 +2356,95 @@ select.text-input option,
   width: min(440px, calc(100vw - 40px));
 }
 
+/* Soft elevated fields across Create Group and Add AI Account modals: a subtle lifted fill with a
+   faint hairline border instead of harsh outlines. */
+.bucket-modal-card .text-input,
+.provider-connection-modal .text-input {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--modal-field-border);
+  border-radius: 10px;
+  background: var(--modal-field-bg);
+}
+
+.bucket-modal-card .text-input.has-error,
+.provider-connection-modal .text-input.has-error {
+  border-color: var(--modal-field-error-border);
+}
+
+.bucket-modal-card .text-input.has-error:hover,
+.bucket-modal-card .text-input.has-error:focus,
+.provider-connection-modal .text-input.has-error:hover,
+.provider-connection-modal .text-input.has-error:focus {
+  border-color: var(--obsidian-red);
+  box-shadow: 0 0 0 3px rgb(var(--tint-red-rgb) / 0.14);
+}
+
+.field-inline-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+  color: var(--obsidian-red);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.field-inline-error svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.provider-connection-modal .custom-dropdown-trigger {
+  padding: 10px 14px;
+  border: 1px solid var(--modal-surface-elevated-border);
+  border-radius: 10px;
+  background: var(--modal-surface-elevated);
+  box-shadow: var(--modal-surface-elevated-shadow);
+}
+
+.provider-connection-modal .custom-dropdown-trigger-content {
+  gap: 12px;
+}
+
+.provider-connection-modal .custom-dropdown-icon,
+.provider-connection-modal .custom-dropdown-item-icon {
+  color: var(--c-f2efef);
+}
+
+.provider-dropdown-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.provider-dropdown-icon svg,
+.provider-dropdown-icon img {
+  width: 24px;
+  height: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: contain;
+  display: block;
+}
+
+.provider-connection-modal .custom-dropdown-item-icon .provider-dropdown-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.provider-connection-modal .custom-dropdown-item-icon .provider-dropdown-icon svg,
+.provider-connection-modal .custom-dropdown-item-icon .provider-dropdown-icon img {
+  width: 18px;
+  height: 18px;
+  max-width: 18px;
+  max-height: 18px;
+}
+
 .modal-card {
   border: 1px solid var(--obsidian-border-strong);
   border-radius: 20px;
@@ -2605,26 +2694,56 @@ select.text-input option,
   color: var(--c-ded8df);
 }
 
+.bucket-select-all-btn {
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--obsidian-purple);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: color 120ms ease, opacity 120ms ease;
+}
+
+.bucket-select-all-btn:hover:not(:disabled) {
+  color: var(--obsidian-purple-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bucket-select-all-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .bucket-filter-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  width: 100%;
+  margin-bottom: 12px;
 }
 
 .bucket-filter-actions .custom-dropdown-container {
-  width: 140px;
-  min-width: 140px;
-  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
 }
 
 .bucket-filter-actions .custom-dropdown-trigger {
-  min-height: 32px;
-  padding: 4px 8px;
+  min-height: 36px;
+  padding: 6px 16px;
+  border: 1px solid var(--modal-field-border);
+  border-radius: 999px;
+  background: var(--modal-field-bg);
 }
 
 .bucket-filter-actions .custom-dropdown-label {
-  font-size: 12px;
-  color: var(--c-ded8df) !important;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--obsidian-text) !important;
 }
 
 .bucket-filter-actions .custom-dropdown-menu {
@@ -2755,10 +2874,10 @@ select.text-input option,
 
 .bucket-account-picker-list {
   --bucket-visible-rows: 3;
-  --bucket-gap: 6px;
-  --bucket-list-pad-y: 6px;
-  --bucket-list-pad-x: 6px;
-  --bucket-item-height: 54px;
+  --bucket-gap: 0px;
+  --bucket-list-pad-y: 0px;
+  --bucket-list-pad-x: 0px;
+  --bucket-item-height: 60px;
   display: flex;
   flex-direction: column;
   max-height: calc(
@@ -2768,9 +2887,10 @@ select.text-input option,
     + 2px
   );
   overflow: hidden;
-  border: 1px solid var(--c-353335);
-  border-radius: 6px;
-  background: var(--c-141313);
+  border: 1px solid var(--modal-surface-elevated-border);
+  border-radius: 12px;
+  background: var(--modal-surface-elevated);
+  box-shadow: var(--modal-surface-elevated-shadow);
 }
 
 /* Inner scroller, not the frame, so the frame clips the thumb to the radius.
@@ -2778,8 +2898,8 @@ select.text-input option,
    see the note there for why the native bar is hidden. */
 .bucket-account-picker-scroll {
   position: relative;
-  display: grid;
-  gap: var(--bucket-gap);
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -2789,7 +2909,12 @@ select.text-input option,
 }
 
 .bucket-account-picker-scroll.has-overflow {
-  padding-right: calc(var(--bucket-list-pad-x) + var(--scrollbar-size));
+  padding-right: 10px;
+}
+
+.bucket-account-picker-scroll .scroll-thumb {
+  width: 4px;
+  right: 3px;
 }
 
 .bucket-account-item {
@@ -2797,25 +2922,27 @@ select.text-input option,
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-height: var(--bucket-item-height);
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: var(--obsidian-surface-low);
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   cursor: pointer;
   user-select: none;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background-color 120ms ease;
+}
+
+.bucket-account-item + .bucket-account-item {
+  border-top: 1px solid var(--modal-field-divider);
 }
 
 .bucket-account-item:hover {
-  background: var(--c-232222);
-  border-color: var(--obsidian-border-strong);
+  background: var(--c-255-255-255-a45);
 }
 
 .bucket-account-item.selected {
   background: rgb(var(--purple-accent-rgb) / 0.1);
-  border-color: rgb(var(--purple-accent-rgb) / 0.35);
 }
 
 /* Drawn, not a native checkbox: macOS paints accent-color lighter than the button fill. */
@@ -2870,20 +2997,20 @@ select.text-input option,
 .bucket-account-provider-icon {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  color: var(--c-f2efef);
   flex: 0 0 auto;
-  overflow: hidden;
 }
 
 .bucket-account-provider-icon svg,
 .bucket-account-provider-icon img {
-  width: 16px;
-  height: 16px;
-  max-width: 16px;
-  max-height: 16px;
+  width: 24px;
+  height: 24px;
+  max-width: 24px;
+  max-height: 24px;
   object-fit: contain;
+  display: block;
 }
 
 .bucket-account-info {
@@ -3768,34 +3895,14 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
 
   .bucket-account-heading {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 7px;
-    margin-bottom: 8px;
-  }
-
-  .bucket-account-heading .field-label {
-    margin: 0;
-    width: 100%;
-  }
-
-  .bucket-filter-actions {
-    display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .bucket-filter-actions {
     width: 100%;
-  }
-
-  .bucket-filter-actions .custom-dropdown-container {
-    flex: 1 1 150px;
-    width: auto;
-    min-width: 150px;
-  }
-
-  .bucket-filter-actions .button {
-    flex: 0 0 auto;
-    white-space: nowrap;
   }
 
   .sr-only {

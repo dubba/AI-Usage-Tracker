@@ -84,7 +84,8 @@ describe("browser sign-in providers", () => {
   it("starts an Anthropic sign-in, opens the browser, and waits for the callback", async () => {
     render();
     expect(heading()).toBe("Add AI Account");
-    expect(primary().textContent).toBe("Open Claude Login");
+    expect(primary().textContent).toBe("Connect");
+    expect(document.querySelector("#account-provider .provider-dropdown-icon.provider-anthropic svg")).not.toBeNull();
     click(primary());
     await settle();
 
@@ -112,14 +113,16 @@ describe("browser sign-in providers", () => {
     ]);
   });
 
-  it("uses the generated button label for Claude and Antigravity", () => {
+  it("uses Connect and updates the default account name and provider icon for Claude and Antigravity", () => {
     render();
     chooseProvider("Anthropic Claude");
-    expect(primary().textContent).toBe("Open Claude Login");
+    expect(primary().textContent).toBe("Connect");
     expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("Claude");
+    expect(document.querySelector("#account-provider .provider-dropdown-icon.provider-anthropic")).not.toBeNull();
     chooseProvider("Google Antigravity (Gemini)");
-    expect(primary().textContent).toBe("Open Antigravity Login");
+    expect(primary().textContent).toBe("Connect");
     expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("Antigravity");
+    expect(document.querySelector("#account-provider .provider-dropdown-icon.provider-antigravity")).not.toBeNull();
   });
 
   it("keeps a name the user typed when switching provider", () => {
@@ -222,6 +225,7 @@ describe("browser sign-in providers", () => {
       expect(primary().textContent).toBe("Retry");
       click($<HTMLButtonElement>('.modal-error [aria-label="Dismiss error"]'));
       expect(document.querySelector(".modal-error")).toBeNull();
+      expect(primary().textContent).toBe("Connect");
     } finally {
       vi.useRealTimers();
     }
@@ -258,7 +262,7 @@ describe("browser sign-in providers", () => {
     const email = document.getElementById("account-email") as HTMLInputElement;
     expect(email).toBeTruthy();
     expect(document.querySelector(".credential-note")?.textContent).toBe(
-      "If you've signed in to this provider before, entering an email lets you sign in with that account instead of reusing the existing session."
+      "Enter an email to sign in with a specific account instead of reusing your active browser session."
     );
     typeInto(email, "second@example.com");
     click(primary());
@@ -306,7 +310,7 @@ describe("Grok", () => {
   it("signs in through the private window without opening the browser", async () => {
     render();
     chooseProvider("xAI Grok");
-    expect(primary().textContent).toBe("Open Grok Login");
+    expect(primary().textContent).toBe("Connect");
     click(primary());
     await settle();
     expect(api.startLogin).toHaveBeenCalledWith("Grok", "grok", undefined, undefined);
@@ -338,7 +342,7 @@ describe("Grok", () => {
     expect(document.getElementById("grok-cookie")).not.toBeNull();
     click($(".advanced-connection-toggle"));
     expect(document.getElementById("grok-cookie")).toBeNull();
-    expect(primary().textContent).toBe("Open Grok Login");
+    expect(primary().textContent).toBe("Connect");
   });
 });
 

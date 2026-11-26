@@ -1,10 +1,16 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (4 changes)
 
-### Fixed (1)
+### Improved (2)
+
+- **Add AI Account** and **Create Group** now feature softened inputs, an elevated provider dropdown with provider icons, an elevated account list with **Select All** beside **Select Accounts** and **All Providers** on its own row, inline Group Name validation instead of a bottom alert, **Connect** as the main button label on **Add AI Account** (restored when an error is dismissed), and no auto-focus on **Group Name** on open so phone keyboards stay closed until tapped.
+- The floating bottom navigation bar now casts a deeper shadow so it stands out above scrolled content, **Cancel** and **Back** buttons across modals use matching muted borderless styling, the phone drawer close (`×`) button uses a circular shape matching dialog close buttons, and **Sync Devices** refines its send, receive, and synced-settings descriptions.
+
+### Fixed (2)
 
 - On phones, opening or switching to Custom Color in Pick Accent Color no longer auto-focuses the hex input (so the on-screen keyboard stays closed until you tap it), and modals with an open keyboard now center across the full space up to the status bar instead of squeezing or hugging the keyboard.
+- On mobile and touch screens, tooltips now appear only on long press instead of every tap (and no longer disappear as soon as your finger lifts), suppress unintended taps or touch menus during the hold, and stay hidden on red close (`×`) buttons.
 
 ## v0.7.1 - 2026-11-26 (12 changes)
 

@@ -3,12 +3,14 @@ import { createPortal } from "react-dom";
 import { computeTooltipPosition, getTooltipPlacement } from "./tooltip-position";
 import "./tooltip-layer.css";
 
-const TAP_TOOLTIP_HOLD_MS = 2300;
+const LONG_PRESS_TOOLTIP_MS = 450;
+const TOUCH_TOOLTIP_LINGER_MS = 1200;
 const TAP_TOOLTIP_FADE_MS = 200;
 const TOUCH_MOUSE_GUARD_MS = 700;
+const TOUCH_MOVE_CANCEL_PX = 10;
 
 const MOBILE_SUPPRESSED_SELECTOR =
-  ".sidebar-settings-btn, .mobile-sidebar-toggle-btn, .mobile-sidebar-close-btn";
+  ".mobile-sidebar-close-btn, .account-name-cancel, .ui-modal-close";
 
 type TooltipMode = "hover" | "focus" | "touch";
 
@@ -17,6 +19,14 @@ interface ActiveTooltip {
   text: string;
   mode: TooltipMode;
   fading: boolean;
+}
+
+interface PendingTouchHold {
+  trigger: HTMLElement;
+  pointerId: number | null;
+  startX: number;
+  startY: number;
+  hasCoords: boolean;
 }
 
 function readTooltipText(element: HTMLElement): string | null {
@@ -51,6 +61,24 @@ function isSuppressedOnMobile(trigger: HTMLElement, touch: boolean): boolean {
 
 function isDraggingGrip(trigger: HTMLElement): boolean {
   return Boolean(trigger.closest(".sidebar-resize-handle.dragging"));
+}
+
+function isDashboardReordering(): boolean {
+  return typeof document !== "undefined" && document.documentElement.classList.contains("dashboard-reordering");
+}
+
+function readEventPoint(event: Event): { x: number; y: number; hasCoords: boolean } {
+  if ("touches" in event) {
+    const touch = (event as TouchEvent).touches[0] ?? (event as TouchEvent).changedTouches?.[0];
+    if (touch) return { x: touch.clientX, y: touch.clientY, hasCoords: true };
+  }
+  if ("clientX" in event && "clientY" in event) {
+    const mouseOrPointer = event as PointerEvent;
+    if (Number.isFinite(mouseOrPointer.clientX) && Number.isFinite(mouseOrPointer.clientY)) {
+      return { x: mouseOrPointer.clientX, y: mouseOrPointer.clientY, hasCoords: true };
+    }
+  }
+  return { x: 0, y: 0, hasCoords: false };
 }
 
 function matchesFocusVisible(element: Element): boolean {
@@ -106,10 +134,16 @@ export function TooltipLayer() {
   const activeRef = useRef<ActiveTooltip | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const touchTargetRef = useRef<HTMLElement | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const pendingTouchRef = useRef<PendingTouchHold | null>(null);
   const holdTimerRef = useRef<number | null>(null);
   const fadeTimerRef = useRef<number | null>(null);
+  const suppressedClickTriggerRef = useRef<HTMLElement | null>(null);
+  const suppressedClickClearTimerRef = useRef<number | null>(null);
+  const lastTouchTooltipAtRef = useRef<number>(0);
   const lastTouchAtRef = useRef<number>(0);
   const lastTouchPointerDownAtRef = useRef<number>(0);
+  const lastTouchPointerUpAtRef = useRef<number>(0);
 
   activeRef.current = active;
 
@@ -125,6 +159,22 @@ export function TooltipLayer() {
       }
     };
 
+    const clearLongPress = () => {
+      if (longPressTimerRef.current !== null) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      pendingTouchRef.current = null;
+    };
+
+    const clearSuppressedClick = () => {
+      if (suppressedClickClearTimerRef.current !== null) {
+        window.clearTimeout(suppressedClickClearTimerRef.current);
+        suppressedClickClearTimerRef.current = null;
+      }
+      suppressedClickTriggerRef.current = null;
+    };
+
     const clearTouchAttributes = (markDismissed: boolean) => {
       const previous = touchTargetRef.current;
       if (!previous) return;
@@ -137,11 +187,26 @@ export function TooltipLayer() {
     };
 
     const dismiss = (markTouchDismissed = false) => {
+      clearLongPress();
       clearTouchTimers();
       clearTouchAttributes(markTouchDismissed);
       if (activeRef.current !== null) {
         setActive(null);
       }
+    };
+
+    const scheduleTouchDismiss = (trigger: HTMLElement, delayMs: number) => {
+      clearTouchTimers();
+      holdTimerRef.current = window.setTimeout(() => {
+        holdTimerRef.current = null;
+        setActive((current) => (current && current.trigger === trigger && current.mode === "touch" ? { ...current, fading: true } : current));
+        fadeTimerRef.current = window.setTimeout(() => {
+          fadeTimerRef.current = null;
+          if (activeRef.current?.trigger === trigger && activeRef.current.mode === "touch") {
+            dismiss(true);
+          }
+        }, TAP_TOOLTIP_FADE_MS);
+      }, delayMs);
     };
 
     const show = (trigger: HTMLElement, mode: TooltipMode) => {
@@ -158,16 +223,6 @@ export function TooltipLayer() {
         trigger.removeAttribute("data-tooltip-dismissed");
         trigger.setAttribute("data-tooltip-active", "true");
         touchTargetRef.current = trigger;
-        holdTimerRef.current = window.setTimeout(() => {
-          holdTimerRef.current = null;
-          setActive((current) => (current && current.trigger === trigger && current.mode === "touch" ? { ...current, fading: true } : current));
-          fadeTimerRef.current = window.setTimeout(() => {
-            fadeTimerRef.current = null;
-            if (activeRef.current?.trigger === trigger && activeRef.current.mode === "touch") {
-              dismiss(true);
-            }
-          }, TAP_TOOLTIP_FADE_MS);
-        }, TAP_TOOLTIP_HOLD_MS);
       } else {
         clearTouchAttributes(false);
       }
@@ -196,17 +251,74 @@ export function TooltipLayer() {
       }
     };
 
+    const startTouchHold = (event: Event, pointerId: number | null) => {
+      lastTouchAtRef.current = Date.now();
+      clearLongPress();
+      clearSuppressedClick();
+      if (activeRef.current !== null) {
+        dismiss(activeRef.current.mode === "touch");
+      }
+      const trigger = resolveTriggerFromTarget(event.target);
+      if (!trigger) return;
+      if (!readTooltipText(trigger) || isDraggingGrip(trigger) || isSuppressedOnMobile(trigger, true) || isDashboardReordering()) {
+        return;
+      }
+      const point = readEventPoint(event);
+      pendingTouchRef.current = {
+        trigger,
+        pointerId,
+        startX: point.x,
+        startY: point.y,
+        hasCoords: point.hasCoords,
+      };
+      longPressTimerRef.current = window.setTimeout(() => {
+        longPressTimerRef.current = null;
+        if (pendingTouchRef.current?.trigger !== trigger) return;
+        pendingTouchRef.current = null;
+        if (!trigger.isConnected || isDraggingGrip(trigger) || isDashboardReordering()) return;
+        lastTouchAtRef.current = Date.now();
+        lastTouchTooltipAtRef.current = Date.now();
+        suppressedClickTriggerRef.current = trigger;
+        show(trigger, "touch");
+      }, LONG_PRESS_TOOLTIP_MS);
+    };
+
+    const moveTouchHold = (event: Event, pointerId: number | null) => {
+      const pending = pendingTouchRef.current;
+      if (!pending || !pending.hasCoords) return;
+      if (pointerId !== null && pending.pointerId !== null && pending.pointerId !== pointerId) return;
+      const point = readEventPoint(event);
+      if (!point.hasCoords) return;
+      if (Math.hypot(point.x - pending.startX, point.y - pending.startY) > TOUCH_MOVE_CANCEL_PX) {
+        clearLongPress();
+      }
+    };
+
+    const endTouchHold = (isCancel: boolean) => {
+      lastTouchAtRef.current = Date.now();
+      clearLongPress();
+      if (activeRef.current?.mode === "touch" && holdTimerRef.current === null && fadeTimerRef.current === null) {
+        if (isCancel) {
+          dismiss(true);
+        } else {
+          scheduleTouchDismiss(activeRef.current.trigger, TOUCH_TOOLTIP_LINGER_MS);
+        }
+      }
+      if (suppressedClickTriggerRef.current) {
+        if (suppressedClickClearTimerRef.current !== null) {
+          window.clearTimeout(suppressedClickClearTimerRef.current);
+        }
+        suppressedClickClearTimerRef.current = window.setTimeout(() => {
+          suppressedClickClearTimerRef.current = null;
+          suppressedClickTriggerRef.current = null;
+        }, 400);
+      }
+    };
+
     const onPointerDown = (event: PointerEvent) => {
       if (isTouchLike(event)) {
-        const now = Date.now();
-        lastTouchAtRef.current = now;
-        lastTouchPointerDownAtRef.current = now;
-        const trigger = resolveTriggerFromTarget(event.target);
-        if (trigger) {
-          show(trigger, "touch");
-        } else {
-          dismiss(true);
-        }
+        lastTouchPointerDownAtRef.current = Date.now();
+        startTouchHold(event, event.pointerId ?? null);
         return;
       }
       // Dismiss hover tooltip on drag starts or mouse press so it never lingers while dragging.
@@ -215,16 +327,69 @@ export function TooltipLayer() {
       }
     };
 
+    const onPointerMove = (event: PointerEvent) => {
+      if (isTouchLike(event)) {
+        moveTouchHold(event, event.pointerId ?? null);
+      }
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (isTouchLike(event)) {
+        lastTouchPointerUpAtRef.current = Date.now();
+        endTouchHold(false);
+      }
+    };
+
+    const onPointerCancel = (event: PointerEvent) => {
+      if (isTouchLike(event)) {
+        lastTouchPointerUpAtRef.current = Date.now();
+        endTouchHold(true);
+      }
+    };
+
     const onTouchStart = (event: TouchEvent) => {
       const now = Date.now();
-      // Skip the follow-up touchstart for a tap already handled by pointerdown.
+      // Skip the follow-up touchstart for a press already handled by pointerdown.
       if (now - lastTouchPointerDownAtRef.current < 50) return;
-      lastTouchAtRef.current = now;
-      const trigger = resolveTriggerFromTarget(event.target);
-      if (trigger) {
-        show(trigger, "touch");
-      } else {
-        dismiss(true);
+      startTouchHold(event, null);
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      moveTouchHold(event, null);
+    };
+
+    const onTouchEnd = () => {
+      lastTouchAtRef.current = Date.now();
+      if (Date.now() - lastTouchPointerUpAtRef.current < 50) return;
+      endTouchHold(false);
+    };
+
+    const onTouchCancel = () => {
+      lastTouchAtRef.current = Date.now();
+      if (Date.now() - lastTouchPointerUpAtRef.current < 50) return;
+      endTouchHold(true);
+    };
+
+    const onClickCapture = (event: MouseEvent) => {
+      const trigger = suppressedClickTriggerRef.current;
+      if (!trigger) return;
+      clearSuppressedClick();
+      if (event.target instanceof Node && trigger.contains(event.target)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    const onContextMenuCapture = (event: MouseEvent) => {
+      const activeTrigger =
+        pendingTouchRef.current?.trigger ??
+        (activeRef.current?.mode === "touch" ? activeRef.current.trigger : null) ??
+        suppressedClickTriggerRef.current;
+      if (!activeTrigger) return;
+      const recentlyTriggered = Date.now() - lastTouchTooltipAtRef.current < 1000;
+      if (!pendingTouchRef.current && !recentlyTriggered) return;
+      if (event.target instanceof Node && activeTrigger.contains(event.target)) {
+        event.preventDefault();
       }
     };
 
@@ -251,35 +416,60 @@ export function TooltipLayer() {
     };
 
     const onDismissEvent = () => {
+      clearLongPress();
       if (activeRef.current) {
         dismiss(activeRef.current.mode === "touch");
+      }
+    };
+
+    const onDocumentPointerLeave = (event: Event) => {
+      if ("pointerType" in event && (event as PointerEvent).pointerType === "touch") return;
+      if (activeRef.current?.mode === "hover") {
+        dismiss(false);
       }
     };
 
     window.addEventListener("pointerover", onPointerOver, true);
     window.addEventListener("pointerout", onPointerOut, true);
     window.addEventListener("pointerdown", onPointerDown, { capture: true, passive: true });
+    window.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
+    window.addEventListener("pointerup", onPointerUp, { capture: true, passive: true });
+    window.addEventListener("pointercancel", onPointerCancel, { capture: true, passive: true });
     window.addEventListener("touchstart", onTouchStart, { capture: true, passive: true });
+    window.addEventListener("touchmove", onTouchMove, { capture: true, passive: true });
+    window.addEventListener("touchend", onTouchEnd, { capture: true, passive: true });
+    window.addEventListener("touchcancel", onTouchCancel, { capture: true, passive: true });
+    window.addEventListener("click", onClickCapture, true);
+    window.addEventListener("contextmenu", onContextMenuCapture, true);
     window.addEventListener("focusin", onFocusIn, true);
     window.addEventListener("focusout", onFocusOut, true);
     window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("scroll", onDismissEvent, { capture: true, passive: true });
     window.addEventListener("resize", onDismissEvent);
     window.addEventListener("blur", onDismissEvent);
-    document.addEventListener("pointerleave", onDismissEvent);
+    document.addEventListener("pointerleave", onDocumentPointerLeave);
 
     return () => {
       window.removeEventListener("pointerover", onPointerOver, true);
       window.removeEventListener("pointerout", onPointerOut, true);
       window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("pointermove", onPointerMove, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerCancel, true);
       window.removeEventListener("touchstart", onTouchStart, true);
+      window.removeEventListener("touchmove", onTouchMove, true);
+      window.removeEventListener("touchend", onTouchEnd, true);
+      window.removeEventListener("touchcancel", onTouchCancel, true);
+      window.removeEventListener("click", onClickCapture, true);
+      window.removeEventListener("contextmenu", onContextMenuCapture, true);
       window.removeEventListener("focusin", onFocusIn, true);
       window.removeEventListener("focusout", onFocusOut, true);
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("scroll", onDismissEvent, true);
       window.removeEventListener("resize", onDismissEvent);
       window.removeEventListener("blur", onDismissEvent);
-      document.removeEventListener("pointerleave", onDismissEvent);
+      document.removeEventListener("pointerleave", onDocumentPointerLeave);
+      clearSuppressedClick();
       dismiss(false);
     };
   }, []);

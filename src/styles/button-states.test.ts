@@ -166,7 +166,7 @@ describe("Button hover and active state invariants", () => {
 
   it("centers X icons inside their buttons and sizes the sidebar close button like the dialogs' ×, in the filter button's 40px footprint", () => {
     expect(UI_REFINEMENTS_CSS).toMatch(
-      /\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn,\s*\.mobile-sidebar-close-btn\s*\{[^}]*border-radius:\s*8px\s*!important;[^}]*width:\s*32px;[^}]*height:\s*32px;[^}]*display:\s*inline-flex;\s*align-items:\s*center;\s*justify-content:\s*center;\s*margin:\s*4px;\s*padding:\s*0;\s*line-height:\s*0;/,
+      /\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn,\s*\.mobile-sidebar-close-btn\s*\{[^}]*border-radius:\s*50%\s*!important;[^}]*width:\s*32px;[^}]*height:\s*32px;[^}]*display:\s*inline-flex;\s*align-items:\s*center;\s*justify-content:\s*center;\s*margin:\s*4px;\s*padding:\s*0;\s*line-height:\s*0;/,
     );
     expect(UI_REFINEMENTS_CSS).toMatch(
       /\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn\s+svg,\s*\.mobile-sidebar-close-btn\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*20px;\s*height:\s*20px;/,

@@ -11,7 +11,7 @@ function accounts(count: number): string {
 
 function BackButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
-    <button type="button" className="button ghost pairing-back-btn" onClick={onClick} disabled={disabled}>
+    <button type="button" className="button ghost button-tertiary pairing-back-btn" onClick={onClick} disabled={disabled}>
       <ArrowLeftIcon />
       <span>Back</span>
     </button>

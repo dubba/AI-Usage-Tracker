@@ -53,7 +53,11 @@
     --bottom-nav-surface: #2a2a2c;
     --bottom-nav-line: #3a3a3e;
     --bottom-nav-border: #686870;
-    --bottom-nav-shadow: 0 0 0 1px rgb(0 0 0 / 0.55), 0 10px 26px rgb(0 0 0 / 0.52), 0 2px 6px rgb(0 0 0 / 0.36);
+    --bottom-nav-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.72),
+      0 14px 36px rgb(0 0 0 / 0.78),
+      0 4px 12px rgb(0 0 0 / 0.56),
+      inset 0 1px 0 rgb(255 255 255 / 0.08);
     --bottom-nav-label: #b4b4ba;
     --bottom-nav-label-active: #ffffff;
     --purple-on-text: #2d145f;
@@ -83,6 +87,15 @@
     --obsidian-surface-low: #1c1b1b;
     --obsidian-surface-container: #201f1f;
     --obsidian-surface-container-high: #211e29;
+    --modal-field-bg: #242325;
+    --modal-field-border: rgba(255, 255, 255, 0.1);
+    --modal-field-divider: rgba(255, 255, 255, 0.09);
+    --modal-field-error-border: rgba(255, 133, 133, 0.55);
+    --modal-surface-elevated: #28282a;
+    --modal-surface-elevated-border: rgba(255, 255, 255, 0.13);
+    --modal-surface-elevated-shadow:
+      0 10px 26px rgba(0, 0, 0, 0.45),
+      0 2px 8px rgba(0, 0, 0, 0.3);
     --obsidian-border: #2e2e2e;
     --obsidian-border-strong: #494454;
     --obsidian-text: #e5e2e1;
@@ -190,7 +203,11 @@
     --bottom-nav-surface: #ffffff;
     --bottom-nav-line: #d6d6dc;
     --bottom-nav-border: #b6b6c0;
-    --bottom-nav-shadow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.1);
+    --bottom-nav-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.08),
+      0 12px 30px rgb(0 0 0 / 0.28),
+      0 3px 10px rgb(0 0 0 / 0.18),
+      inset 0 1px 0 rgb(255 255 255 / 0.9);
     --bottom-nav-label: #5c5c66;
     --bottom-nav-label-active: #1c1b1f;
     --purple-on-text: #f7f4ff;
@@ -210,6 +227,15 @@
     --obsidian-surface-low: #ffffff;
     --obsidian-surface-container: #efedf3;
     --obsidian-surface-container-high: #e8e4f0;
+    --modal-field-bg: #f3f2f6;
+    --modal-field-border: rgba(28, 27, 31, 0.12);
+    --modal-field-divider: rgba(28, 27, 31, 0.08);
+    --modal-field-error-border: rgba(201, 59, 59, 0.6);
+    --modal-surface-elevated: #eeecf4;
+    --modal-surface-elevated-border: rgba(28, 27, 31, 0.14);
+    --modal-surface-elevated-shadow:
+      0 8px 22px rgba(28, 27, 31, 0.1),
+      0 2px 6px rgba(28, 27, 31, 0.06);
     --obsidian-border: #dcd9e0;
     --obsidian-border-strong: #c4bfd0;
     --obsidian-text: #1c1b1f;
@@ -242,8 +268,21 @@
     --obsidian-surface-low: #000000;
     --obsidian-surface-container: #0c0c0c;
     --obsidian-surface-container-high: #121016;
+    --modal-field-bg: #121213;
+    --modal-field-border: rgba(255, 255, 255, 0.12);
+    --modal-field-divider: rgba(255, 255, 255, 0.09);
+    --modal-surface-elevated: #18181a;
+    --modal-surface-elevated-border: rgba(255, 255, 255, 0.14);
+    --modal-surface-elevated-shadow:
+      0 10px 26px rgba(0, 0, 0, 0.72),
+      0 2px 8px rgba(0, 0, 0, 0.55);
     --bottom-nav-surface: #161618;
     --bottom-nav-line: #2a2a2e;
+    --bottom-nav-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.07),
+      0 14px 36px rgb(0 0 0 / 0.86),
+      0 4px 12px rgb(0 0 0 / 0.65),
+      inset 0 1px 0 rgb(255 255 255 / 0.08);
     /* Softer text: pure white on pure black glares, so headings and body text are a light gray.
      * Text on purple, green and red fills (--white) stays white. */
     --text: #d8d6dc;

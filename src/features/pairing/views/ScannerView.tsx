@@ -74,7 +74,7 @@ export function ScannerView({
           <div className="airgap-prompt-actions">
             <button
               type="button"
-              className="button ghost pairing-back-btn"
+              className="button ghost button-tertiary pairing-back-btn"
               disabled={airgapImporting || airgapVerifying}
               onClick={onAirgapBack}
             >
@@ -163,7 +163,7 @@ export function ScannerView({
           <div className="pairing-scanner-controls pairing-scan-actions">
             <button
               type="button"
-              className="button primary pairing-back-btn"
+              className="button ghost button-tertiary pairing-back-btn"
               onClick={onBack}
             >
               <ArrowLeftIcon />

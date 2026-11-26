@@ -82,6 +82,7 @@ describe("BucketModal create provider filter", () => {
   it("starts on All Providers even when opened from a provider sidebar row", () => {
     renderCreate([makeAccount("a1", "anthropic"), makeAccount("a2", "openai")], "anthropic");
     expect(filterLabel()).toBe("All Providers");
+    expect(document.activeElement).toBe(document.querySelector(".bucket-modal-card"));
   });
 
   it("does not pre-select the current provider's accounts", () => {
@@ -90,6 +91,35 @@ describe("BucketModal create provider filter", () => {
       "Select Accounts (0 selected)",
     );
     expect(document.querySelectorAll(".bucket-account-item.selected")).toHaveLength(0);
+  });
+
+  it("shows the empty-name validation error inline under Group Name and clears it on typing", async () => {
+    renderCreate([makeAccount("a1", "anthropic")]);
+    click(document.querySelector<HTMLButtonElement>(".bucket-modal-save-group .button.primary")!);
+    const nameInput = document.querySelector<HTMLInputElement>("#bucket-name-input")!;
+    const inlineError = document.querySelector(".field-inline-error");
+    expect(inlineError?.textContent).toBe("Please enter a name for this group.");
+    expect(nameInput.classList.contains("has-error")).toBe(true);
+    expect(nameInput.getAttribute("aria-invalid")).toBe("true");
+    expect(document.querySelector(".modal-error")).toBeNull();
+
+    typeInto(nameInput, "W");
+    expect(document.querySelector(".field-inline-error")).toBeNull();
+    expect(nameInput.classList.contains("has-error")).toBe(false);
+  });
+
+  it("places Select All beside Select Accounts in the header and keeps All Providers on its own row", () => {
+    renderCreate([makeAccount("a1", "anthropic"), makeAccount("a2", "openai")]);
+    const selectAll = document.querySelector<HTMLButtonElement>(".bucket-account-heading .bucket-select-all-btn")!;
+    expect(selectAll).not.toBeNull();
+    expect(selectAll.textContent).toBe("Select All");
+    expect(document.querySelector(".bucket-filter-actions .bucket-select-all-btn")).toBeNull();
+
+    click(selectAll);
+    expect(selectAll.textContent).toBe("Deselect All");
+    expect(document.querySelector(".bucket-account-heading .field-label")?.textContent).toBe(
+      "Select Accounts (2 selected)",
+    );
   });
 
   it("scrolls account rows inside the picker, not the rounded frame", () => {

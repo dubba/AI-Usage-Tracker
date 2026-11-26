@@ -220,7 +220,9 @@ describe("General", () => {
       expect(resetBtn.disabled).toBe(true);
 
       // Presets goes back to the grid, with focus on the + circle.
-      click(modal.querySelector<HTMLButtonElement>(".accent-modal-actions .accent-presets-btn")!);
+      const presetsBtn = modal.querySelector<HTMLButtonElement>(".accent-modal-actions .accent-presets-btn")!;
+      expect(presetsBtn.classList.contains("button-tertiary")).toBe(true);
+      click(presetsBtn);
       expect(modal.querySelector(".accent-custom-view")).toBeNull();
       expect(modal.querySelectorAll('.accent-color-grid button[role="radio"]')).toHaveLength(11);
       expect(document.activeElement?.getAttribute("aria-label")).toBe("Custom color picker");

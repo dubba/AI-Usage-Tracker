@@ -203,7 +203,7 @@ describe("choosing a role and a way to connect", () => {
     expect(document.querySelector(".pairing-settings-toggle [role=switch]")?.getAttribute("aria-checked")).toBe("true");
     expect(document.querySelector(".pairing-settings-toggle strong")?.textContent).toBe("Also sync settings and layout");
     expect(document.querySelector(".pairing-settings-toggle small")?.textContent).toBe(
-      "Includes appearance, alerts, refresh intervals, and card order."
+      "Includes appearance, refresh intervals, alerts, and card order."
     );
     expect(text()).toContain("Choose a role for this device.");
     // Focus rests on the dialog itself (no ring), so the first Tab reaches Send.
@@ -1927,11 +1927,12 @@ describe("scanning", () => {
     click(document.querySelector('[aria-label="Switch camera"]') ?? document.createElement("i"));
   });
 
-  it("styles the Back button as the default (primary) button", async () => {
+  it("styles the Back button as a muted tertiary footer button", async () => {
     await openScanner();
     const backBtn = document.querySelector(".pairing-scan-actions .pairing-back-btn");
-    expect(backBtn?.classList.contains("primary")).toBe(true);
-    expect(backBtn?.classList.contains("ghost")).toBe(false);
+    expect(backBtn?.classList.contains("ghost")).toBe(true);
+    expect(backBtn?.classList.contains("button-tertiary")).toBe(true);
+    expect(backBtn?.classList.contains("primary")).toBe(false);
     expect(backBtn?.classList.contains("button")).toBe(true);
   });
 

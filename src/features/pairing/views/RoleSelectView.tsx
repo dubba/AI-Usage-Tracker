@@ -30,7 +30,7 @@ export function RoleSelectView({
       >
         <div className="pairing-settings-toggle-text">
           <strong id={labelId}>Also sync settings and layout</strong>
-          <small>Includes appearance, alerts, refresh intervals, and card order.</small>
+          <small>Includes appearance, refresh intervals, alerts, and card order.</small>
         </div>
       </SettingsToggleRow>
     </div>

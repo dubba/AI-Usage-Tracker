@@ -105,7 +105,7 @@ const browserSignIn = (provider: Provider): ProviderStrategy => ({
   // empty field leaves the chooser unfiltered.
   wantsEmailHint: true,
   signInEmail: (draft) => draft.email.trim() || undefined,
-  actionLabel: (_draft, busy) => (busy ? "Connecting…" : `Open ${defaultAccountName(provider)} Login`),
+  actionLabel: (_draft, busy) => (busy ? "Connecting…" : "Connect"),
 });
 
 const opencodeGo: ProviderStrategy = {
@@ -148,7 +148,7 @@ const opencodeGo: ProviderStrategy = {
       reconnectAccountId,
     ),
   actionLabel: (draft, busy) =>
-    busy ? "Waiting for OpenCode…" : draft.advancedManual ? "Connect Manually" : "Open OpenCode Login",
+    busy ? "Waiting for OpenCode…" : draft.advancedManual ? "Connect Manually" : "Connect",
 };
 
 const grok: ProviderStrategy = {
@@ -171,7 +171,7 @@ const grok: ProviderStrategy = {
   actionLabel: (draft, busy) =>
     busy
       ? draft.advancedManual ? "Adding Account…" : "Waiting for Grok…"
-      : draft.advancedManual ? "Connect Manually" : "Open Grok Login",
+      : draft.advancedManual ? "Connect Manually" : "Connect",
 };
 
 const googleAiStudio: ProviderStrategy = {

@@ -10,7 +10,6 @@ vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
 import type { Provider } from "../../types";
 import { PROVIDER_META } from "../../shared/lib/providers";
 import {
-  defaultAccountName,
   emptyDraft,
   isAutoAccountName,
   strategyFor,
@@ -66,7 +65,7 @@ describe("browser sign-in providers", () => {
     expect(strategy.opensBrowser).toBe(true);
     expect(strategy.signInStartMessage).toBeNull();
     expect(strategy.waitingText("anything")).toBe("Waiting for sign-in…");
-    expect(strategy.actionLabel(draft(provider), false)).toBe(`Open ${defaultAccountName(provider)} Login`);
+    expect(strategy.actionLabel(draft(provider), false)).toBe("Connect");
     expect(strategy.actionLabel(draft(provider), true)).toBe("Connecting…");
   });
 
@@ -136,7 +135,7 @@ describe("Grok", () => {
   });
 
   it("labels the button for each phase", () => {
-    expect(strategy.actionLabel(draft("grok"), false)).toBe("Open Grok Login");
+    expect(strategy.actionLabel(draft("grok"), false)).toBe("Connect");
     expect(strategy.actionLabel(draft("grok"), true)).toBe("Waiting for Grok…");
     expect(strategy.actionLabel(draft("grok", { advancedManual: true }), false)).toBe("Connect Manually");
     expect(strategy.actionLabel(draft("grok", { advancedManual: true }), true)).toBe("Adding Account…");
@@ -204,7 +203,7 @@ describe("OpenCode Go", () => {
   });
 
   it("labels the button for each phase", () => {
-    expect(strategy.actionLabel(draft("opencode_go"), false)).toBe("Open OpenCode Login");
+    expect(strategy.actionLabel(draft("opencode_go"), false)).toBe("Connect");
     expect(strategy.actionLabel(draft("opencode_go", { advancedManual: true }), false)).toBe("Connect Manually");
     expect(strategy.actionLabel(draft("opencode_go"), true)).toBe("Waiting for OpenCode…");
     expect(strategy.actionLabel(draft("opencode_go", { advancedManual: true }), true)).toBe("Waiting for OpenCode…");

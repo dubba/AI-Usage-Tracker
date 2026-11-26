@@ -20,6 +20,7 @@ import { GrokFields } from "./fields/GrokFields";
 import { OpenCodeFields } from "./fields/OpenCodeFields";
 import type { FieldsProps } from "./fields/types";
 import { CustomDropdown, type DropdownOption } from "../../shared/ui/CustomDropdown";
+import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import { useDialogError } from "../../shared/hooks/useDialogError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
@@ -35,6 +36,11 @@ const providerDropdownOptions: DropdownOption<Provider>[] = PICKER_ORDER.map((id
   value: id,
   label: PROVIDER_META[id].connectLabel,
   detail: PROVIDER_META[id].connectDetail,
+  icon: (
+    <span className={`provider-dropdown-icon provider-${id}`}>
+      <ProviderIcon provider={id} />
+    </span>
+  ),
 }));
 
 const connectLabel = (provider: Provider) => PROVIDER_META[provider].connectLabel;
@@ -129,7 +135,14 @@ export function AddAccountModal({
     }
   };
 
-  const handleEscape = useEscapeOrClosePolicy(Boolean(error), () => setError(null), requestClose);
+  const dismissError = () => {
+    setError(null);
+    if (status?.status === "failed") {
+      setStatus(null);
+    }
+  };
+
+  const handleEscape = useEscapeOrClosePolicy(Boolean(error), dismissError, requestClose);
   useModalA11y(dialogRef, open && !confirmingDiscard, handleEscape);
 
   if (!open) return null;
@@ -313,7 +326,7 @@ export function AddAccountModal({
             spellCheck={false}
             disabled={busy || modelsBusy}
           />
-          <div className="credential-note">If you've signed in to this provider before, entering an email lets you sign in with that account instead of reusing the existing session.</div>
+          <div className="credential-note">Enter an email to sign in with a specific account instead of reusing your active browser session.</div>
         </>
       ) : null}
 
@@ -327,7 +340,7 @@ export function AddAccountModal({
       ) : null}
       <div className="modal-actions is-split">
         <button type="button" className="button ghost button-tertiary" onClick={requestClose}>Cancel</button>
-        {status?.status === "failed" ? (
+        {status?.status === "failed" && error ? (
           <button type="button" className="button primary" onClick={retry} disabled={busy || modelsBusy}>
             Retry
           </button>
@@ -341,7 +354,7 @@ export function AddAccountModal({
           </button>
         )}
       </div>
-      {error ? <DialogError message={error} onDismiss={() => setError(null)} /> : null}
+      {error ? <DialogError message={error} onDismiss={dismissError} /> : null}
     </ModalDialog>
   );
 }

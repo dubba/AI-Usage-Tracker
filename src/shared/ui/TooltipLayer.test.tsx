@@ -26,6 +26,12 @@ function TestHarness() {
       <button type="button" className="mobile-sidebar-close-btn" data-tooltip="Close menu">
         Close
       </button>
+      <button type="button" className="account-name-cancel" data-tooltip="Cancel">
+        Cancel
+      </button>
+      <button type="button" className="ui-modal-close" data-tooltip="Close dialog">
+        Dismiss
+      </button>
       <div className="outside-area">Outside</div>
       <TooltipLayer />
     </div>
@@ -162,11 +168,13 @@ describe("TooltipLayer", () => {
   });
 
   it("renders tooltips directly into document.body outside isolated/clipping containers", () => {
+    vi.useFakeTimers();
     app = mount(<TestHarness />);
     const resetHit = document.querySelector<HTMLElement>(".activity-reset-hit")!;
 
     act(() => {
       resetHit.dispatchEvent(new Event("touchstart", { bubbles: true }));
+      vi.advanceTimersByTime(450);
     });
 
     const tooltip = document.body.querySelector<HTMLElement>(":scope > .app-tooltip");
@@ -198,17 +206,79 @@ describe("TooltipLayer", () => {
     expect(document.body.querySelector(".app-tooltip")).toBeNull();
   });
 
-  it("activates data-tooltip-active on touch and dismisses on outside tap, scroll, or timeout", () => {
+  it("shows touch tooltips only on long press, suppresses that tap's click, and dismisses after release, outside tap, or scroll", () => {
     vi.useFakeTimers();
+    const onBtnClick = vi.fn();
     app = mount(<TestHarness />);
     const btn = document.querySelector<HTMLButtonElement>(".generic-btn")!;
+    btn.addEventListener("click", onBtnClick);
     const outside = document.querySelector<HTMLElement>(".outside-area")!;
 
+    // Quick tap (< 450ms) does not show a tooltip and lets the click fire normally.
     act(() => {
       btn.dispatchEvent(new Event("touchstart", { bubbles: true }));
+      vi.advanceTimersByTime(200);
+      btn.dispatchEvent(new Event("touchend", { bubbles: true }));
+      btn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      vi.advanceTimersByTime(400);
+    });
+    expect(btn.getAttribute("data-tooltip-active")).toBeNull();
+    expect(document.body.querySelector(".app-tooltip")).toBeNull();
+    expect(onBtnClick).toHaveBeenCalledTimes(1);
+
+    // Moving past the touch threshold cancels the pending long press.
+    act(() => {
+      const start = new Event("touchstart", { bubbles: true });
+      Object.defineProperty(start, "touches", { value: [{ clientX: 10, clientY: 10 }] });
+      btn.dispatchEvent(start);
+      const move = new Event("touchmove", { bubbles: true });
+      Object.defineProperty(move, "touches", { value: [{ clientX: 25, clientY: 10 }] });
+      btn.dispatchEvent(move);
+      vi.advanceTimersByTime(500);
+      btn.dispatchEvent(new Event("touchend", { bubbles: true }));
+    });
+    expect(document.body.querySelector(".app-tooltip")).toBeNull();
+
+    // Long press shows at 450ms, stays visible while held, suppresses trailing click on release, and lingers briefly after release.
+    act(() => {
+      btn.dispatchEvent(new Event("touchstart", { bubbles: true }));
+      vi.advanceTimersByTime(440);
+    });
+    expect(document.body.querySelector(".app-tooltip")).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(20);
     });
     expect(btn.getAttribute("data-tooltip-active")).toBe("true");
     expect(document.body.querySelector(".app-tooltip")?.textContent).toBe("Generic tooltip");
+
+    // Stays visible while still held down.
+    act(() => {
+      vi.advanceTimersByTime(2500);
+    });
+    expect(document.body.querySelector(".app-tooltip")).not.toBeNull();
+
+    // Release + finger-up pointerleave suppresses the trailing click and keeps the tooltip visible briefly before fading out.
+    act(() => {
+      btn.dispatchEvent(new Event("touchend", { bubbles: true }));
+      document.dispatchEvent(new Event("pointerleave"));
+      btn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    expect(onBtnClick).toHaveBeenCalledTimes(1);
+    expect(document.body.querySelector(".app-tooltip")).not.toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(document.body.querySelector(".app-tooltip")).toBeNull();
+    expect(btn.getAttribute("data-tooltip-active")).toBeNull();
+
+    // Outside tap dismisses an active long-press tooltip immediately.
+    act(() => {
+      btn.dispatchEvent(new Event("touchstart", { bubbles: true }));
+      vi.advanceTimersByTime(450);
+    });
+    expect(document.body.querySelector(".app-tooltip")).not.toBeNull();
 
     act(() => {
       outside.dispatchEvent(new Event("touchstart", { bubbles: true }));
@@ -216,19 +286,10 @@ describe("TooltipLayer", () => {
     expect(btn.getAttribute("data-tooltip-active")).toBeNull();
     expect(document.body.querySelector(".app-tooltip")).toBeNull();
 
+    // Scroll dismisses an active tooltip and cancels a pending long press.
     act(() => {
       btn.dispatchEvent(new Event("touchstart", { bubbles: true }));
-    });
-    expect(document.body.querySelector(".app-tooltip")).not.toBeNull();
-
-    act(() => {
-      vi.advanceTimersByTime(2600);
-    });
-    expect(document.body.querySelector(".app-tooltip")).toBeNull();
-    expect(btn.getAttribute("data-tooltip-active")).toBeNull();
-
-    act(() => {
-      btn.dispatchEvent(new Event("touchstart", { bubbles: true }));
+      vi.advanceTimersByTime(450);
     });
     expect(document.body.querySelector(".app-tooltip")).not.toBeNull();
 
@@ -236,14 +297,37 @@ describe("TooltipLayer", () => {
       window.dispatchEvent(new Event("scroll"));
     });
     expect(document.body.querySelector(".app-tooltip")).toBeNull();
+
+    act(() => {
+      btn.dispatchEvent(new Event("touchstart", { bubbles: true }));
+      vi.advanceTimersByTime(200);
+      window.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(400);
+    });
+    expect(document.body.querySelector(".app-tooltip")).toBeNull();
   });
 
-  it("does not activate tooltips on touch for mobile sidebar toggle, close, or settings buttons", () => {
+  it("enables tooltips on long press for non-X mobile buttons while suppressing red X buttons", () => {
+    vi.useFakeTimers();
     app = mount(<TestHarness />);
-    for (const selector of [".sidebar-settings-btn", ".mobile-sidebar-toggle-btn", ".mobile-sidebar-close-btn"]) {
+    for (const selector of [".sidebar-settings-btn", ".mobile-sidebar-toggle-btn"]) {
       const button = document.querySelector<HTMLButtonElement>(selector)!;
       act(() => {
         button.dispatchEvent(new Event("touchstart", { bubbles: true }));
+        vi.advanceTimersByTime(450);
+      });
+      expect(button.getAttribute("data-tooltip-active")).toBe("true");
+      expect(document.body.querySelector(".app-tooltip")).not.toBeNull();
+      act(() => {
+        window.dispatchEvent(new Event("scroll"));
+      });
+    }
+
+    for (const selector of [".mobile-sidebar-close-btn", ".account-name-cancel", ".ui-modal-close"]) {
+      const button = document.querySelector<HTMLButtonElement>(selector)!;
+      act(() => {
+        button.dispatchEvent(new Event("touchstart", { bubbles: true }));
+        vi.advanceTimersByTime(450);
       });
       expect(button.getAttribute("data-tooltip-active")).toBeNull();
       expect(document.body.querySelector(".app-tooltip")).toBeNull();
