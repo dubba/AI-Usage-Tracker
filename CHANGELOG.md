@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased (5 changes)
+## Unreleased (6 changes)
 
-### Improved (3)
+### Improved (4)
 
 - **Add AI Account** and **Create Group** now feature softened inputs, an elevated provider dropdown with provider icons, an elevated account list with **Select All** beside **Select Accounts** and **All Providers** on its own row, inline Group Name validation instead of a bottom alert, **Connect** as the main button label on **Add AI Account** (restored when an error is dismissed), and no auto-focus on **Group Name** on open so phone keyboards stay closed until tapped.
 - The floating bottom navigation bar now casts a deeper shadow so it stands out above scrolled content, **Cancel** and **Back** buttons across modals use matching muted borderless styling, the phone drawer close (`×`) button uses a circular shape matching dialog close buttons, and **Sync Devices** refines its send, receive, and synced-settings descriptions.
 - Compact desktop account cards now stay stacked in a single column at all window widths, with usage bars centered in the card and aligned consistently across rows regardless of bar count or reset-time length.
+- Settings controls now use a calmer, more consistent layout: **Check Now**, **Sync Devices**, and **Delete** use outlined styling instead of solid fills (keeping a solid green fill only when an update is available), **View**, **Copy**, and **Clear** share a subtle neutral outline, and selector dropdowns (**Appearance**, **Accent Color**, and **Account Refresh**) use low-contrast pill buttons.
 
 ### Fixed (2)
 

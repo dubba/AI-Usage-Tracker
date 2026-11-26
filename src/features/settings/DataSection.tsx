@@ -115,7 +115,7 @@ export function DataSection({
           </div>
           <button
             type="button"
-            className="button ghost bucket-delete-button settings-update-action"
+            className="button ghost settings-danger-action settings-update-action"
             disabled={deleting}
             onClick={() => setConfirmingDelete(true)}
           >

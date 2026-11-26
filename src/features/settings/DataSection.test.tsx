@@ -46,6 +46,8 @@ describe("DataSection", () => {
       const childTags = [...btn.children].map((el) => el.tagName.toLowerCase());
       expect(childTags).toEqual(["svg", "span"]);
     }
+    expect(button("Delete").classList.contains("settings-danger-action")).toBe(true);
+    expect(button("Delete").classList.contains("bucket-delete-button")).toBe(false);
   });
 
   it("clears the usage history on one click", async () => {

@@ -851,7 +851,7 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
 
 /* Hover fills outlined buttons with the accent's tint, as on the Settings dropdowns, not just
    the border. */
-.button:hover:not(:disabled):not(.primary):not(.button-green):not(.remove-confirm-button):not(.bucket-delete-button):not(.filter-active-clear-btn):not(.limit-reset-use):not(.button-tertiary) {
+.button:hover:not(:disabled):not(.primary):not(.button-green):not(.remove-confirm-button):not(.bucket-delete-button):not(.settings-danger-action):not(.filter-active-clear-btn):not(.limit-reset-use):not(.button-tertiary) {
   background: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
@@ -1732,7 +1732,7 @@ button.account-card-provider-icon:active {
 .settings-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
   width: 100%;
   box-sizing: border-box;
@@ -1942,23 +1942,79 @@ button.account-card-provider-icon:active {
 }
 
 .settings-update-action {
+  padding-inline: 14px;
+  gap: 6px;
+}
+
+.settings-update-action:has(> svg:first-child) {
   padding-inline: 12px 14px;
 }
 
-.settings-update-action:has(> span:first-child) {
+.settings-update-action:has(> span:first-child):has(> svg) {
   padding-inline: 14px 12px;
 }
 
 .settings-update-action svg,
 .settings-update-action-icon {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2.5;
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.1;
 }
 
-/* Green action buttons: the Updates card's one button (Check Now, then Update / Install Update), the
-   What's Changed modal's Update button, and the Paseo Bridge window's
-   Regenerate. */
+/* Subtle accent-outlined secondary actions on Settings (Check Now, Sync Devices). */
+.button.ghost.settings-accent-action {
+  background: transparent;
+  border: 1px solid var(--settings-accent-action-border);
+  color: var(--purple-text);
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease, transform 120ms ease;
+}
+
+.button.ghost.settings-accent-action :is(span, svg) {
+  color: var(--purple-text);
+}
+
+.button.ghost.settings-accent-action:hover:not(:disabled),
+.button.ghost.settings-accent-action:focus-visible:not(:disabled) {
+  background: var(--purple-surface);
+  border-color: var(--obsidian-purple-strong);
+  color: var(--purple-text);
+}
+
+.button.ghost.settings-accent-action:active:not(:disabled) {
+  background: var(--purple-surface-active);
+  border-color: var(--obsidian-purple-strong);
+  transform: scale(0.98);
+}
+
+/* Subtle danger-outlined action on Settings (Delete All App Data): denotes danger cleanly
+   without a heavy solid red fill at rest. */
+.button.ghost.settings-danger-action {
+  background: transparent;
+  border: 1px solid var(--settings-danger-border);
+  color: var(--obsidian-red);
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease, transform 120ms ease;
+}
+
+.button.ghost.settings-danger-action :is(span, svg) {
+  color: var(--obsidian-red);
+}
+
+.button.ghost.settings-danger-action:hover:not(:disabled),
+.button.ghost.settings-danger-action:focus-visible:not(:disabled) {
+  background: var(--settings-danger-surface);
+  border-color: var(--danger-line);
+  color: var(--obsidian-red);
+}
+
+.button.ghost.settings-danger-action:active:not(:disabled) {
+  background: var(--settings-danger-surface-active);
+  border-color: var(--danger-line-hover);
+  color: var(--obsidian-red);
+  transform: scale(0.98);
+}
+
+/* Green action buttons: the Updates card's Update / Install Update button when an update is
+   available, the What's Changed modal's Update button, and the Paseo Bridge window's Regenerate. */
 .settings-update-action.button-green,
 .update-notes-actions .settings-update-action {
   background: var(--success-fill) !important;
@@ -3832,8 +3888,8 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   }
 
   .settings-row {
-    align-items: flex-start;
-    gap: 16px;
+    align-items: center;
+    gap: 14px;
   }
 
   .settings-row > div:first-child {
@@ -3845,19 +3901,23 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
     flex: 0 0 auto;
     width: auto;
     max-width: max-content;
-    padding-inline: 10px;
+    padding-inline: 12px;
     white-space: nowrap;
   }
 
   .settings-style-content .settings-changelog-button {
-    padding-inline: 10px 8px;
+    padding-inline: 12px 10px;
   }
 
   .settings-style-content .settings-update-action {
+    padding-inline: 12px;
+  }
+
+  .settings-style-content .settings-update-action:has(> svg:first-child) {
     padding-inline: 10px 12px;
   }
 
-  .settings-style-content .settings-update-action:has(> span:first-child) {
+  .settings-style-content .settings-update-action:has(> span:first-child):has(> svg) {
     padding-inline: 12px 10px;
   }
 

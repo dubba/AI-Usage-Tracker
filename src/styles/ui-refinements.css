@@ -1473,26 +1473,25 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   }
 }
 
-/* Settings: buttons (Link Devices, View, Copy) and Account Updates dropdown styled to match refresh all button look & feel */
+/* Settings: neutral secondary outlined actions (View, Copy, Clear) */
 .settings-style-content .settings-changelog-button,
 .settings-changelog-button {
-  background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
-  /* At rest, the same gray as the outline of a switch that is off. */
-  border: 1px solid var(--obsidian-border-strong) !important;
-  border-radius: 6px !important;
-  color: var(--c-ffffff) !important;
-  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+  background: transparent !important;
+  border: 1px solid var(--settings-action-border) !important;
+  border-radius: 10px !important;
+  color: var(--obsidian-text) !important;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease, transform 120ms ease;
 }
 
 .settings-style-content .settings-changelog-button span,
 .settings-changelog-button span {
-  color: var(--c-ffffff) !important;
+  color: var(--obsidian-text) !important;
   transition: color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button svg,
 .settings-changelog-button svg {
-  color: var(--c-ffffff) !important;
+  color: var(--obsidian-muted-bright) !important;
   transition: color 140ms ease;
 }
 
@@ -1500,21 +1499,21 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .settings-changelog-button:hover:not(:disabled) {
   background-color: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: var(--c-ffffff) !important;
+  color: var(--obsidian-text) !important;
 }
 
 .settings-style-content .settings-changelog-button:hover:not(:disabled) span,
 .settings-changelog-button:hover:not(:disabled) span,
 .settings-style-content .settings-changelog-button:hover:not(:disabled) svg,
 .settings-changelog-button:hover:not(:disabled) svg {
-  color: var(--c-ffffff) !important;
+  color: var(--obsidian-text) !important;
 }
 
 .settings-style-content .settings-changelog-button:active:not(:disabled),
 .settings-changelog-button:active:not(:disabled) {
   background-color: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: var(--c-ffffff) !important;
+  color: var(--obsidian-text) !important;
   transform: scale(0.98);
 }
 
@@ -1522,7 +1521,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .settings-changelog-button:active:not(:disabled) span,
 .settings-style-content .settings-changelog-button:active:not(:disabled) svg,
 .settings-changelog-button:active:not(:disabled) svg {
-  color: var(--c-ffffff) !important;
+  color: var(--obsidian-text) !important;
 }
 
 .settings-style-content .settings-changelog-button:disabled,
@@ -1531,10 +1530,14 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   cursor: not-allowed;
 }
 
-/* Settings & empty group state: buttons match the 44px height and 6px radius of the dropdown triggers and primary action buttons */
+/* Settings action buttons share one calm 36px height and 10px radius; empty-group and modal delete buttons keep 44px. */
 .settings-style-content .settings-card .button,
 .settings-style-content .settings-update-action,
-.settings-style-content .settings-changelog-button,
+.settings-style-content .settings-changelog-button {
+  min-height: 36px;
+  border-radius: 10px !important;
+}
+
 .empty-group-actions > .button,
 .edit-bucket-empty-btn,
 .bucket-delete-button {
@@ -1599,44 +1602,52 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   transition: background-color 140ms ease;
 }
 
-/* Settings: Account Updates dropdown trigger & menu matching refresh all button look & feel */
+/* Settings: Appearance, Accent Color, and Account Refresh selectors styled as subtle low-contrast pills */
 .settings-account-refresh .custom-dropdown-trigger {
-  background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
-  /* At rest, the same gray as the outline of a switch that is off. */
-  border: 1px solid var(--obsidian-border-strong) !important;
-  border-radius: 6px !important;
-  color: var(--c-ded8df) !important;
+  min-height: 36px;
+  padding: 0 12px 0 14px;
+  background: var(--settings-pill-bg) !important;
+  border: 1px solid var(--settings-pill-border) !important;
+  border-radius: 999px !important;
+  color: var(--obsidian-text) !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-label {
-  color: var(--c-ded8df) !important;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--obsidian-text) !important;
   transition: color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-chevron {
-  color: var(--c-ded8df) !important;
+  color: var(--obsidian-muted) !important;
   transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1), color 140ms ease;
 }
 
-.settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled),
+.settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) {
+  background-color: var(--purple-surface) !important;
+  border-color: var(--chrome-border) !important;
+  color: var(--obsidian-text) !important;
+}
+
 .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger {
   background-color: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: var(--c-ffffff) !important;
+  color: var(--obsidian-text) !important;
 }
 
 .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-label,
 .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-label,
 .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-chevron,
 .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-chevron {
-  color: var(--c-ffffff) !important;
+  color: var(--obsidian-text) !important;
 }
 
 .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) {
   background-color: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: var(--c-ffffff) !important;
+  color: var(--obsidian-text) !important;
 }
 
 .settings-account-refresh .custom-dropdown-menu {
@@ -1880,23 +1891,6 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--black) !important;
 }
 
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled),
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:focus-visible,
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled),
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container:not(.open) .custom-dropdown-trigger {
-  background: var(--white) !important;
-  background-color: var(--white) !important;
-  border-color: var(--chrome-border) !important;
-  color: var(--black) !important;
-}
-
-/* Light theme at rest: the gray outline of a switch that is off (#857f90 above), on the dropdowns
-   and the outlined buttons (View, Copy). Hover, focus and open keep the purple. */
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container:not(.open) .custom-dropdown-trigger:not(:hover):not(:focus-visible):not(:active),
-:root[data-theme="light"] .settings-changelog-button:not(:hover):not(:focus-visible):not(:active) {
-  border-color: #857f90 !important;
-}
-
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger,
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger:hover:not(:disabled),
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger:focus-visible,
@@ -1904,16 +1898,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: var(--purple-surface-active) !important;
   background-color: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: var(--black) !important;
-}
-
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-label,
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-chevron,
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-label,
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-chevron,
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) .custom-dropdown-label,
-:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) .custom-dropdown-chevron {
-  color: var(--black) !important;
+  color: var(--obsidian-text) !important;
 }
 
 :root[data-theme="light"] .account-card-provider-icon,
@@ -2103,26 +2088,21 @@ html::after {
   overflow-wrap: anywhere;
 }
 
-/* Every button on the Settings page and in the Paseo Bridge window (Copy, Reveal, Regenerate, Check
-   Now, View, Sync Devices, Refresh, Clear, Delete…) has 10px corners and 650 text, like the top bar's
-   Group and Account buttons. Led by `:root body` so it outranks the `!important` radius rules above,
-   the strongest being `.settings-style-content .settings-card .button`; dropdowns, switches and the
-   Advanced toggle are not `.button` and keep their own shapes. */
-:root body .settings-style-content .button,
+/* Settings buttons share one calm 36px height, 10px corners, and 600 weight; Paseo Bridge buttons keep 10px corners and 650 weight. */
+:root body .settings-style-content .button {
+  min-height: 36px;
+  border-radius: 10px !important;
+  font-size: 13px;
+  font-weight: 600 !important;
+}
+
 :root body .bridge-window-shell .button {
   border-radius: 10px !important;
   font-weight: 650 !important;
 }
 
-/* Outlined buttons on the Settings page (View, Refresh, Clear, Copy) have off-white labels (#f7f4ff)
-   in dark and turn dark in the light theme. Buttons on a colored fill (Sync Devices, Check Now, Delete)
-   use pure white (#ffffff), matching modal primary action buttons; a primary button on a light accent
-   fill sets --fill-label to a dark label (obsidian-dashboard.css). */
-:root body .settings-style-content .button.ghost:not(.bucket-delete-button),
-:root body .settings-style-content .button.ghost:not(.bucket-delete-button) :is(span, svg) {
-  color: var(--c-f7f4ff) !important;
-}
-
+/* Solid-filled buttons on Settings (available Update / Install) keep white/on-fill labels;
+   accent-outlined (Check Now, Sync Devices) and danger-outlined (Delete) keep their semantic colors. */
 :root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button),
 :root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button) :is(span, svg) {
   color: var(--fill-label, var(--white)) !important;

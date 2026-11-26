@@ -1,0 +1,73 @@
+  <div class="wrap">
+    <header class="review">
+      <div class="kicker">Usage page · design exploration</div>
+      <h1>Three directions for the 30- and 90-day views</h1>
+      <p>Same accounts, same data, three different information architectures. The 7-day bars stay close to what works today; the longer ranges get treatments built for them. Switch period inside each concept, and hover the marks for exact values.</p>
+      <div class="concept-tabs" role="tablist" aria-label="Redesign concept">
+        <button class="ctab on" role="tab" aria-selected="true" data-concept="A"><b>A</b>Calendar heat</button>
+        <button class="ctab" role="tab" aria-selected="false" data-concept="B"><b>B</b>Weekly cycles</button>
+        <button class="ctab" role="tab" aria-selected="false" data-concept="C"><b>C</b>Portfolio</button>
+      </div>
+    </header>
+
+    <p class="concept-note" id="note"></p>
+
+    <div class="mock" id="mock">
+      <header class="page-head">
+        <div class="page-title">
+          <h2 class="eyebrow">Usage</h2>
+          <p class="desc" id="page-desc">Track daily usage as a percentage of each account's weekly limit.</p>
+        </div>
+        <div class="period">
+          <span class="period-label">Period</span>
+          <div class="seg" role="group" aria-label="Period">
+            <button type="button" data-period="7d" aria-pressed="false">7D</button>
+            <button type="button" data-period="30d" aria-pressed="true" class="on">30D</button>
+            <button type="button" data-period="90d" aria-pressed="false">90D</button>
+          </div>
+        </div>
+      </header>
+      <div id="key"></div>
+      <div id="view"></div>
+    </div>
+
+    <section class="compare">
+      <h2>At a glance</h2>
+      <p>All three keep every current behavior: measured, estimated and no-data days, weekly reset markers, Today / Peak / Avg, plan pills, reorder, monthly-only accounts on 30D, and sign-in notices. None of them needs new backend data.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th></th><th>A · Calendar heat</th><th>B · Weekly cycles</th><th>C · Portfolio</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Best for</th>
+              <td>Seeing <b>when</b> you burn: weekdays, gaps, streaks, and a quarter at a glance.</td>
+              <td>Understanding <b>pace</b> against the weekly limit, and how this week compares with past ones.</td>
+              <td><b>Many accounts</b>, page-level health, and scanning without scrolling through tall cards.</td></tr>
+            <tr><th scope="row">7 days</th>
+              <td>Current bar chart, lightly refined. Reset line and stats stay.</td>
+              <td>Current bar chart. The week is framed as one cycle.</td>
+              <td>Stacked bars for the whole portfolio, plus 7-bar sparklines in each row.</td></tr>
+            <tr><th scope="row">30 days</th>
+              <td>A real month grid: day tiles with numbers and values, and each week's total in the left gutter.</td>
+              <td>Four to five burn-up curves, one per limit cycle, with an even-pace guide.</td>
+              <td>Stacked 7-day-average area, a weekday rhythm chart, and expandable account rows.</td></tr>
+            <tr><th scope="row">90 days</th>
+              <td>Thirteen-plus weekly columns of squares, with a weekly-burn bar under each: the quarter on one screen.</td>
+              <td>Thirteen-week fill trend, then this week against a typical week.</td>
+              <td>Ninety-day portfolio area; per-account detail opens in place.</td></tr>
+            <tr><th scope="row">Effort</th>
+              <td><b>Low–medium.</b> One new chart component; data and page shell unchanged.</td>
+              <td><b>Medium.</b> Cycle math from existing resets; two new chart components.</td>
+              <td><b>High.</b> New page structure, selection state, responsive table, three chart types.</td></tr>
+            <tr><th scope="row">Watch out</th>
+              <td>Color-only encoding: needs tooltips, the screen-reader table, and a non-color cue for estimates.</td>
+              <td>Cumulative curves need a legend; exact daily values are one hover away, not printed.</td>
+              <td>Per-account detail moves behind a click; series colors add a second palette dimension.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="lean"><b>My lean:</b> <span>start with <b>A</b> — it is the smallest structural change that makes 30 and 90 days feel purpose-built, and it keeps the 7-day bars untouched. If the account list is likely to grow past six, pair A's heat grid with C's summary band and compact rows. Nothing is implemented yet; I'll wait for your pick.</span></div>
+    </section>
+  </div>
+  <div id="tip" role="tooltip"></div>

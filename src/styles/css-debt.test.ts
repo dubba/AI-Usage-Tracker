@@ -31,7 +31,7 @@ const BUDGET: Record<string, { important: number; rawColors: number }> = {
   "styles/sidebar-list.css": { important: 21, rawColors: 0 },
   "styles/theme-palette.css": { important: 0, rawColors: 0 },
   "styles/tokens.css": { important: 0, rawColors: 0 },
-  "styles/ui-refinements.css": { important: 222, rawColors: 7 },
+  "styles/ui-refinements.css": { important: 221, rawColors: 6 },
 };
 
 const TOKEN_FILES = new Set(["styles/tokens.css", "styles/theme-palette.css"]);

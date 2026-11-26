@@ -398,7 +398,10 @@ describe("Updates", () => {
     app = mount(view({ update }));
     expect(document.querySelector(".settings-installed-version")?.textContent).toBe("Current Version: 1.0.0");
     expect(document.querySelector(".settings-updates-subcard-status")?.textContent).toContain("Up to date");
-    click(button("Check Now"));
+    const checkBtn = button("Check Now");
+    expect(checkBtn.classList.contains("settings-accent-action")).toBe(true);
+    expect(checkBtn.classList.contains("button-green")).toBe(false);
+    click(checkBtn);
     expect(update.checkForUpdate).toHaveBeenCalledWith(true);
   });
 

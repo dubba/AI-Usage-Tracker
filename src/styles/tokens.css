@@ -96,6 +96,14 @@
     --modal-surface-elevated-shadow:
       0 10px 26px rgba(0, 0, 0, 0.45),
       0 2px 8px rgba(0, 0, 0, 0.3);
+    /* Settings page controls: low-contrast pill selectors and calm outlined secondary actions. */
+    --settings-pill-bg: rgba(255, 255, 255, 0.055);
+    --settings-pill-border: rgba(255, 255, 255, 0.1);
+    --settings-action-border: rgba(255, 255, 255, 0.14);
+    --settings-accent-action-border: rgb(var(--purple-accent-rgb) / 0.55);
+    --settings-danger-border: rgb(var(--tint-red-rgb) / 0.45);
+    --settings-danger-surface: rgb(var(--tint-red-rgb) / 0.12);
+    --settings-danger-surface-active: rgb(var(--tint-red-rgb) / 0.2);
     --obsidian-border: #2e2e2e;
     --obsidian-border-strong: #494454;
     --obsidian-text: #e5e2e1;
@@ -236,6 +244,13 @@
     --modal-surface-elevated-shadow:
       0 8px 22px rgba(28, 27, 31, 0.1),
       0 2px 6px rgba(28, 27, 31, 0.06);
+    --settings-pill-bg: rgba(28, 27, 31, 0.05);
+    --settings-pill-border: rgba(28, 27, 31, 0.12);
+    --settings-action-border: rgba(28, 27, 31, 0.16);
+    --settings-accent-action-border: rgb(var(--purple-accent-rgb) / 0.45);
+    --settings-danger-border: rgba(208, 58, 58, 0.4);
+    --settings-danger-surface: rgba(208, 58, 58, 0.09);
+    --settings-danger-surface-active: rgba(208, 58, 58, 0.16);
     --obsidian-border: #dcd9e0;
     --obsidian-border-strong: #c4bfd0;
     --obsidian-text: #1c1b1f;
@@ -276,6 +291,9 @@
     --modal-surface-elevated-shadow:
       0 10px 26px rgba(0, 0, 0, 0.72),
       0 2px 8px rgba(0, 0, 0, 0.55);
+    --settings-pill-bg: rgba(255, 255, 255, 0.07);
+    --settings-pill-border: rgba(255, 255, 255, 0.14);
+    --settings-action-border: rgba(255, 255, 255, 0.18);
     --bottom-nav-surface: #161618;
     --bottom-nav-line: #2a2a2e;
     --bottom-nav-shadow:

@@ -1,4 +1,4 @@
-import { ArrowUpCircleIcon, DownloadCloudIcon, ExternalLinkIcon } from "../../shared/ui/icons";
+import { DownloadCloudIcon, ExternalLinkIcon } from "../../shared/ui/icons";
 import { BUILD_LABEL, FALLBACK_APP_VERSION } from "../../shared/lib/constants";
 import { isIOS } from "../../shared/lib/platform";
 import { SettingsToggleRow } from "./SettingsToggleRow";
@@ -84,11 +84,10 @@ export function UpdatesSection({
             ) : (
               <button
                 type="button"
-                className="button settings-update-action button-green"
+                className="button ghost settings-accent-action settings-update-action"
                 disabled={updateBusy !== null}
                 onClick={() => void checkForUpdate(true)}
               >
-                <ArrowUpCircleIcon className="settings-update-action-icon" />
                 <span>{updateBusy === "checking" ? "Checking…" : "Check Now"}</span>
               </button>
             )}
