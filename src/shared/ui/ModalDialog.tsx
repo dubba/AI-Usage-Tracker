@@ -49,8 +49,9 @@ export function ModalDialog({
         aria-describedby={describedBy}
         tabIndex={-1}
       >
-        <ModalCloseButton onClose={onClose} disabled={closeDisabled} />
         {children}
+        {/* Last, so Tab reaches it after the dialog's own controls; CSS keeps it in the corner. */}
+        <ModalCloseButton onClose={onClose} disabled={closeDisabled} />
       </section>
       {afterDialog}
     </div>

@@ -21,8 +21,8 @@ export function focusableElements(container: HTMLElement): HTMLElement[] {
  * - traps Tab / Shift+Tab within the dialog while it is open
  * - closes on Escape (unless an inner dropdown menu is open; the dropdown
  *   consumes Escape to close itself first)
- * - moves focus into the dialog on open (to an element marked `data-autofocus`, else its ×, so
- *   the first Tab reaches its first control) and restores it on close
+ * - moves focus into the dialog on open (to an element marked `data-autofocus`, else the dialog
+ *   itself, so the first Tab reaches its first control) and restores it on close
  * - locks background scrolling by disabling body overflow
  *
  * `onRequestClose` should perform the modal's own close logic (including any
@@ -51,21 +51,18 @@ export function useModalA11y(
 
     if (!container.contains(document.activeElement)) {
       const candidates = focusableElements(container);
-      // Focus starts on the dialog's ×, with no ring, so the first Tab lands on its first control
-      // (shown with a ring). A control marked `data-autofocus` (a field to type in) comes first.
+      // Focus starts on the dialog itself, as a screen reader announces it by its title, so the
+      // first Tab reaches its first control and Enter or Space does nothing. A control marked
+      // `data-autofocus` (a field to type in) comes first. A container that cannot take focus
+      // (no tabindex) hands it to its first control.
+      const autofocus = container.querySelector<HTMLElement>("[data-autofocus]:not([disabled])");
       const initial =
-        container.querySelector<HTMLElement>("[data-autofocus]:not([disabled])") ??
-        container.querySelector<HTMLElement>(":scope > .ui-modal-close:not([disabled])") ??
-        candidates[0] ??
-        container;
-      // A touch screen has no keyboard to need the ring, and the browser draws one for focus
-      // moved by script; it showed as a box around the dialog's first button on the phones.
+        autofocus ?? (container.hasAttribute("tabindex") ? container : (candidates[0] ?? container));
+      // No ring on opening: the dialog draws none, and a touch screen has no keyboard to need one
+      // (the browser draws one for focus moved by script; it showed as a box round the first
+      // button on the phones). A field to type in shows its own focus.
       const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-      // The × never shows its ring on opening: it turns red with focus, which looks like a
-      // warning. Anything else is the browser's call: a ring when the dialog was opened from the
-      // keyboard, none when it was clicked open.
-      const onClose = initial.classList.contains("ui-modal-close");
-      initial.focus(touch || onClose ? { preventScroll: true, focusVisible: false } : { preventScroll: true });
+      initial.focus(touch || initial === container ? { preventScroll: true, focusVisible: false } : { preventScroll: true });
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -93,8 +90,9 @@ export function useModalA11y(
       }
       const index = items.indexOf(active);
       if (index === -1) {
+        // The dialog itself (where focus starts): Tab to its first control, Shift+Tab to its last.
         event.preventDefault();
-        items[0].focus({ preventScroll: true });
+        items[event.shiftKey ? items.length - 1 : 0].focus({ preventScroll: true });
         return;
       }
       if (event.shiftKey && index === 0) {

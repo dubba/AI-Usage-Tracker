@@ -2,7 +2,7 @@ import { CloseIcon } from "./icons";
 
 /**
  * The × in a dialog's top corner. `onClose` should be the same handler as the dialog's Cancel button.
- * Focus starts here when the dialog opens (`useModalA11y`).
+ * It comes last in the dialog, so Tab reaches it after the dialog's controls (`ModalDialog`).
  */
 export function ModalCloseButton({ onClose, disabled }: { onClose: () => void; disabled?: boolean }) {
   return (

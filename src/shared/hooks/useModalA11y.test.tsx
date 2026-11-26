@@ -57,26 +57,35 @@ describe("useModalA11y", () => {
     expect(document.activeElement).toBe(opener);
   });
 
-  it("starts on the × without showing its focus ring", () => {
+  it("starts on the dialog itself, without a ring, so Tab reaches its first control", () => {
     const focus = vi.spyOn(HTMLElement.prototype, "focus");
-    function CloseFirst() {
+    function Dialog() {
       const ref = useRef<HTMLElement>(null);
       useModalA11y(ref, true, () => {});
       return (
-        <section ref={ref} role="dialog" aria-modal="true">
+        <section ref={ref} role="dialog" aria-modal="true" tabIndex={-1}>
+          <button type="button">First action</button>
+          <button type="button">Second action</button>
           <button type="button" className="ui-modal-close">
             ×
           </button>
-          <button type="button">First action</button>
         </section>
       );
     }
-    mounted = mount(<CloseFirst />);
-    const close = document.querySelector<HTMLElement>(".ui-modal-close")!;
-    expect(document.activeElement).toBe(close);
-    const call = focus.mock.calls.find((_, index) => focus.mock.contexts[index] === close);
+    mounted = mount(<Dialog />);
+    const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+    expect(document.activeElement).toBe(dialog);
+    const call = focus.mock.calls.find((_, index) => focus.mock.contexts[index] === dialog);
     expect(call?.[0]).toMatchObject({ focusVisible: false });
     focus.mockRestore();
+    // Tab from the dialog: its first control. Shift+Tab: its last, the ×.
+    pressKey("Tab");
+    expect(document.activeElement?.textContent).toBe("First action");
+    act(() => dialog.focus());
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true }));
+    });
+    expect(document.activeElement?.classList.contains("ui-modal-close")).toBe(true);
   });
 
   it("closes on Escape", () => {

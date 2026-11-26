@@ -206,11 +206,11 @@ describe("choosing a role and a way to connect", () => {
       "Includes appearance, alerts, refresh intervals, and card order."
     );
     expect(text()).toContain("Choose a role for this device.");
-    // Focus rests on the × (no ring), so the first Tab reaches Send.
+    // Focus rests on the dialog itself (no ring), so the first Tab reaches Send.
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 80));
     });
-    expect(document.activeElement?.classList.contains("ui-modal-close")).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector("[role=dialog]"));
     expect(text()).not.toContain("Step 1:");
     // The encryption note sits in the footer, beside Cancel.
     expect(document.querySelector(".modal-actions .pairing-security-note")?.textContent).toBe(

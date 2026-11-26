@@ -38,8 +38,8 @@ describe("ModalDialog", () => {
     expect(card.getAttribute("aria-describedby")).toBeNull();
     expect(card.getAttribute("tabindex")).toBe("-1");
     expect(ref.current).toBe(card);
-    // Close button first, then the children as direct children of the card.
-    expect(card.children[0].classList.contains("ui-modal-close")).toBe(true);
+    // The children as direct children of the card, then the close button last (in Tab order too).
+    expect(card.lastElementChild?.classList.contains("ui-modal-close")).toBe(true);
     expect(card.querySelector(":scope > .modal-kicker")).not.toBeNull();
     expect(card.querySelector(":scope > h2")?.textContent).toBe("Title");
   });
