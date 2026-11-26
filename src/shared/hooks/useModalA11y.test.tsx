@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { act, useRef, useState } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mount, type Mounted } from "../../test-utils/react";
 import { useModalA11y } from "./useModalA11y";
 
@@ -55,6 +55,28 @@ describe("useModalA11y", () => {
       Array.from(document.querySelectorAll("button")).find((el) => el.textContent === "Close")!.click();
     });
     expect(document.activeElement).toBe(opener);
+  });
+
+  it("starts on a marked × without showing its focus ring", () => {
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    function CloseFirst() {
+      const ref = useRef<HTMLElement>(null);
+      useModalA11y(ref, true, () => {});
+      return (
+        <section ref={ref} role="dialog" aria-modal="true">
+          <button type="button" className="ui-modal-close" data-autofocus>
+            ×
+          </button>
+          <button type="button">First action</button>
+        </section>
+      );
+    }
+    mounted = mount(<CloseFirst />);
+    const close = document.querySelector<HTMLElement>(".ui-modal-close")!;
+    expect(document.activeElement).toBe(close);
+    const call = focus.mock.calls.find((_, index) => focus.mock.contexts[index] === close);
+    expect(call?.[0]).toMatchObject({ focusVisible: false });
+    focus.mockRestore();
   });
 
   it("closes on Escape", () => {

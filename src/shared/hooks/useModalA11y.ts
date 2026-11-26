@@ -59,7 +59,10 @@ export function useModalA11y(
       // A touch screen has no keyboard to need the ring, and the browser draws one for focus
       // moved by script; it showed as a box around the dialog's first button on the phones.
       const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-      initial.focus({ preventScroll: true, focusVisible: !touch });
+      // A dialog that starts on its × (Pick Accent Color) shows no ring there on opening: the ×
+      // turns red with focus, which looks like a warning. Tab moves on to a control that shows one.
+      const onClose = initial.classList.contains("ui-modal-close");
+      initial.focus({ preventScroll: true, focusVisible: !touch && !onClose });
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
