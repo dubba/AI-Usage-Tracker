@@ -10,7 +10,7 @@ import { MOBILE_OVERLAY_QUERY } from "../features/sidebar/sidebar-width";
  * be a deliberate decision, not something that happens by accident.
  */
 const MAX_WIDTHS = [360, 400, 480, 600, 640, 720, 760, 768, 860, 1180];
-const MIN_WIDTHS = [861, 1400];
+const MIN_WIDTHS = [861];
 
 function cssFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name: string) => {
