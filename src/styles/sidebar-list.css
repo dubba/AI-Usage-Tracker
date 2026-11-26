@@ -255,9 +255,33 @@
   /* Mobile Settings scrolls as one page (header + cards together) so the borderless title scrolls
      off with the content instead of pinning at the top. */
   .obsidian-shell .settings-style-content {
+    overflow-y: overlay;
     overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-gutter: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .obsidian-shell .settings-style-content::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+    display: block;
+  }
+
+  .obsidian-shell .settings-style-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .obsidian-shell .settings-style-content::-webkit-scrollbar-thumb {
+    border: 0;
+    background-color: var(--scrollbar-thumb);
+    border-radius: 999px;
+  }
+
+  .obsidian-shell .settings-style-content::-webkit-scrollbar-thumb:hover,
+  .obsidian-shell .settings-style-content::-webkit-scrollbar-thumb:active {
+    border: 0;
+    background-color: var(--scrollbar-thumb-hover);
   }
 
   .obsidian-shell .settings-style-content .dashboard-scroll {
