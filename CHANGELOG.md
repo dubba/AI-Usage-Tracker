@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased (12 changes)
+## Unreleased (0 changes)
+
+## v0.7.1 - 2026-11-26 (12 changes)
 
 ### Added (2)
 
