@@ -1315,6 +1315,18 @@
     display: none;
   }
 
+/* The code (shown or typed) sits about 18px from the label above it and from the line below it:
+   3px on top of the card's 12px gap, plus the room each line of text leaves around its letters.
+   The line under that keeps the plain 12px gap to the countdown. */
+.pairing-code-hero > .pairing-code-hero-tag {
+  margin-bottom: 3px;
+}
+
+.pairing-code-hero > .pairing-code-digits,
+.pairing-code-hero > .pairing-code-tiles {
+  margin-bottom: 3px;
+}
+
   .modal-card.pairing-modal.keyboard-open .pairing-code-status,
   html.keyboard-active .modal-card.pairing-modal .pairing-code-status,
   .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-status {
