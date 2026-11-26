@@ -417,13 +417,17 @@
   text-align: center;
 }
 
-/* Mobile keyboard adaptation: pin the modal to the top safe area above the on-screen
- * keyboard and compact the 2D picker plane so the title, X button, hex input, and Done
- * all stay visible instead of getting pushed off the top of the screen. */
+/* Mobile keyboard adaptation: shrink the backdrop to the space above the on-screen
+ * keyboard and center the compacted modal inside it (safe centering via margin: auto
+ * with flex-start so it stays in the middle when it fits and never clips the top on
+ * tiny screens). */
 @media (max-width: 768px) {
   .modal-backdrop.accent-color-modal-backdrop.keyboard-open,
   html.keyboard-active .modal-backdrop.accent-color-modal-backdrop,
   .modal-backdrop.accent-color-modal-backdrop:has(.accent-color-modal.keyboard-open) {
+    bottom: max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px);
+    height: auto;
+    max-height: none;
     align-items: flex-start;
     justify-content: center;
     overflow-y: auto;
@@ -432,8 +436,8 @@
 
   .modal-card.accent-color-modal.keyboard-open,
   html.keyboard-active .modal-card.accent-color-modal {
-    margin-top: 0;
-    margin-bottom: calc(max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) + 12px);
+    margin-top: auto;
+    margin-bottom: auto;
     max-height: none;
     overflow: visible;
   }
