@@ -1322,9 +1322,23 @@
   margin-bottom: 3px;
 }
 
-.pairing-code-hero > .pairing-code-digits,
-.pairing-code-hero > .pairing-code-tiles {
+.pairing-code-hero > .pairing-code-digits {
   margin-bottom: 3px;
+}
+
+/* 1px less: the line under the entry tiles leaves more room above its letters. */
+.pairing-code-hero > .pairing-code-tiles {
+  margin-bottom: 2px;
+}
+
+/* In the Enter Link Code card the card's padding frames the line under the tiles, which then needs
+   no reserved height of its own (it keeps one outside a card, so the page does not jump). */
+.pairing-code-hero > .pairing-code-status {
+  min-height: 0;
+}
+
+.pairing-code-hero > .pairing-code-status > * {
+  margin: 0;
 }
 
   .modal-card.pairing-modal.keyboard-open .pairing-code-status,
