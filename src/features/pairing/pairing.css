@@ -2298,23 +2298,10 @@
   }
 }
 
-/* Sync Devices' ×: a quiet round button, centred on the SYNC DEVICES line, with the same gap to
-   its right as above it. Hover, focus and press keep the red every dialog's × has. */
-:root .modal-card.pairing-modal > .ui-modal-close {
-  top: 16px;
-  right: 16px;
-}
-
+/* Sync Devices' ×: a quiet round button, in the corner where every dialog has it (modal-close.css).
+   Hover, focus and press keep the red every dialog's × has. */
 :root .modal-card.pairing-modal > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active) {
   border-color: transparent;
   background: color-mix(in srgb, var(--obsidian-text) 8%, transparent);
   color: var(--obsidian-muted);
-}
-
-/* The dialog's padding is 20px 16px here (obsidian-dashboard.css). */
-@media (max-width: 860px) {
-  :root .modal-card.pairing-modal > .ui-modal-close {
-    top: 12px;
-    right: 12px;
-  }
 }
