@@ -389,15 +389,17 @@ impl Discovery {
     }
 }
 
-/// Finds the pairing hosts on the local network.
-pub async fn discover() -> Result<Vec<DiscoveredHost>, String> {
+/// Finds the pairing hosts on the local network, looking for at most `timeout`: what is left of the joiner's [`DISCOVERY_TIMEOUT`] search
+/// (`PairingSessionManager::start_client_by_code` searches again while the hosts it finds are
+/// gone).
+pub async fn discover_within(timeout: Duration) -> Result<Vec<DiscoveredHost>, String> {
     #[cfg(any(target_os = "ios", target_os = "macos"))]
     {
-        discover_dnssd(DISCOVERY_TIMEOUT).await?.into_hosts()
+        discover_dnssd(timeout).await?.into_hosts()
     }
 
     #[cfg(not(any(target_os = "ios", target_os = "macos")))]
-    discover_mdns_sd(DISCOVERY_TIMEOUT).await?.into_hosts()
+    discover_mdns_sd(timeout).await?.into_hosts()
 }
 
 #[cfg(any(target_os = "ios", target_os = "macos"))]

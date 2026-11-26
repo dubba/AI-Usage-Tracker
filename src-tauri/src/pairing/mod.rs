@@ -113,6 +113,13 @@ pub(crate) const LINK_BROKE: &str =
 /// (`transport::WRONG_CODE` and the rest) are shown as written, with a code; anything else is
 /// protocol detail (a frame, a handshake, a socket error), which goes to the log for Copy
 /// Diagnostics while the page says the link broke.
+/// How long a device the joiner found has to accept a connection before it counts as gone.
+const REACHABLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+/// The least it gets, even when the search is nearly over.
+const MIN_REACHABLE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);
+/// The pause before searching again when every device found was gone.
+const SEARCH_AGAIN_DELAY: std::time::Duration = std::time::Duration::from_millis(300);
+
 pub(crate) fn failure(detail: String) -> CommandError {
     use transport::*;
     let code = match detail.as_str() {
@@ -642,35 +649,54 @@ impl PairingSessionManager {
         // How long the search took goes in the log: a device found late is the one the file
         // route must not cut off.
         let started = std::time::Instant::now();
-        let hosts = match discovery::discover().await {
-            Ok(hosts) => hosts,
-            Err(error) => {
-                sync_log::failed_text(
-                    &format!(
-                        "link code: looking for the other device for {:.1} s",
-                        started.elapsed().as_secs_f32()
-                    ),
-                    &error,
-                );
-                return Err(error);
+        let deadline = started + discovery::DISCOVERY_TIMEOUT;
+        // Devices found that did not answer: announcements left from sessions that ended, or
+        // devices that left the Wi-Fi.
+        let mut gone = 0usize;
+        let hosts = loop {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            let found = if remaining.is_zero() {
+                Err(discovery::NOT_FOUND.to_string())
+            } else {
+                discovery::discover_within(remaining).await
+            };
+            let hosts = match found {
+                Ok(hosts) => hosts,
+                Err(error) => {
+                    let gone_note = if gone > 0 {
+                        format!(", {gone} found but did not answer")
+                    } else {
+                        String::new()
+                    };
+                    sync_log::failed_text(
+                        &format!(
+                            "link code: looking for the other device for {:.1} s{gone_note}",
+                            started.elapsed().as_secs_f32()
+                        ),
+                        &error,
+                    );
+                    return Err(error);
+                }
+            };
+            // Each found device must accept a connection, within what is left of the search
+            // (and no more than REACHABLE_TIMEOUT), so the file route waits the same as before.
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            let within = remaining.clamp(MIN_REACHABLE_TIMEOUT, REACHABLE_TIMEOUT);
+            let announced = hosts.len();
+            let live = transport::reachable_hosts(hosts, within).await;
+            if !live.is_empty() {
+                break live;
             }
+            gone = gone.max(announced);
+            if !self.is_current(epoch) {
+                return Err(INTERRUPTED.to_string());
+            }
+            // Only gone devices so far: keep looking until the search time is up, so a device
+            // still joining the Wi-Fi is found and the file route starts no sooner than before.
+            tokio::time::sleep(SEARCH_AGAIN_DELAY.min(remaining)).await;
         };
-        let found = hosts.len();
-        let hosts = transport::reachable_hosts(hosts).await;
-        if hosts.is_empty() {
-            // Only announcements of sessions that are gone (or devices that left the Wi-Fi): as
-            // good as finding no one, so the page offers AirDrop or Quick Share.
-            sync_log::failed_text(
-                &format!(
-                    "link code: found {found} device(s) showing a code, but none answered in {:.1} s",
-                    started.elapsed().as_secs_f32()
-                ),
-                discovery::NOT_FOUND,
-            );
-            return Err(discovery::NOT_FOUND.into());
-        }
         sync_log::note(&format!(
-            "link code: entered a code, found {} device(s) showing a code on the network ({found} announced) in {:.1} s",
+            "link code: entered a code, found {} device(s) showing a code on the network in {:.1} s",
             hosts.len(),
             started.elapsed().as_secs_f32()
         ));

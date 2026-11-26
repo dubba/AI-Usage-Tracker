@@ -2772,10 +2772,16 @@ async fn only_hosts_that_accept_a_connection_are_joined() {
         session_id: Uuid::new_v4(),
         session_nonce: vec![1; 16],
     };
-    let reachable = super::transport::reachable_hosts(vec![host(gone_port), host(live_port)]).await;
+    let reachable = super::transport::reachable_hosts(
+        vec![host(gone_port), host(live_port)],
+        Duration::from_secs(2),
+    )
+    .await;
     assert_eq!(reachable.len(), 1);
     assert_eq!(reachable[0].port, live_port);
-    assert!(super::transport::reachable_hosts(vec![host(gone_port)])
-        .await
-        .is_empty());
+    assert!(
+        super::transport::reachable_hosts(vec![host(gone_port)], Duration::from_secs(2))
+            .await
+            .is_empty()
+    );
 }
