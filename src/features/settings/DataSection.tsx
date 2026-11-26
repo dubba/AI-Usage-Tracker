@@ -110,7 +110,7 @@ export function DataSection({
         </div>
         <div className="settings-row">
           <div>
-            <strong className="settings-danger-title">Delete Local App Data</strong>
+            <strong className="settings-danger-title">Delete All App Data</strong>
             <small>Remove all accounts, usage history, and settings from this device.</small>
           </div>
           <button
@@ -134,14 +134,14 @@ export function DataSection({
       ) : null}
       <ConfirmDialog
         open={confirmingDelete}
-        kicker="Delete local app data"
+        kicker="Delete all app data"
         className="delete-data-dialog"
-        title="Delete local app data?"
+        title="Are you sure?"
         richBody
         body={
           <>
             <p>
-              Removes all saved accounts, credentials, and settings from this device. AI provider accounts won&rsquo;t be deleted or canceled.
+              Removes all accounts, credentials, usage history, and settings from this device. AI provider accounts won&rsquo;t be deleted or canceled.
             </p>
             <div className="delete-data-warning">
               <AlertTriangleIcon className="delete-data-warning-icon" aria-hidden="true" />
@@ -151,6 +151,7 @@ export function DataSection({
         }
         confirmLabel="Delete Everything"
         busyLabel="Deleting…"
+        splitActions
         busy={deleting}
         onConfirm={() => void deleteEverything()}
         onCancel={() => setConfirmingDelete(false)}

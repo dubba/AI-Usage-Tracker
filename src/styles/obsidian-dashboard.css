@@ -851,9 +851,31 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
 
 /* Hover fills outlined buttons with the accent's tint, as on the Settings dropdowns, not just
    the border. */
-.button:hover:not(:disabled):not(.primary):not(.button-green):not(.remove-confirm-button):not(.bucket-delete-button):not(.filter-active-clear-btn):not(.limit-reset-use) {
+.button:hover:not(:disabled):not(.primary):not(.button-green):not(.remove-confirm-button):not(.bucket-delete-button):not(.filter-active-clear-btn):not(.limit-reset-use):not(.button-tertiary) {
   background: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
+}
+
+/* Borderless secondary/tertiary action buttons (Back, Not Now) so the primary solid purple action
+   remains the clear focal point in modal footers. */
+.button.ghost.button-tertiary {
+  border-color: transparent;
+  background: transparent;
+  color: var(--obsidian-muted-bright);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .button.ghost.button-tertiary:hover:not(:disabled) {
+    border-color: var(--obsidian-purple-strong);
+    background: var(--purple-surface);
+    color: var(--obsidian-text);
+  }
+}
+
+.button.ghost.button-tertiary:active:not(:disabled) {
+  border-color: var(--obsidian-purple-strong);
+  background: var(--purple-surface-active);
+  color: var(--obsidian-text);
 }
 
 .summary-status-region {
@@ -2993,22 +3015,69 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   line-height: 1.45;
 }
 
-.confirm-dialog-note.is-amber {
-  border-color: rgb(var(--tint-amber-rgb) / 0.3);
-  background: rgb(var(--tint-amber-rgb) / 0.08);
-  color: var(--muted);
+/* Clean borderless inline instruction row (e.g. Make Device Discoverable): sits quietly on the
+ * dark modal surface with a leading AirDrop/Signal icon and high-contrast bold keywords instead
+ * of a heavy amber/brown alert box. */
+.confirm-dialog-note.is-inline {
+  align-items: center;
+  gap: 12px;
+  margin-top: -4px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--obsidian-text) 4%, transparent);
+  color: var(--obsidian-muted-bright);
+  font-size: 0.82rem;
+  line-height: 1.48;
 }
 
-.confirm-dialog-note.is-amber strong {
-  color: var(--c-ffffff);
+.confirm-dialog-note.is-inline strong {
+  color: var(--text);
   font-weight: 650;
 }
 
+.discoverable-dialog .confirm-dialog-body p {
+  color: var(--obsidian-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.discoverable-dialog .confirm-dialog-body p strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.discoverable-note-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgb(var(--obsidian-blue-rgb) / 0.12);
+  border: 1px solid rgb(var(--obsidian-blue-rgb) / 0.22);
+  color: var(--obsidian-blue);
+}
+
+.discoverable-note-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.modal-actions.is-split {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-actions.is-split .button.ghost.button-tertiary {
+  padding-left: 10px;
+  padding-right: 12px;
+}
+
 /* A warning: amber text in a solid amber frame with a yellow triangle, the look of the API
- * Integration window's "bridge is disabled" notice (.bridge-window-warning). The delete-data
- * dialog's warning (.delete-data-warning) matches it. */
-.confirm-dialog-note.is-caution,
-.delete-data-warning {
+ * Integration window's "bridge is disabled" notice (.bridge-window-warning). */
+.confirm-dialog-note.is-caution {
   padding: 13px 15px;
   border: 1px solid var(--obsidian-amber);
   border-radius: 8px;
@@ -3853,12 +3922,16 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   height: 18px;
 }
 
-/* The icon beside the text, on its first line when the text wraps. */
+/* Subtle borderless inline warning callout with a faint translucent orange-red tint and orange icon. */
 .delete-data-warning {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
+  gap: 10px;
   margin-top: 14px;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, rgb(var(--tint-amber-rgb) / 0.08) 55%, rgb(var(--tint-red-rgb) / 0.08));
 }
 
 .delete-data-warning-icon {
@@ -3867,5 +3940,5 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
 }
 
 .confirm-dialog-backdrop .modal-card .delete-data-warning p {
-  color: var(--obsidian-amber);
+  color: var(--obsidian-muted-bright);
 }

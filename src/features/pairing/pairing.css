@@ -31,7 +31,7 @@
 .modal-card.pairing-modal.view-code-entry p.pairing-subtitle,
 .modal-card.pairing-modal:has(.pairing-code-entry-view) .pairing-subtitle,
 .modal-card.pairing-modal:has(.pairing-code-entry-view) p.pairing-subtitle {
-  margin: 0 0 24px 0;
+  margin: 0 0 18px 0;
 }
 
 .pairing-body {
@@ -352,7 +352,12 @@
 .pairing-back-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+}
+
+.pairing-modal .button.ghost.button-tertiary.pairing-back-btn {
+  padding-left: 8px;
+  padding-right: 12px;
 }
 
 .pairing-scanner-controls .button svg {
@@ -427,44 +432,53 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 52px;
+  width: 42px;
+  height: 48px;
   border-radius: 10px;
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.22);
-  background: rgb(var(--purple-accent-rgb) / 0.1);
+  border: 1px solid color-mix(in srgb, var(--obsidian-text) 7%, transparent);
+  background: color-mix(in srgb, var(--purple-accent) 7%, var(--obsidian-surface-low));
   color: var(--text);
   font-family: inherit;
   font-variant-numeric: tabular-nums;
-  font-size: 1.75rem;
+  font-size: 1.45rem;
   font-weight: 700;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.pairing-code-tile.is-filled {
+  border-color: rgb(var(--purple-accent-rgb) / 0.24);
+  background: color-mix(in srgb, var(--purple-accent) 12%, var(--obsidian-surface-low));
 }
 
 .pairing-code-tile.group-start {
-  margin-left: 12px;
+  margin-left: 10px;
 }
 
 .pairing-code-tiles:focus-within .pairing-code-tile.is-active {
   border-color: var(--obsidian-purple-strong);
-  box-shadow: 0 0 0 3px rgb(var(--purple-accent-rgb) / 0.22);
+  background: color-mix(in srgb, var(--purple-accent) 13%, var(--obsidian-surface-low));
+  box-shadow:
+    0 0 0 2px rgb(var(--purple-accent-rgb) / 0.2),
+    0 0 12px rgb(var(--purple-accent-rgb) / 0.26);
 }
 
 .pairing-code-tiles:focus-within .pairing-code-tile.is-active.is-filled {
-  background: rgb(var(--purple-accent-rgb) / 0.2);
+  background: color-mix(in srgb, var(--purple-accent) 19%, var(--obsidian-surface-low));
 }
 
-/* A blinking caret in the tile the next digit goes into. */
+/* A smooth pulsing purple caret in the active empty tile. */
 .pairing-code-tiles:focus-within .pairing-code-tile.is-active:empty::after {
   content: "";
   width: 2px;
-  height: 26px;
-  border-radius: 1px;
+  height: 22px;
+  border-radius: 2px;
   background: var(--obsidian-purple-strong);
-  animation: pairing-caret 1s steps(1) infinite;
+  box-shadow: 0 0 8px rgb(var(--purple-accent-rgb) / 0.65);
+  animation: pairing-caret 1.15s ease-in-out infinite;
 }
 
 .pairing-code-tiles.is-busy .pairing-code-tile {
-  border-color: rgb(var(--purple-accent-rgb) / 0.35);
+  border-color: rgb(var(--purple-accent-rgb) / 0.3);
   animation: pairing-tile-wait 1.6s ease-in-out infinite;
 }
 
@@ -480,18 +494,17 @@
 .pairing-code-tiles.is-busy .pairing-code-tile:nth-child(12) { animation-delay: 1s; }
 .pairing-code-tiles.is-busy .pairing-code-tile:nth-child(13) { animation-delay: 1.1s; }
 
-/* Twelve letters: two rows, each three tiles, a small gap, and three more. The fourth column is
-   only that gap: a group's first tile is placed past it, and the rest of the row follows. */
+/* Twelve letters: unified two-row 6×2 grid with a subtle group break between the 3-character clusters. */
 .pairing-code-tiles.is-long {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 44px)) 4px repeat(3, minmax(0, 44px));
+  grid-template-columns: repeat(3, minmax(0, 46px)) 6px repeat(3, minmax(0, 46px));
   justify-content: center;
   gap: 8px 6px;
 }
 
 .pairing-code-tiles.is-long .pairing-code-tile {
   width: auto;
-  height: 52px;
+  height: 48px;
 }
 
 .pairing-code-tiles.is-long .pairing-code-tile.group-start {
@@ -500,20 +513,21 @@
 }
 
 @keyframes pairing-caret {
-  50% { opacity: 0; }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.18; }
 }
 
 @keyframes pairing-tile-wait {
-  0%, 100% { background: rgb(var(--purple-accent-rgb) / 0.06); }
-  50% { background: rgb(var(--purple-accent-rgb) / 0.16); }
+  0%, 100% { background: color-mix(in srgb, var(--purple-accent) 7%, var(--obsidian-surface-low)); }
+  50% { background: color-mix(in srgb, var(--purple-accent) 16%, var(--obsidian-surface-low)); }
 }
 
 @media (max-width: 360px) {
   .pairing-code-tiles { gap: 6px; }
-  .pairing-code-tile { width: 34px; height: 46px; font-size: 1.5rem; }
+  .pairing-code-tile { width: 34px; height: 44px; font-size: 1.3rem; }
   .pairing-code-tile.group-start { margin-left: 8px; }
   .pairing-code-tiles.is-long { gap: 6px; }
-  .pairing-code-tiles.is-long .pairing-code-tile { height: 46px; }
+  .pairing-code-tiles.is-long .pairing-code-tile { height: 44px; }
   .pairing-code-tiles.is-long .pairing-code-tile.group-start { margin-left: 0; }
 }
 
@@ -530,10 +544,10 @@
 .pairing-fallback-track,
 .pairing-code-expiry-track {
   width: 100%;
-  max-width: 260px;
-  height: 4px;
-  border-radius: 2px;
-  background: rgb(var(--purple-accent-rgb) / 0.14);
+  max-width: 240px;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--obsidian-text) 10%, transparent);
   overflow: hidden;
 }
 
@@ -542,7 +556,7 @@
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--obsidian-purple-strong), rgb(var(--purple-accent-rgb) / 0.6));
+  background: rgb(var(--purple-accent-rgb) / 0.62);
   transform-origin: left center;
   transition: transform 1s linear;
 }
@@ -558,6 +572,32 @@
 .modal-card.pairing-modal .pairing-code-help strong {
   color: var(--text);
   font-weight: 700;
+}
+
+/* Idle info footer under the code input: quiet weight paired with a subtle network icon. */
+.pairing-code-help-footer,
+.modal-card.pairing-modal .pairing-code-help-footer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--obsidian-muted);
+  opacity: 0.88;
+}
+
+.pairing-code-help-icon {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  color: var(--obsidian-muted);
+  opacity: 0.85;
+}
+
+.modal-card.pairing-modal .pairing-code-help-footer strong {
+  color: var(--obsidian-muted-bright);
+  font-weight: 600;
 }
 
 /* The way from a code screen to the other ways to connect: a text link, not a third button. */
@@ -605,7 +645,7 @@
 .pairing-security-note svg {
   width: 15px;
   height: 15px;
-  color: var(--obsidian-muted);
+  color: var(--obsidian-green);
   flex-shrink: 0;
 }
 
@@ -640,6 +680,9 @@
   flex-direction: column;
   width: 100%;
   border-radius: 14px;
+  box-shadow:
+    0 10px 26px color-mix(in srgb, var(--black) 36%, transparent),
+    0 2px 8px color-mix(in srgb, var(--black) 24%, transparent);
   box-sizing: border-box;
 }
 
@@ -908,7 +951,7 @@
   width: 100%;
   margin: 0;
   padding: 12px 14px 12px 16px;
-  border: 1px solid color-mix(in srgb, var(--obsidian-text) 9%, transparent);
+  border: 1px solid transparent;
   border-radius: 12px;
   background: color-mix(in srgb, var(--obsidian-text) 3%, transparent);
   cursor: pointer;
@@ -1329,12 +1372,12 @@
     gap: 12px;
   }
 
-  /* The card round the tiles gives up its label and some padding while the keyboard is open. */
+  /* The code group drops its sub-header and tightens its gap while the keyboard is open. */
   .modal-card.pairing-modal.keyboard-open .pairing-code-entry-hero,
   html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-hero,
   .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-hero {
     gap: 8px;
-    padding: 10px;
+    padding: 0;
   }
 
   .modal-card.pairing-modal.keyboard-open .pairing-code-entry-hero .pairing-code-hero-tag,
@@ -1811,52 +1854,43 @@
 
 /* ---- Link code screens: the code, the search, and AirDrop / Quick Share ---- */
 
+/* Sit directly on the modal's elevated surface with no concentric inner card border. */
 .pairing-code-hero {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  /* More at the bottom than the top: the label's line leaves more room above its letters
-     than the last line leaves below its own, so the space you see is the same (about 20px). */
-  padding: 16px 16px 18px;
-  border-radius: 16px;
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.3);
-  background:
-    radial-gradient(120% 90% at 50% 0%, rgb(var(--purple-accent-rgb) / 0.16), transparent 70%),
-    var(--obsidian-surface-low);
-  box-shadow: 0 10px 30px rgb(var(--purple-accent-rgb) / 0.08);
+  padding: 2px 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   box-sizing: border-box;
   user-select: text;
 }
 
 .pairing-code-hero-tag {
   font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-weight: 650;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--obsidian-purple);
+  color: var(--obsidian-muted);
 }
 
-/* The code (shown or typed) sits about 18px from the label above it and from the line below it:
-   3px on top of the card's 12px gap, plus the room each line of text leaves around its letters.
-   The line under that keeps the plain 12px gap to the countdown. */
 .pairing-code-hero > .pairing-code-hero-tag {
-  margin-bottom: 3px;
+  margin-bottom: -2px;
 }
 
 .pairing-code-hero > .pairing-code-digits {
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
-/* 1px less: the line under the entry tiles leaves more room above its letters. */
 .pairing-code-hero > .pairing-code-tiles {
   margin-bottom: 2px;
 }
 
-/* In the Enter Link Code card the card's padding frames the line under the tiles, which then needs
-   no reserved height of its own (it keeps one outside a card, so the page does not jump). */
 .pairing-code-hero > .pairing-code-status {
   min-height: 0;
 }
@@ -1869,39 +1903,51 @@
   display: flex;
   justify-content: center;
   gap: 6px;
+  width: 100%;
 }
 
+/* Soft-elevated generated code tiles with crisp, high-visibility typography. */
 .pairing-code-digit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 52px;
+  width: 42px;
+  height: 48px;
   border-radius: 10px;
-  background: rgb(var(--purple-accent-rgb) / 0.1);
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.22);
+  background: color-mix(in srgb, var(--purple-accent) 12%, var(--obsidian-surface-container-high));
+  border: 1px solid color-mix(in srgb, var(--obsidian-text) 12%, transparent);
+  box-shadow:
+    0 2px 6px color-mix(in srgb, var(--black) 20%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--obsidian-text) 10%, transparent);
   color: var(--text);
   font-family: inherit;
   font-variant-numeric: tabular-nums;
-  font-size: 1.75rem;
+  font-size: 1.45rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+:root[data-theme="light"] .pairing-code-digit {
+  box-shadow:
+    0 1px 3px color-mix(in srgb, var(--black) 8%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 65%, transparent);
 }
 
 .pairing-code-digit.group-start {
-  margin-left: 12px;
+  margin-left: 10px;
 }
 
 /* A twelve-letter code: two rows of three, a small gap, and three, as in the code field. */
 .pairing-code-digits.is-long {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 44px)) 4px repeat(3, minmax(0, 44px));
+  grid-template-columns: repeat(3, minmax(0, 46px)) 6px repeat(3, minmax(0, 46px));
   justify-content: center;
   gap: 8px 6px;
 }
 
 .pairing-code-digits.is-long .pairing-code-digit {
   width: auto;
-  height: 52px;
+  height: 48px;
 }
 
 .pairing-code-digits.is-long .pairing-code-digit.group-start {
@@ -1910,10 +1956,10 @@
 }
 
 @media (max-width: 360px) {
-  .pairing-code-digit { width: 34px; height: 46px; font-size: 1.5rem; }
+  .pairing-code-digit { width: 34px; height: 44px; font-size: 1.3rem; }
   .pairing-code-digit.group-start { margin-left: 8px; }
   .pairing-code-digits.is-long { gap: 6px; }
-  .pairing-code-digits.is-long .pairing-code-digit { height: 46px; }
+  .pairing-code-digits.is-long .pairing-code-digit { height: 44px; }
   .pairing-code-digits.is-long .pairing-code-digit.group-start { margin-left: 0; }
 }
 
@@ -1921,7 +1967,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   width: 100%;
   font-size: 0.75rem;
   color: var(--obsidian-muted);
@@ -1929,15 +1975,16 @@
 
 .pairing-code-expiry strong {
   color: var(--obsidian-amber);
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
 .pairing-code-expiry-track {
-  max-width: 200px;
+  max-width: 220px;
   height: 3px;
 }
 
-/* A soft pulsing dot beside what this device is waiting for. */
+/* A quiet, animated pulsing indicator beside what this device is waiting for. */
 .pairing-searching-row {
   display: inline-flex;
   align-items: center;
@@ -1948,7 +1995,7 @@
   color: var(--obsidian-muted);
 }
 
-/* Inside the code card, under the code: on a narrow phone the line wraps, centred. */
+/* Under the code: on a narrow phone the line wraps, centred. */
 .pairing-code-hero .pairing-searching-row {
   text-align: center;
 }
@@ -1959,7 +2006,11 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--obsidian-purple-strong);
+  background: var(--obsidian-purple);
+  box-shadow:
+    0 0 0 3px rgb(var(--purple-accent-rgb) / 0.18),
+    0 0 10px rgb(var(--purple-accent-rgb) / 0.45);
+  animation: pairing-pulse-core 2s ease-in-out infinite;
 }
 
 .pairing-pulse::after {
@@ -1968,12 +2019,27 @@
   inset: 0;
   border-radius: 50%;
   background: var(--obsidian-purple-strong);
-  animation: pairing-pulse 1.6s ease-out infinite;
+  animation: pairing-pulse 2s ease-out infinite;
+}
+
+@keyframes pairing-pulse-core {
+  0%, 100% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 3px rgb(var(--purple-accent-rgb) / 0.18),
+      0 0 10px rgb(var(--purple-accent-rgb) / 0.45);
+  }
+  50% {
+    opacity: 0.72;
+    box-shadow:
+      0 0 0 5px rgb(var(--purple-accent-rgb) / 0.08),
+      0 0 6px rgb(var(--purple-accent-rgb) / 0.25);
+  }
 }
 
 @keyframes pairing-pulse {
-  0% { transform: scale(1); opacity: 0.6; }
-  100% { transform: scale(3.2); opacity: 0; }
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(2.8); opacity: 0; }
 }
 
 /* Use AirDrop / Use Quick Share: primary action with its own icon. */
@@ -2007,18 +2073,25 @@
   flex: none;
 }
 
-/* Android, receiving: where to let a phone on another Google account share with this one. */
+/* Mobile, receiving: clean inline instruction row with AirDrop/Quick Share icon. */
 .pairing-discover-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--obsidian-text) 4%, transparent);
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.pairing-discover-note-copy {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgb(var(--tint-amber-rgb) / 0.3);
-  border-radius: 10px;
-  background: rgb(var(--tint-amber-rgb) / 0.08);
-  text-align: left;
-  box-sizing: border-box;
+  min-width: 0;
 }
 
 .pairing-discover-note p,
@@ -2026,12 +2099,12 @@
   margin: 0;
   font-size: 0.8rem;
   line-height: 1.45;
-  color: var(--obsidian-text);
+  color: var(--obsidian-muted-bright);
 }
 
 .pairing-discover-note strong {
   color: var(--text);
-  font-weight: 700;
+  font-weight: 650;
 }
 
 /* "Other ways to connect": the quietest link on the screen. */
@@ -2151,6 +2224,9 @@
   background: color-mix(in srgb, var(--obsidian-text) 4%, var(--obsidian-surface-low));
   border: 1px solid color-mix(in srgb, var(--obsidian-text) 8%, transparent);
   border-radius: 14px;
+  box-shadow:
+    0 10px 26px color-mix(in srgb, var(--black) 36%, transparent),
+    0 2px 8px color-mix(in srgb, var(--black) 24%, transparent);
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -2315,6 +2391,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .pairing-pulse,
   .pairing-pulse::after,
   .pairing-code-tiles.is-busy .pairing-code-tile,
   .pairing-code-tiles:focus-within .pairing-code-tile.is-active:empty::after {
@@ -2326,9 +2403,10 @@
   }
 }
 
-/* Sync Devices' ×: a quiet round button, in the corner where every dialog has it (modal-close.css).
-   Hover, focus and press keep the red every dialog's × has. */
-:root .modal-card.pairing-modal > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active) {
+/* Sync Devices' × (and its stacked discoverability prompt): a quiet round button, in the corner
+   where every dialog has it (modal-close.css). Hover, focus and press keep the red every dialog's × has. */
+:root .modal-card.pairing-modal > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active),
+:root .modal-card.discoverable-dialog > .ui-modal-close:not(:disabled):not(:hover):not(:focus-visible):not(:active) {
   border-color: transparent;
   background: color-mix(in srgb, var(--obsidian-text) 8%, transparent);
   color: var(--obsidian-muted);

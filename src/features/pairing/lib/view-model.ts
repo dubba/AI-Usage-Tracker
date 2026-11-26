@@ -26,9 +26,9 @@ export type TextRun = string | { strong: string };
 
 export type ReceiveVisibilityHelp = {
   paragraphs: TextRun[][];
-  /** Lines shown together in the box under the paragraphs. */
+  /** Lines shown together in the instruction row under the paragraphs. */
   note: TextRun[][];
-  noteTone?: "info" | "amber";
+  noteTone?: "info" | "inline";
   openLabel?: string;
 };
 
@@ -46,16 +46,14 @@ export function receiveVisibilityHelp(): ReceiveVisibilityHelp | null {
       ],
       note: [
         [
-          "Click ",
-          { strong: "Open AirDrop" },
-          ", set ",
+          "Go to Open AirDrop, set ",
           { strong: "Allow me to be discovered by" },
           " to ",
           { strong: "Everyone" },
-          ", then return here to get your link code.",
+          ", then return here for the link code.",
         ],
       ],
-      noteTone: "amber",
+      noteTone: "inline",
       openLabel: "Open AirDrop",
     };
   }
@@ -68,6 +66,7 @@ export function receiveVisibilityHelp(): ReceiveVisibilityHelp | null {
       note: [
         ["If Windows' own Nearby sharing receives files on this PC, click Open Nearby Sharing Settings and select Everyone nearby."],
       ],
+      noteTone: "inline",
       openLabel: "Open Nearby Sharing Settings",
     };
   }

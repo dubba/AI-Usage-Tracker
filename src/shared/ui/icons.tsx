@@ -174,6 +174,7 @@ export const EyeOffIcon = (props: IconProps) => (
 );
 export const ArrowUpIcon = (props: IconProps) => <Base {...props}><path d="M12 19V5M5 12l7-7 7 7"/></Base>;
 export const ArrowDownIcon = (props: IconProps) => <Base {...props}><path d="M12 5v14M19 12l-7 7-7-7"/></Base>;
+export const ArrowLeftIcon = (props: IconProps) => <Base {...props}><path d="M19 12H5m7 7-7-7 7-7"/></Base>;
 /**
  * New group: stacked layers, the top one filled, with a plus at the lower right. (A person with a
  * plus read as "invite someone".) The lower layers stop short of the plus so it stands clear.

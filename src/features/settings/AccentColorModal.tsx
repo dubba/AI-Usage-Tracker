@@ -13,7 +13,7 @@ import {
   type Hsv,
 } from "../../shared/lib/accent-color";
 import { resolveTheme } from "../../shared/lib/theme";
-import { ChevronIcon, PlusIcon } from "../../shared/ui/icons";
+import { ArrowLeftIcon, PlusIcon } from "../../shared/ui/icons";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 
 /** Full-spectrum conic gradient for the custom color wheel button (data-driven gradient, not a theme token). */
@@ -334,7 +334,7 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
             className="button ghost accent-presets-btn"
             onClick={() => showView(false)}
           >
-            <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+            <ArrowLeftIcon />
             <span>Presets</span>
           </button>
         ) : null}

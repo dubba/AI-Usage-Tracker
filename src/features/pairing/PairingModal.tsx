@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import { cancelPairing, pairingApi } from "../../shared/lib/api";
-import { ChevronIcon, FolderIcon, ShieldIcon } from "../../shared/ui/icons";
+import { ArrowLeftIcon, FolderIcon, NearbyShareIcon, ShieldIcon } from "../../shared/ui/icons";
 import { useAirgapCapture } from "./hooks/useAirgapCapture";
 import { useAirgapFlow } from "./hooks/useAirgapFlow";
 import { useFileTransfer } from "./hooks/useFileTransfer";
@@ -796,6 +796,7 @@ export function PairingModal({
     <ConfirmDialog
       open={askReceiveVisibility}
       kicker="Sync devices"
+      className="discoverable-dialog"
       title="Make Device Discoverable"
       richBody
       body={
@@ -822,6 +823,12 @@ export function PairingModal({
           : undefined
       }
       noteTone={visibilityHelp?.noteTone}
+      noteIcon={
+        <span className="discoverable-note-icon" aria-hidden="true">
+          <NearbyShareIcon />
+        </span>
+      }
+      splitActions
       cancelLabel="Not Now"
       confirmLabel={visibilityHelp?.openLabel ?? "Done"}
       confirmDanger={false}
@@ -840,8 +847,8 @@ export function PairingModal({
 
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" className="button ghost pairing-back-btn" onClick={onClick}>
-      <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+    <button type="button" className="button ghost button-tertiary pairing-back-btn" onClick={onClick}>
+      <ArrowLeftIcon />
       <span>Back</span>
     </button>
   );

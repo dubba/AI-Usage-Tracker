@@ -224,6 +224,7 @@ describe("choosing a role and a way to connect", () => {
     expect(title()).toBe("Your Link Code");
     expect(api.startHost).toHaveBeenCalledWith(true, false);
     expect(text()).toContain("To enter this code, go to Settings → Sync Devices → Send Accounts on the other device.");
+    expect(button("Back").classList.contains("button-tertiary")).toBe(true);
   });
 
   it("asks for the link code at once when sending", async () => {
@@ -232,6 +233,9 @@ describe("choosing a role and a way to connect", () => {
     expect(title()).toBe("Enter Link Code");
     expect(api.startHost).not.toHaveBeenCalled();
     expect(text()).toContain("Enter the link code from the other device.");
+    expect(document.querySelector(".pairing-code-help-footer .pairing-code-help-icon")).not.toBeNull();
+    expect(button("Back").classList.contains("button-tertiary")).toBe(true);
+    expect(button("Connect").classList.contains("primary")).toBe(true);
   });
 
   it("lists every way to connect under the other ways when sending, ending the code session", async () => {
@@ -986,20 +990,29 @@ describe("transfer by file", () => {
   it("asks a Mac receiving by AirDrop to be discoverable, and opens AirDrop", async () => {
     render();
     await press("Receive on this device");
+    expect(popup()?.classList.contains("discoverable-dialog")).toBe(true);
     expect(popup()?.textContent).toContain(
       "You must set AirDrop to Everyone to allow devices to sync.",
     );
-    const note = popup()?.querySelector(".confirm-dialog-note.is-amber");
+    const note = popup()?.querySelector(".confirm-dialog-note.is-inline");
+    expect(note).not.toBeNull();
+    expect(note?.querySelector(".discoverable-note-icon svg")).not.toBeNull();
     expect(note?.textContent).toContain(
-      "Click Open AirDrop, set Allow me to be discovered by to Everyone, then return here to get your link code.",
+      "Go to Open AirDrop, set Allow me to be discovered by to Everyone, then return here for the link code.",
     );
     expect(Array.from(popup()!.querySelectorAll(".confirm-dialog-body strong, .confirm-dialog-note strong"), (b) => b.textContent)).toEqual([
       "AirDrop",
       "Everyone",
-      "Open AirDrop",
       "Allow me to be discovered by",
       "Everyone",
     ]);
+    const actions = popup()?.querySelector(".modal-actions.is-split");
+    expect(actions).not.toBeNull();
+    const popupButtons = Array.from(actions?.querySelectorAll("button") ?? []);
+    expect(popupButtons[0]?.textContent).toBe("Not Now");
+    expect(popupButtons[0]?.classList.contains("button-tertiary")).toBe(true);
+    expect(popupButtons[1]?.textContent).toBe("Open AirDrop");
+    expect(popupButtons[1]?.classList.contains("primary")).toBe(true);
     await pressIn("Open AirDrop");
     expect(api.openReceiveSettings).toHaveBeenCalledTimes(1);
   });

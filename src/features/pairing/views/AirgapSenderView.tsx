@@ -1,5 +1,5 @@
 import { DialogError } from "../../../shared/ui/DialogError";
-import { ChevronIcon, PauseIcon, PlayIcon } from "../../../shared/ui/icons";
+import { ArrowLeftIcon, PauseIcon, PlayIcon } from "../../../shared/ui/icons";
 import type { AirgapSpeed } from "../hooks/useAirgapPlayer";
 import { QR_QUIET_ZONE, qrPath } from "../lib/qr-path";
 import type { AirgapExport, QrMatrix } from "../../../types";
@@ -58,7 +58,7 @@ export function AirgapSenderView({
           <h3>Couldn't prepare the transfer</h3>
           <div className="pairing-nav-row">
             <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>
-              <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+              <ArrowLeftIcon />
               <span>Back</span>
             </button>
             <button type="button" className="button primary" onClick={onRetry}>
@@ -114,7 +114,7 @@ export function AirgapSenderView({
             </p>
             <div className="pairing-nav-row">
               <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>
-                <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                <ArrowLeftIcon />
                 <span>Back</span>
               </button>
               <button type="button" className="button primary" onClick={onDone}>

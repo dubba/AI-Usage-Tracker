@@ -260,4 +260,10 @@ describe("Button hover and active state invariants", () => {
       /\.modal-card\.pairing-modal\s+\.pairing-settings-toggle:hover\s*\{[^}]*border-color:\s*var\(--obsidian-purple-strong\);[^}]*background:\s*var\(--purple-surface\);/,
     );
   });
+
+  it("highlights tertiary modal buttons (Cancel, Back, Not Now) with --purple-surface on hover like View and Group", () => {
+    expect(OBSIDIAN_CSS).toMatch(
+      /\.button\.ghost\.button-tertiary:hover:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--obsidian-purple-strong\);[^}]*background:\s*var\(--purple-surface\);/,
+    );
+  });
 });

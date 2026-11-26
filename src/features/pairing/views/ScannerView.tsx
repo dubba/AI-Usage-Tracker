@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { ChevronIcon, FlipCameraIcon, ShieldIcon } from "../../../shared/ui/icons";
+import { ArrowLeftIcon, FlipCameraIcon, ShieldIcon } from "../../../shared/ui/icons";
 
 export interface ScannerViewProps {
   airgapVerifyPrompt: boolean;
@@ -78,7 +78,7 @@ export function ScannerView({
               disabled={airgapImporting || airgapVerifying}
               onClick={onAirgapBack}
             >
-              <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+              <ArrowLeftIcon />
               <span>Back</span>
             </button>
             <button
@@ -166,7 +166,7 @@ export function ScannerView({
               className="button primary pairing-back-btn"
               onClick={onBack}
             >
-              <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+              <ArrowLeftIcon />
               <span>Back</span>
             </button>
 

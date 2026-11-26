@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { PairingStatus } from "../../../types";
-import { FolderIcon } from "../../../shared/ui/icons";
+import { FolderIcon, NearbyShareIcon } from "../../../shared/ui/icons";
 import { isAndroid, isIOS } from "../../../shared/lib/platform";
 import { formatCountdown, formatJoinCode, hostWaitingFields, isLegacyCode, startsGroupInRow } from "../lib/view-model";
 
@@ -123,29 +123,34 @@ function DiscoverableNote({ autoPickup = false }: { autoPickup?: boolean }) {
   const ios = isIOS();
   return (
     <div className="pairing-discover-note">
-      {ios ? (
-        // AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes.
+      <span className="discoverable-note-icon" aria-hidden="true">
+        <NearbyShareIcon />
+      </span>
+      <div className="pairing-discover-note-copy">
+        {ios ? (
+          // AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes.
+          <p>
+            To use <strong>AirDrop</strong>, set it to <strong>Everyone for 10 Minutes</strong> to allow devices to sync.
+          </p>
+        ) : (
+          <p>
+            To use <strong>Quick Share</strong>, set <strong>Who can share with you</strong> to{" "}
+            <strong>Everyone for 10 minutes</strong> to allow devices to sync.
+          </p>
+        )}
         <p>
-          To use <strong>AirDrop</strong>, set it to <strong>Everyone for 10 Minutes</strong> to allow devices to sync.
+          {ios
+            ? "To change this, search for AirDrop in your device Settings, then return here."
+            : "To change this, search for Quick Share in your device Settings, then return here."}
         </p>
-      ) : (
-        <p>
-          To use <strong>Quick Share</strong>, set <strong>Who can share with you</strong> to{" "}
-          <strong>Everyone for 10 minutes</strong> to allow devices to sync.
-        </p>
-      )}
-      <p>
-        {ios
-          ? "To change this, search for AirDrop in your device Settings, then return here."
-          : "To change this, search for Quick Share in your device Settings, then return here."}
-      </p>
-      {ios ? (
-        <p>
-          {autoPickup
-            ? "AirDrop files saved to Downloads are picked up automatically when you return here. You can also tap Open File from Files below."
-            : "If AirDrop saves the file to Files, tap Open File from Files below and choose it from Downloads."}
-        </p>
-      ) : null}
+        {ios ? (
+          <p>
+            {autoPickup
+              ? "AirDrop files saved to Downloads are picked up automatically when you return here. You can also tap Open File from Files below."
+              : "If AirDrop saves the file to Files, tap Open File from Files below and choose it from Downloads."}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

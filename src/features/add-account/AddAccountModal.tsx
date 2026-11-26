@@ -325,8 +325,8 @@ export function AddAccountModal({
           {strategy.waitingText(status.message)}
         </div>
       ) : null}
-      <div className="modal-actions">
-        <button type="button" className="button ghost" onClick={requestClose}>Cancel</button>
+      <div className="modal-actions is-split">
+        <button type="button" className="button ghost button-tertiary" onClick={requestClose}>Cancel</button>
         {status?.status === "failed" ? (
           <button type="button" className="button primary" onClick={retry} disabled={busy || modelsBusy}>
             Retry

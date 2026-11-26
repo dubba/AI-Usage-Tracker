@@ -1,18 +1,20 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (12 changes)
 
 ### Added (2)
 
 - Settings > General now includes an **Accent Color** option with a custom "Pick accent color" dialog (11 preset colors, tap a selected color again to toggle Light and Dark mode, and a **Custom Color** view with a color square, hue slider, hex input, and Reset). Your chosen color applies across the app, the desktop title bar and the Back button on sign-in pages, and stays saved across restarts and synced devices. On light colors such as Sky and Lavender, text on colored buttons, tooltips and tabs turns dark so it stays easy to read.
 - On iPhone and iPad, Sync Devices now asks once for Downloads folder access so AirDrop transfer files saved to Files are picked up automatically when you return to the app, and also offers an "Open File from Files" fallback button on the link code screen.
 
-### Improved (4)
+### Improved (6)
 
 - Dialogs have rounder corners and round close (X) buttons, and the Sync Devices "Sending by …" screen is calmer: one accent color for the current step and the main button, a quiet note instead of the "Why AirDrop?" card, and Done as the one filled button. Its first screen leads with "Send from this device" and "Receive on this device" as one card with arrows, with "Also sync settings and layout" as a switch below and the encryption note beside Cancel.
 - When sending by AirDrop, Quick Share or Nearby Sharing, the "Sending by …" screen now moves on to "Accept and confirm" once the file has gone: on a Mac or iPhone when AirDrop reports the other device accepted it, on Android or Windows once Quick Share or Nearby Sharing is chosen (those systems report nothing after). If AirDrop fails or the menu is closed, it stays on "Select the other device".
 - Outlined buttons and dropdowns now fill with a tint of the accent color when you point at them, instead of only changing their border.
 - Copy Diagnostics now shows the exact size and a short fingerprint of each Sync Devices transfer file on both the sending and receiving device, so a wrong code can be told apart from a file that changed on the way.
+- Modal action buttons now use 10px corners and semi-bold text to match the top bar and Settings buttons, Back buttons use a left arrow (←), Add AI Account and Create Group place a borderless Cancel button on the left, and tertiary modal buttons (Cancel, Back, Not Now) highlight with the accent tint on hover.
+- Settings > Devices now includes the **Other Ways to Connect** switch directly inside the Devices card, **Delete All App Data** uses a borderless orange-tinted warning callout and a left-aligned Cancel button, and Sync Devices polishes its role cards, elevated step cards, green encryption shield, and AirDrop/Quick Share wording.
 
 ### Fixed (4)
 

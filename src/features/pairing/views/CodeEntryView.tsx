@@ -14,7 +14,7 @@ import {
   startsGroupInRow,
 } from "../lib/view-model";
 
-import { ChevronIcon } from "../../../shared/ui/icons";
+import { ArrowLeftIcon, WifiIcon } from "../../../shared/ui/icons";
 import { isMobileDevice } from "../../../shared/lib/platform";
 import { OtherWaysLink, SearchingRow } from "./HostCodeView";
 
@@ -427,16 +427,19 @@ export function CodeEntryView({
           ) : busy ? (
             <SearchingRow>Looking for the other device on Wi-Fi…</SearchingRow>
           ) : (
-            <p className="pairing-code-help">
-              {legacy ? (
-                "A 6-digit code from an older version connects over Wi-Fi only."
-              ) : nearby ? (
-                <>
-                  Connects over Wi-Fi or hotspot, with <strong>{nearby}</strong> as a fallback.
-                </>
-              ) : (
-                "Both devices must be connected to the same Wi-Fi network."
-              )}
+            <p className="pairing-code-help pairing-code-help-footer">
+              <WifiIcon className="pairing-code-help-icon" />
+              <span>
+                {legacy ? (
+                  "A 6-digit code from an older version connects over Wi-Fi only."
+                ) : nearby ? (
+                  <>
+                    Connects over Wi-Fi or hotspot, with <strong>{nearby}</strong> as a fallback.
+                  </>
+                ) : (
+                  "Both devices must be connected to the same Wi-Fi network."
+                )}
+              </span>
             </p>
           )}
         </div>
@@ -445,8 +448,8 @@ export function CodeEntryView({
       {onOtherWays ? <OtherWaysLink disabled={busy && !searching} onClick={onOtherWays} /> : null}
 
       <div className="pairing-scanner-controls pairing-code-actions">
-        <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>
-          <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+        <button type="button" className="button ghost button-tertiary pairing-back-btn" onClick={onBack}>
+          <ArrowLeftIcon />
           <span>Back</span>
         </button>
         <button type="button" className="button primary" disabled={busy || !complete} onClick={() => onSubmit(value)}>

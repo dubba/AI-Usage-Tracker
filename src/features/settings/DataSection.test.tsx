@@ -36,12 +36,12 @@ function render(props: Partial<Parameters<typeof DataSection>[0]> = {}) {
 }
 
 describe("DataSection", () => {
-  it("renders Diagnostics first, followed by Clear Usage History and Delete Local App Data, with left-aligned button icons", () => {
+  it("renders Diagnostics first, followed by Clear Usage History and Delete All App Data, with left-aligned button icons", () => {
     render();
     expect(document.querySelector("h2#settings-section-data")?.textContent?.trim()).toBe("Data & Diagnostics");
     expect(document.body.textContent).not.toContain("Refresh Usage");
     const titles = [...document.querySelectorAll(".settings-row strong")].map((el) => el.textContent?.trim());
-    expect(titles).toEqual(["Diagnostics", "Clear Usage History", "Delete Local App Data"]);
+    expect(titles).toEqual(["Diagnostics", "Clear Usage History", "Delete All App Data"]);
     for (const btn of [byLabel("Copy diagnostics"), byLabel("Clear usage history"), button("Delete")]) {
       const childTags = [...btn.children].map((el) => el.tagName.toLowerCase());
       expect(childTags).toEqual(["svg", "span"]);
@@ -106,9 +106,9 @@ describe("DataSection", () => {
     expect(document.body.textContent).toContain("Remove all accounts, usage history, and settings from this device.");
     click(button("Delete"));
     const dialog = document.querySelector("[role=alertdialog]")!;
-    expect(dialog.textContent).toContain("Delete local app data?");
+    expect(dialog.textContent).toContain("Are you sure?");
     expect(dialog.textContent).toContain(
-      "Removes all saved accounts, credentials, and settings from this device. AI provider accounts won’t be deleted or canceled.",
+      "Removes all accounts, credentials, usage history, and settings from this device. AI provider accounts won’t be deleted or canceled.",
     );
     expect(dialog.querySelector(".delete-data-warning")?.textContent).toBe(
       "This action cannot be undone. Other synced devices, if any, remain unchanged.",

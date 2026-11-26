@@ -117,13 +117,13 @@ describe("SettingsView accessibility", () => {
     }
   });
 
-  it("displays Diagnostics, Clear Usage History, and Delete Local App Data directly without an Advanced toggle", () => {
+  it("displays Diagnostics, Clear Usage History, and Delete All App Data directly without an Advanced toggle", () => {
     app = mount(view());
     expect(document.querySelector(".settings-advanced-toggle")).toBeNull();
     const dataCard = document.querySelector("#settings-section-data")?.closest(".settings-card");
     expect(dataCard).not.toBeNull();
     const dataRows = [...dataCard!.querySelectorAll(".settings-row strong")].map((el) => el.textContent?.trim());
-    expect(dataRows).toEqual(["Diagnostics", "Clear Usage History", "Delete Local App Data"]);
+    expect(dataRows).toEqual(["Diagnostics", "Clear Usage History", "Delete All App Data"]);
     expect(dataCard?.textContent).not.toContain("Refresh Usage");
   });
 

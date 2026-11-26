@@ -283,25 +283,38 @@ export function BucketModal({
           </div>
         </div>
 
-        <footer className="modal-actions bucket-modal-actions">
+        <footer className={`modal-actions bucket-modal-actions${bucket && onDeleted ? "" : " is-split"}`}>
           {bucket && onDeleted ? (
-            <button
-              type="button"
-              className="button ghost bucket-delete-button"
-              disabled={busy}
-              onClick={() => setConfirmingDelete(true)}
-            >
-              <TrashIcon /> Delete Group
-            </button>
-          ) : null}
-          <div className="bucket-modal-save-group">
-            <button type="button" className="button ghost" disabled={busy} onClick={requestClose}>
-              Cancel
-            </button>
-            <button type="submit" className="button primary" disabled={busy}>
-              {busy ? "Saving…" : bucket ? "Save" : "Create Group"}
-            </button>
-          </div>
+            <>
+              <button
+                type="button"
+                className="button ghost bucket-delete-button"
+                disabled={busy}
+                onClick={() => setConfirmingDelete(true)}
+              >
+                <TrashIcon /> Delete Group
+              </button>
+              <div className="bucket-modal-save-group">
+                <button type="button" className="button ghost button-tertiary" disabled={busy} onClick={requestClose}>
+                  Cancel
+                </button>
+                <button type="submit" className="button primary" disabled={busy}>
+                  {busy ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button type="button" className="button ghost button-tertiary" disabled={busy} onClick={requestClose}>
+                Cancel
+              </button>
+              <div className="bucket-modal-save-group">
+                <button type="submit" className="button primary" disabled={busy}>
+                  {busy ? "Saving…" : "Create Group"}
+                </button>
+              </div>
+            </>
+          )}
         </footer>
 
         {error ? <DialogError className="modal-error-message" message={error} onDismiss={() => setError(null)} /> : null}

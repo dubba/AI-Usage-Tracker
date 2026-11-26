@@ -25,9 +25,11 @@ export function ConfirmDialog({
   className,
   note,
   noteTone = "info",
+  noteIcon,
   cancelLabel = "Cancel",
   confirmLabel,
   confirmDanger = true,
+  splitActions = false,
   busyLabel,
   busy = false,
   onConfirm,
@@ -46,12 +48,16 @@ export function ConfirmDialog({
   className?: string;
   /** An optional callout under the body: advice that bears on the choice. */
   note?: ReactNode;
-  /** `caution` tints the note amber with a warning icon; `amber` uses the subtle amber instruction box. */
-  noteTone?: "info" | "caution" | "amber";
+  /** `caution` tints the note amber with a warning icon; `inline` renders a clean borderless instruction row. */
+  noteTone?: "info" | "caution" | "inline";
+  /** Optional leading icon for the note row (defaults to the warning triangle for `caution`). */
+  noteIcon?: ReactNode;
   cancelLabel?: string;
   confirmLabel: string;
   /** Danger-red for deletions; primary for other actions such as Open Wi-Fi Settings. */
   confirmDanger?: boolean;
+  /** Places the cancel button on the left as a borderless secondary action, opposite the primary confirm button. */
+  splitActions?: boolean;
   /** Shown on the confirm button while busy; defaults to the confirm label. */
   busyLabel?: string;
   busy?: boolean;
@@ -91,12 +97,17 @@ export function ConfirmDialog({
       )}
       {note ? (
         <div id={noteId} className={`confirm-dialog-note is-${noteTone}`}>
-          {noteTone === "caution" ? <AlertTriangleIcon className="confirm-dialog-note-icon" /> : null}
+          {noteIcon ?? (noteTone === "caution" ? <AlertTriangleIcon className="confirm-dialog-note-icon" /> : null)}
           <span>{note}</span>
         </div>
       ) : null}
-      <div className="modal-actions">
-        <button type="button" className="button ghost" disabled={busy} onClick={requestCancel}>
+      <div className={splitActions ? "modal-actions is-split" : "modal-actions"}>
+        <button
+          type="button"
+          className={splitActions ? "button ghost button-tertiary" : "button ghost"}
+          disabled={busy}
+          onClick={requestCancel}
+        >
           {cancelLabel}
         </button>
         <button

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CheckIcon, ChevronIcon, FileIcon, InfoIcon, NearbyShareIcon, SendIcon } from "../../../shared/ui/icons";
+import { ArrowLeftIcon, CheckIcon, FileIcon, InfoIcon, NearbyShareIcon, SendIcon } from "../../../shared/ui/icons";
 import type { FilePreview } from "../../../types";
 import type { FileSendState } from "../hooks/useFileTransfer";
 import { isIOS } from "../../../shared/lib/platform";
@@ -12,7 +12,7 @@ function accounts(count: number): string {
 function BackButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
     <button type="button" className="button ghost pairing-back-btn" onClick={onClick} disabled={disabled}>
-      <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+      <ArrowLeftIcon />
       <span>Back</span>
     </button>
   );
