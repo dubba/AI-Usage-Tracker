@@ -352,7 +352,7 @@ export function CodeEntryView({
       {/* In the same card as the code it is copied from (HostCodeView). */}
       <div className="pairing-code-hero pairing-code-entry-hero">
         <span className="pairing-code-hero-tag" aria-hidden="true">
-          Link code
+          Enter link code
         </span>
         <label className={`pairing-code-tiles${busy ? " is-busy" : ""}${legacy ? "" : " is-long"}`}>
           <input
@@ -404,42 +404,42 @@ export function CodeEntryView({
             </span>
           ))}
         </label>
-      </div>
 
-      <div id="pairing-code-help" className="pairing-code-status">
-        {searching ? (
-          fallback.secsLeft > 0 ? (
-            <>
-              <SearchingRow>Looking for the other device on Wi-Fi…</SearchingRow>
-              <div className="pairing-fallback-track" aria-hidden="true">
-                <div
-                  className="pairing-fallback-fill"
-                  style={{ transform: `scaleX(${1 - fallback.secsLeft / fallback.totalSecs})` }}
-                />
-              </div>
-              <p className="pairing-code-help">
-                If not found within <strong>{fallback.secsLeft} {fallback.secsLeft === 1 ? "second" : "seconds"}</strong>,{" "}
-                <strong>{nearby}</strong> will be used instead.
-              </p>
-            </>
-          ) : (
-            <SearchingRow>Finishing the search on Wi-Fi…</SearchingRow>
-          )
-        ) : busy ? (
-          <SearchingRow>Looking for the other device on Wi-Fi…</SearchingRow>
-        ) : (
-          <p className="pairing-code-help">
-            {legacy ? (
-              "A 6-digit code from an older version connects over Wi-Fi only."
-            ) : nearby ? (
+        <div id="pairing-code-help" className="pairing-code-status">
+          {searching ? (
+            fallback.secsLeft > 0 ? (
               <>
-                Connects over Wi-Fi or hotspot, with <strong>{nearby}</strong> as a fallback.
+                <SearchingRow>Looking for the other device on Wi-Fi…</SearchingRow>
+                <div className="pairing-fallback-track" aria-hidden="true">
+                  <div
+                    className="pairing-fallback-fill"
+                    style={{ transform: `scaleX(${1 - fallback.secsLeft / fallback.totalSecs})` }}
+                  />
+                </div>
+                <p className="pairing-code-help">
+                  If not found within <strong>{fallback.secsLeft} {fallback.secsLeft === 1 ? "second" : "seconds"}</strong>,{" "}
+                  <strong>{nearby}</strong> will be used instead.
+                </p>
               </>
             ) : (
-              "Both devices must be connected to the same Wi-Fi network."
-            )}
-          </p>
-        )}
+              <SearchingRow>Finishing the search on Wi-Fi…</SearchingRow>
+            )
+          ) : busy ? (
+            <SearchingRow>Looking for the other device on Wi-Fi…</SearchingRow>
+          ) : (
+            <p className="pairing-code-help">
+              {legacy ? (
+                "A 6-digit code from an older version connects over Wi-Fi only."
+              ) : nearby ? (
+                <>
+                  Connects over Wi-Fi or hotspot, with <strong>{nearby}</strong> as a fallback.
+                </>
+              ) : (
+                "Both devices must be connected to the same Wi-Fi network."
+              )}
+            </p>
+          )}
+        </div>
       </div>
 
       {onOtherWays ? <OtherWaysLink disabled={busy && !searching} onClick={onOtherWays} /> : null}
