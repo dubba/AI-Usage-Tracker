@@ -726,7 +726,7 @@ describe("transfer by file", () => {
     expect(document.querySelector(".pairing-modal")?.className).toContain("view-file-send");
     expect(text()).toContain("Your accounts are encrypted and ready to send.");
     expect(text()).toContain("Accounts encrypted");
-    expect(text()).toContain("Protected with your link code");
+    expect(text()).toContain("File protected with your link code");
     expect(text()).toContain("Select the other device");
     expect(text()).toContain("Choose it in the AirDrop menu");
     expect(text()).toContain("Accept and confirm");
@@ -827,7 +827,7 @@ describe("transfer by file", () => {
     await press("Add Accounts");
     expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
     expect(onCompleted).toHaveBeenCalledTimes(1);
-    expect(title()).toBe("Devices linked");
+    expect(title()).toBe("Devices Linked");
   }, 10_000);
 
   it("adds nothing when Cancel is pressed, and closes Sync Devices", async () => {
@@ -1075,7 +1075,7 @@ describe("transfer by file", () => {
       expect(api.openTappedFile).toHaveBeenCalledTimes(1);
       await press("Add Accounts");
       expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
-      expect(title()).toBe("Devices linked");
+      expect(title()).toBe("Devices Linked");
     });
 
     it("says why a tapped file did not open", async () => {
@@ -1182,7 +1182,7 @@ describe("transfer by file", () => {
       expect(text()).toContain("Are you sure you want to add these 2 accounts from the other device?");
       await press("Add Accounts");
       expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
-      expect(title()).toBe("Devices linked");
+      expect(title()).toBe("Devices Linked");
     });
 
     it("is not looked for on Windows or Linux", async () => {
@@ -1558,7 +1558,8 @@ describe("finishing", () => {
     render();
     await settle();
     await emit(COMPLETED);
-    expect(title()).toBe("Devices linked");
+    expect(title()).toBe("Devices Linked");
+    expect(document.querySelectorAll(".pairing-step-dots li.is-complete")).toHaveLength(3);
     expect(text()).toContain("+2");
     expect(text()).toContain("↻ 1");
     expect(onCompleted).toHaveBeenCalledTimes(1);
@@ -1899,7 +1900,7 @@ describe("scanning", () => {
     expect(live?.textContent).toContain("Link Code");
   });
 
-  it("heads failures Pairing Failed, shows the reason as an alert and moves focus to Try Again", async () => {
+  it("heads failures Pairing Failed, shows the reason as an alert and rests focus on the dialog", async () => {
     render();
     await settle();
     await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "The other device left." } } });
@@ -1910,7 +1911,7 @@ describe("scanning", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 80));
     });
-    expect(document.activeElement).toBe(button("Try Again"));
+    expect(document.activeElement).toBe(document.querySelector("[role=dialog]"));
   });
 
   it("uses spans, not headings, inside the send/receive buttons", () => {
@@ -2010,7 +2011,7 @@ describe("air-gap transfer: receiving", () => {
     await press("Add Accounts");
     // The receiving device's own "Also Sync Settings and Layout" choice goes with the import.
     expect(api.importAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2], "ticket-1", true);
-    expect(title()).toBe("Devices linked");
+    expect(title()).toBe("Devices Linked");
     expect(onCompleted).toHaveBeenCalledTimes(1);
   });
 

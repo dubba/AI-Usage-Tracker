@@ -219,13 +219,13 @@ describe("General", () => {
       expect(hexInput.value).toBe(DEFAULT_ACCENT_COLOR.toUpperCase());
       expect(resetBtn.disabled).toBe(true);
 
-      // Presets goes back to the grid, with focus on the + circle.
+      // Presets goes back to the grid, with focus resting on the dialog (no ring on the + circle).
       const presetsBtn = modal.querySelector<HTMLButtonElement>(".accent-modal-actions .accent-presets-btn")!;
       expect(presetsBtn.classList.contains("button-tertiary")).toBe(true);
       click(presetsBtn);
       expect(modal.querySelector(".accent-custom-view")).toBeNull();
       expect(modal.querySelectorAll('.accent-color-grid button[role="radio"]')).toHaveLength(11);
-      expect(document.activeElement?.getAttribute("aria-label")).toBe("Custom color picker");
+      expect(document.activeElement).toBe(modal);
       expect(trigger.textContent?.trim()).toBe("Purple");
 
       // Tapping the circle on the color square toggles Light/Dark and keeps the color.

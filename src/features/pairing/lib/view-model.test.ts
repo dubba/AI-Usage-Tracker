@@ -65,7 +65,7 @@ describe("pairingHeader titles", () => {
     ["sending once connected", { status: "confirmTransfer", isSender: true }, "Sending"],
     ["receiving once connected", { status: "confirmTransfer", isSender: false }, "Add the accounts"],
     ["transferring", { status: "transferring" }, "Transferring"],
-    ["done", { status: "completed" }, "Devices linked"],
+    ["done", { status: "completed" }, "Devices Linked"],
     ["failed", { status: "failed" }, "Pairing Failed"],
     ["air-gap receiver with every frame", { viewMode: "scanner", airgapVerifyPrompt: true }, "Add the accounts"],
   ];
@@ -100,6 +100,16 @@ describe("pairingHeader subtitles and steps", () => {
     expect(header({ viewMode: "scanner", airgapVerifyPrompt: true }).step).toBe(3);
     expect(header().step).toBe(1);
     expect(header({ viewMode: "host" }).step).toBe(2);
+  });
+
+  it("is on step 3 once the file has arrived", () => {
+    expect(header({ viewMode: "file-receive" }).step).toBe(3);
+    expect(header({ viewMode: "file-send" }).step).toBe(2);
+  });
+
+  it("moves the file sender to step 3 once the share menu has taken the file", () => {
+    expect(header({ viewMode: "file-send", fileHandedOff: true }).step).toBe(3);
+    expect(header({ viewMode: "code", fileHandedOff: true }).step).toBe(2);
   });
 
   it("hides the step dots only when failed", () => {

@@ -372,49 +372,27 @@ export function PairingModal({
     });
   }, [open, status.status, intendedRole, setErrorMessage]);
 
-  // Focus management when the view or status changes so focus doesn't get lost. On opening, focus
-  // rests on the dialog itself (useModalA11y) so the first Tab reaches the first control; when the
-  // screen changes after that, focus resting there moves to the new screen's control (Try Again…).
-  const focusOpeningRef = useRef(true);
+  // Focus management when the view or status changes so focus doesn't get lost. As on opening
+  // (useModalA11y), focus rests on the dialog itself, never on a button such as Done or Try Again,
+  // which would show a ring nobody asked for. The code field is the exception: it is typed into.
   useEffect(() => {
-    if (!open) {
-      focusOpeningRef.current = true;
-      return;
-    }
+    if (!open) return;
     const container = dialogRef.current;
     if (!container) return;
-    // Only the run for opening itself: a screen change before its timer fires is not one.
-    const opening = focusOpeningRef.current;
-    focusOpeningRef.current = false;
 
     const timer = setTimeout(() => {
       if (!container.isConnected) return;
       const active = document.activeElement;
-      const resting = active === container;
-      if (!container.contains(active) || (resting && !opening)) {
-        const retry = container.querySelector<HTMLButtonElement>(".pairing-retry-btn");
-        if (retry) {
-          retry.focus({ preventScroll: true });
+      const lost = !container.contains(active);
+      if (!lost && active !== container) return;
+      if (viewMode === "code" && !container.querySelector(".pairing-retry-btn")) {
+        const input = container.querySelector<HTMLInputElement>("#pairing-join-code-input:not([disabled])");
+        if (input) {
+          input.focus({ preventScroll: true });
           return;
         }
-        if (viewMode === "code") {
-          const input = container.querySelector<HTMLInputElement>("#pairing-join-code-input");
-          if (input) {
-            input.focus({ preventScroll: true });
-            return;
-          }
-        }
-        const first = Array.from(
-          container.querySelectorAll<HTMLElement>(
-            "button:not([disabled]):not(.ui-modal-close), input:not([disabled])"
-          )
-        ).find((el) => el.offsetParent !== null);
-        if (first) {
-          first.focus({ preventScroll: true });
-        } else {
-          container.focus({ preventScroll: true });
-        }
       }
+      if (lost) container.focus({ preventScroll: true, focusVisible: false });
     }, FOCUS_DELAY_MS);
 
     return () => clearTimeout(timer);
@@ -508,6 +486,7 @@ export function PairingModal({
     intendedRole,
     airgapVerifyPrompt: capture.verifyPrompt,
     isSender: confirmFields(status)?.isSender,
+    fileHandedOff: fileTransfer.sendState?.handedOff,
   });
   const confirm = confirmFields(status);
 
@@ -533,7 +512,8 @@ export function PairingModal({
         <ol className="pairing-step-dots" aria-label={`Step ${step} of 3`}>
           <li className={step === 1 ? "is-active" : step > 1 ? "is-complete" : ""}>Send/receive</li>
           <li className={step === 2 ? "is-active" : step > 2 ? "is-complete" : ""}>Connect</li>
-          <li className={step === 3 ? "is-active" : ""}>Confirm</li>
+          {/* Nothing is left to confirm once the transfer is done, so the last step is ticked too. */}
+          <li className={status.status === "completed" ? "is-complete" : step === 3 ? "is-active" : ""}>Confirm</li>
         </ol>
       ) : null}
       <p className="pairing-subtitle">{modalSubtitle}</p>

@@ -71,18 +71,13 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
   useModalA11y(dialogRef, true, requestClose);
 
   const isCustomActive = !MODAL_ACCENT_PRESETS.some((preset) => preset.hex === accentColor);
-  const customTileRef = useRef<HTMLButtonElement>(null);
   const viewSwitched = useRef(false);
 
-  // Switching views removes the focused button: move focus into the new view without pulling up
-  // the mobile keyboard on the hex input.
+  // Switching views removes the focused button: focus rests on the dialog again, as on opening,
+  // so no button shows a ring and the mobile keyboard stays down.
   useEffect(() => {
     if (!viewSwitched.current) return;
-    if (customOpen) {
-      dialogRef.current?.focus({ preventScroll: true });
-    } else {
-      customTileRef.current?.focus();
-    }
+    dialogRef.current?.focus({ preventScroll: true, focusVisible: false });
   }, [customOpen]);
 
   const showView = (custom: boolean) => {
@@ -311,7 +306,6 @@ function AccentColorModalContent({ onClose }: { onClose: () => void }) {
             );
           })}
           <button
-            ref={customTileRef}
             type="button"
             aria-label="Custom color picker"
             data-tooltip={isCustomActive ? `Custom color · ${accentColor.toUpperCase()}` : "Pick a custom color"}

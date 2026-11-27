@@ -96,6 +96,10 @@ export function pairingStep(status: PairingStatus["status"], viewMode: ViewMode)
   if (status === "confirmTransfer" || status === "transferring" || status === "completed") {
     return 3;
   }
+  // The file has arrived, so the devices are connected: what is left is adding its accounts.
+  if (viewMode === "file-receive") {
+    return 3;
+  }
   if (viewMode === "select-role" && isWaitingStatus(status)) {
     return 1;
   }
@@ -118,6 +122,8 @@ export function pairingHeader(input: {
   airgapVerifyPrompt: boolean;
   /** In the confirm step, whether this device is the one that sends. */
   isSender?: boolean;
+  /** On the file-send view, whether the share menu has taken the file (`FileSendState.handedOff`). */
+  fileHandedOff?: boolean;
 }): PairingHeader {
   const { status, viewMode, activeFlow, intendedRole, airgapVerifyPrompt } = input;
   const waiting = isWaitingStatus(status);
@@ -146,7 +152,7 @@ export function pairingHeader(input: {
     subtitle = "Your accounts are encrypted and ready to send.";
   } else if (waiting && viewMode === "file-receive") {
     title = `Receiving by ${nearbyShareName()}`;
-    subtitle = "The accounts arrived as a small file, encrypted with the code.";
+    subtitle = "The accounts arrived as a small file, encrypted with the link code.";
   } else if (waiting && viewMode === "code") {
     title = "Enter Link Code";
     subtitle = "Enter the link code from the other device.";
@@ -168,7 +174,7 @@ export function pairingHeader(input: {
     title = "Pairing Failed";
     subtitle = "The devices didn't finish linking. The reason is below.";
   } else if (status === "completed") {
-    title = "Devices linked";
+    title = "Devices Linked";
     subtitle = "Accounts and credentials are synchronized.";
   } else if (waiting && viewMode === "select-mode") {
     title = "Other Ways to Connect";
@@ -187,7 +193,7 @@ export function pairingHeader(input: {
   return {
     title,
     subtitle,
-    step: airgapVerifyPrompt ? 3 : pairingStep(status, viewMode),
+    step: airgapVerifyPrompt || (viewMode === "file-send" && input.fileHandedOff) ? 3 : pairingStep(status, viewMode),
     showStepDots: status !== "failed",
   };
 }
