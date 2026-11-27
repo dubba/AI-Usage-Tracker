@@ -531,6 +531,38 @@
   .pairing-code-tiles.is-long .pairing-code-tile.group-start { margin-left: 0; }
 }
 
+/* Which way this device is going, on the two code screens: the sender's is filled and the
+   receiver's outlined, so the screens differ at a glance. */
+.pairing-role-badge {
+  display: inline-block;
+  /* Beside "Sync devices"; the negative margins keep the title where it is without the badge. */
+  margin: -4px 0 -4px 10px;
+  vertical-align: middle;
+  padding: 3px 10px;
+  border: 1px solid var(--purple-fill);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pairing-role-badge.is-send {
+  background: var(--purple-fill);
+  color: var(--purple-on-fill);
+}
+
+.pairing-role-badge.is-receive {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.pairing-code-count {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--obsidian-muted);
+}
+
 /* Under the tiles: what is happening, with the countdown to AirDrop or Quick Share. */
 .pairing-code-status {
   display: flex;
@@ -1635,6 +1667,14 @@
   user-select: text;
 }
 
+/* Show Link Code: subtle accent outline with the label centered in the top border (#5). */
+.pairing-code-hero:not(.pairing-code-entry-hero) {
+  margin-top: 6px;
+  padding: 27px 12px 18px;
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.28);
+  border-radius: 16px;
+}
+
 .pairing-code-hero-tag {
   font-size: 0.68rem;
   font-weight: 650;
@@ -1644,15 +1684,30 @@
 }
 
 .pairing-code-hero > .pairing-code-hero-tag {
-  margin-bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.pairing-code-hero > .pairing-code-digits {
-  margin-bottom: 2px;
+.pairing-code-hero:not(.pairing-code-entry-hero) > .pairing-code-hero-tag {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0 10px;
+  background: var(--obsidian-surface-low);
+  color: var(--obsidian-purple);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.pairing-code-hero > .pairing-code-tiles {
-  margin-bottom: 2px;
+.pairing-code-hero-tag > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pairing-code-entry-hero > .pairing-code-hero-tag > svg {
+  color: var(--obsidian-text);
 }
 
 .pairing-code-hero > .pairing-code-status {

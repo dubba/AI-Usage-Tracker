@@ -111,6 +111,8 @@ export type PairingHeader = {
   subtitle: string;
   step: 1 | 2 | 3;
   showStepDots: boolean;
+  /** On the two link code screens, which way this device is going; drawn as a badge. */
+  role: IntendedRole | null;
 };
 
 /** The dialog's title, subtitle and step indicator for the current state of the flow. */
@@ -139,7 +141,7 @@ export function pairingHeader(input: {
   } else if (waiting && viewMode === "airgap-sender") {
     title = "Show QR Code";
   } else if (waiting && viewMode === "host") {
-    title = "Your Link Code";
+    title = "Show Link Code";
     subtitle = "To enter this code, go to Settings → Sync Devices → Send Accounts on the other device.";
   } else if (waiting && viewMode === "scanner") {
     title = "Scan QR Code";
@@ -195,6 +197,12 @@ export function pairingHeader(input: {
     subtitle,
     step: airgapVerifyPrompt || (viewMode === "file-send" && input.fileHandedOff) ? 3 : pairingStep(status, viewMode),
     showStepDots: status !== "failed",
+    // The receiver shows the code and the sender types it, unless Other Ways to Connect chose
+    // the screen after the role.
+    role:
+      waiting && (viewMode === "host" || viewMode === "code")
+        ? (intendedRole ?? (viewMode === "host" ? "receive" : "send"))
+        : null,
   };
 }
 

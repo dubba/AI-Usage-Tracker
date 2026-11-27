@@ -475,14 +475,16 @@ export function PairingModal({
     } else if (viewMode === "host") {
       void initHostSession(legacyHost);
     } else if (viewMode === "code") {
-      // The other device may still show the same code: keep what was typed.
+      // After a decline or cancel, start empty: letters left in the tiles read as a code to
+      // type elsewhere. After a broken connection the other device may still show the same code.
+      if (status.status === "failed" && status.data.error.code === "cancelled") setJoinCodeInput("");
       leaveAttempt("code", "wifi");
     } else {
       leaveAttempt("select-mode");
     }
   };
   const showSwitchCamera = availableCameras.length > 1 || isMobileDevice() || Boolean(import.meta.env?.DEV);
-  const { title: modalTitle, subtitle: modalSubtitle, step, showStepDots } = pairingHeader({
+  const { title: modalTitle, subtitle: modalSubtitle, step, showStepDots, role: roleBadge } = pairingHeader({
     status: status.status,
     viewMode,
     activeFlow,
@@ -507,9 +509,16 @@ export function PairingModal({
     >
       {/* Status changes are visual; announce them for screen reader users. */}
       <div className="sr-only" role="status" aria-live="polite">
-        {modalTitle}. {modalSubtitle}
+        {modalTitle}. {roleBadge ? `${roleBadge === "send" ? "Sending" : "Receiving"}. ` : ""}{modalSubtitle}
       </div>
-      <div className="modal-kicker">Sync devices</div>
+      <div className="modal-kicker">
+        Sync devices
+        {roleBadge ? (
+          <span className={`pairing-role-badge is-${roleBadge}`} aria-hidden="true">
+            {roleBadge === "send" ? "↑ Sending" : "↓ Receiving"}
+          </span>
+        ) : null}
+      </div>
       <h2 id="pairing-modal-title">{modalTitle}</h2>
       {showStepDots ? (
         <ol className="pairing-step-dots" aria-label={`Step ${step} of 3`}>

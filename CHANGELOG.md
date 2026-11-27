@@ -1,11 +1,16 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (4 changes)
 
-### Fixed (2)
+### Improved (1)
+
+- In **Sync Devices**, the **Show Link Code** and **Enter Link Code** screens now show a **Sending** or **Receiving** badge, **Show Link Code** frames the code in an accent-outlined box with a centered **Your link code** label, and **Enter Link Code** displays a **Type here** label and live character counter below the tiles.
+
+### Fixed (3)
 
 - Free or cancelled Grok accounts whose usage response omits a funding plan and uses the generic "Grok Bot Plan" label now update their displayed plan to Free instead of keeping a stale plan.
 - In **Sync Devices**, generating a new link code or retrying while a previous session is shutting down no longer lets the old session overwrite the new session's status or drop its network binding.
+- In **Sync Devices**, clicking **Try Again** after the other device declines or cancels now clears the previous link code from the entry tiles.
 
 ## v0.7.3 - 2026-11-26 (7 changes)
 

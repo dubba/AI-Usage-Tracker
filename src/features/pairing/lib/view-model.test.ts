@@ -54,7 +54,7 @@ describe("pairingHeader titles", () => {
   const cases: Array<[string, Partial<Parameters<typeof pairingHeader>[0]>, string]> = [
     ["role choice", {}, "Send or Receive Accounts"],
     ["other ways to connect", { viewMode: "select-mode" }, "Other Ways to Connect"],
-    ["showing a link code", { viewMode: "host" }, "Your Link Code"],
+    ["showing a link code", { viewMode: "host" }, "Show Link Code"],
     ["scanning", { viewMode: "scanner" }, "Scan QR Code"],
     ["entering a code", { viewMode: "code" }, "Enter Link Code"],
     ["showing animated QR", { viewMode: "airgap-sender" }, "Show QR Code"],
@@ -110,6 +110,15 @@ describe("pairingHeader subtitles and steps", () => {
   it("moves the file sender to step 3 once the share menu has taken the file", () => {
     expect(header({ viewMode: "file-send", fileHandedOff: true }).step).toBe(3);
     expect(header({ viewMode: "code", fileHandedOff: true }).step).toBe(2);
+  });
+
+  it("badges only the two code screens with the way this device is going", () => {
+    expect(header({ viewMode: "host" }).role).toBe("receive");
+    expect(header({ viewMode: "code" }).role).toBe("send");
+    // Other Ways to Connect can pick either screen after the role is chosen.
+    expect(header({ viewMode: "code", intendedRole: "receive" }).role).toBe("receive");
+    expect(header({ viewMode: "select-role" }).role).toBeNull();
+    expect(header({ viewMode: "code", status: "failed" }).role).toBeNull();
   });
 
   it("hides the step dots only when failed", () => {

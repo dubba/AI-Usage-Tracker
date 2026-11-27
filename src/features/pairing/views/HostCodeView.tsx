@@ -67,7 +67,7 @@ export function HostCodeView({
   return (
     <div className="pairing-host-content">
       <div className="pairing-code-hero" aria-label={`Link code ${formatted}`}>
-        <span className="pairing-code-hero-tag">Link code</span>
+        <span className="pairing-code-hero-tag">Your link code</span>
         <CodeDigits code={joinCode} />
         {/* Under the code, above its countdown: what this device is doing with it. */}
         <SearchingRow>Waiting for the other device to connect…</SearchingRow>

@@ -223,7 +223,7 @@ describe("choosing a role and a way to connect", () => {
   it("shows a link code at once when receiving", async () => {
     render();
     await press("Receive on this device");
-    expect(title()).toBe("Your Link Code");
+    expect(title()).toBe("Show Link Code");
     expect(api.startHost).toHaveBeenCalledWith(true, false);
     expect(text()).toContain("To enter this code, go to Settings → Sync Devices → Send Accounts on the other device.");
     expect(button("Back").classList.contains("button-tertiary")).toBe(true);
@@ -263,7 +263,7 @@ describe("choosing a role and a way to connect", () => {
     await press("Send from this device");
     await press("Other ways to connect");
     await press("Show Link Code");
-    expect(title()).toBe("Your Link Code");
+    expect(title()).toBe("Show Link Code");
     expect(api.startHost).toHaveBeenCalledWith(true, true);
   });
 
@@ -274,7 +274,7 @@ describe("choosing a role and a way to connect", () => {
     expect(text()).not.toContain("Other ways to connect");
     await press("Back");
     await press("Receive on this device");
-    expect(title()).toBe("Your Link Code");
+    expect(title()).toBe("Show Link Code");
     expect(text()).not.toContain("Other ways to connect");
     await act(async () => setSyncOtherWays("on"));
     expect(text()).toContain("Other ways to connect");
@@ -301,7 +301,7 @@ describe("no Wi-Fi check before a link code", () => {
     render();
     await press("Receive on this device");
     expect(api.startHost).toHaveBeenCalledTimes(1);
-    expect(title()).toBe("Your Link Code");
+    expect(title()).toBe("Show Link Code");
     expect(popup()).toBeNull();
   });
 
@@ -324,7 +324,7 @@ describe("showing a link code", () => {
   it("starts a host session and shows the code and a countdown", async () => {
     await openHost();
     expect(api.startHost).toHaveBeenCalledTimes(1);
-    expect(title()).toBe("Your Link Code");
+    expect(title()).toBe("Show Link Code");
     expect(document.querySelector(".pairing-code-hero")?.getAttribute("aria-label")).toBe("Link code KTQ MPR XDH WAB");
     expect(Array.from(document.querySelectorAll(".pairing-code-digit"), (d) => d.textContent).join("")).toBe(CODE);
     expect(document.querySelector(".pairing-code-digits")?.className).toContain("is-long");
@@ -580,6 +580,30 @@ describe("entering a link code", () => {
     expect(api.logRetry).toHaveBeenCalledWith("send", "code", "wifi");
     expect(title()).toBe("Enter Link Code");
     expect(input().value).toBe("123 456");
+  });
+
+  it("starts with an empty code when Try Again follows the other device declining", async () => {
+    await openCodeEntry();
+    typeInto(input(), CODE);
+    await settle();
+    await emit({ status: "failed", data: { error: { code: "cancelled" as const, message: "The other device declined the transfer." } } });
+    await press("Try Again");
+    expect(title()).toBe("Enter Link Code");
+    expect(input().value).toBe("");
+  });
+
+  it("badges the sending code screen and counts its letters until Connect is ready", async () => {
+    await openCodeEntry();
+    const connect = () =>
+      Array.from(document.querySelectorAll("button")).find((button) => button.textContent === "Connect") as HTMLButtonElement;
+    const badge = () => document.querySelector(".pairing-role-badge");
+    const count = () => document.querySelector(".pairing-code-count")?.textContent;
+    expect(badge()?.textContent).toBe("↑ Sending");
+    expect(badge()?.classList.contains("is-send")).toBe(true);
+    expect(count()).toBe("0 of 12 letters");
+    typeInto(input(), "KTQMP");
+    expect(count()).toBe("5 of 12 letters");
+    expect(connect().disabled).toBe(true);
   });
 
   it("lets the user click any filled tile to replace that letter in place", async () => {
@@ -863,7 +887,7 @@ describe("transfer by file", () => {
     });
     await settle();
     expect(document.querySelector(".modal-error")?.textContent).toContain("doesn't match the code shown here");
-    expect(title()).toBe("Your Link Code");
+    expect(title()).toBe("Show Link Code");
     expect(api.importFile).not.toHaveBeenCalled();
   }, 10_000);
 
@@ -929,7 +953,7 @@ describe("transfer by file", () => {
     expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
     // Asked once. No app can reach Quick Share's visibility setting on Android, so that isn't asked.
     expect(popup()).toBeNull();
-    expect(title()).toBe("Your Link Code");
+    expect(title()).toBe("Show Link Code");
   });
 
   it("tells an Android receiver where Quick Share's Who can share with you setting is, in place of a button", async () => {
@@ -1678,7 +1702,7 @@ describe("finishing", () => {
   it("starts over each time it is reopened", async () => {
     render();
     await press("Receive on this device");
-    expect(title()).toBe("Your Link Code");
+    expect(title()).toBe("Show Link Code");
     mounted.rerender(<PairingModal open={false} onClose={onClose} onCompleted={onCompleted} />);
     expect(document.querySelector(".pairing-modal")).toBeNull();
     mounted.rerender(<PairingModal open onClose={onClose} onCompleted={onCompleted} />);

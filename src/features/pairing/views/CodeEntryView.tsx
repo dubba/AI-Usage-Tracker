@@ -14,7 +14,7 @@ import {
   startsGroupInRow,
 } from "../lib/view-model";
 
-import { ArrowLeftIcon, WifiIcon } from "../../../shared/ui/icons";
+import { ArrowLeftIcon, KeyboardIcon, WifiIcon } from "../../../shared/ui/icons";
 import { isMobileDevice } from "../../../shared/lib/platform";
 import { OtherWaysLink, SearchingRow } from "./HostCodeView";
 
@@ -352,7 +352,8 @@ export function CodeEntryView({
       {/* In the same card as the code it is copied from (HostCodeView). */}
       <div className="pairing-code-hero pairing-code-entry-hero">
         <span className="pairing-code-hero-tag" aria-hidden="true">
-          Enter link code
+          <KeyboardIcon />
+          Type here
         </span>
         <label className={`pairing-code-tiles${busy ? " is-busy" : ""}${legacy ? "" : " is-long"}`}>
           <input
@@ -404,6 +405,12 @@ export function CodeEntryView({
             </span>
           ))}
         </label>
+
+        {busy ? null : (
+          <span className="pairing-code-count">
+            {slots.filter(Boolean).length} of {length} {legacy ? "digits" : "letters"}
+          </span>
+        )}
 
         <div id="pairing-code-help" className="pairing-code-status">
           {searching ? (
