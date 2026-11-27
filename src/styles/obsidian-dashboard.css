@@ -2207,19 +2207,31 @@ select.text-input option,
 .custom-dropdown-menu {
   position: fixed;
   z-index: var(--z-dropdown, 1000);
+  display: flex;
+  flex-direction: column;
   max-height: 280px;
   margin: 0;
-  padding: 6px;
-  list-style: none;
+  padding: 0;
   background: linear-gradient(180deg, var(--c-1b1922) 0%, var(--c-141318) 100%);
   border: 1px solid var(--obsidian-border-strong);
   border-radius: 8px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgb(var(--purple-accent-rgb) / 0.12);
+  overflow: hidden;
+  clip-path: inset(0 round 8px);
+  animation: customDropdownFadeIn 120ms ease-out;
+}
+
+.custom-dropdown-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  clip-path: inset(0 round 8px);
-  animation: customDropdownFadeIn 120ms ease-out;
+  box-sizing: border-box;
 }
 
 .custom-dropdown-container.open {

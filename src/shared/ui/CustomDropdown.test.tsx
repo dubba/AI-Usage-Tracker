@@ -252,7 +252,7 @@ describe("CustomDropdown", () => {
     expect(menu.querySelector(".scroll-thumb")).toBeNull();
   });
 
-  it("reserves scrollbar space when the menu content overflows and never pushes the thumb past scrollHeight", () => {
+  it("reserves scrollbar space when the menu content overflows and keeps the thumb outside the scroller", () => {
     vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(400);
     vi.spyOn(HTMLUListElement.prototype, "clientHeight", "get").mockReturnValue(200);
     app = mount(
@@ -261,18 +261,23 @@ describe("CustomDropdown", () => {
     mockAnchorRect(app.container, { top: 120, left: 40, width: 360, height: 44 });
     click(document.getElementById("provider")!);
     const menu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
+    const scroll = menu.querySelector<HTMLElement>(".custom-dropdown-scroll")!;
     expect(menu.classList.contains("has-overflow")).toBe(true);
     const thumb = menu.querySelector<HTMLElement>(".scroll-thumb");
     expect(thumb?.getAttribute("aria-hidden")).toBe("true");
-    expect(menu.querySelectorAll('[role="option"]')).toHaveLength(OPTIONS.length);
+    expect(scroll.contains(thumb)).toBe(false);
+    expect(thumb?.parentElement).toBe(menu);
+    expect(scroll.querySelectorAll('[role="option"]')).toHaveLength(OPTIONS.length);
 
-    menu.scrollTop = 260;
+    scroll.scrollTop = 260;
     act(() => {
-      menu.dispatchEvent(new Event("scroll"));
+      scroll.dispatchEvent(new Event("scroll"));
     });
     const height = parseFloat(thumb!.style.height);
     const match = thumb!.style.transform.match(/translateY\(([-\d.]+)px\)/);
     const y = Number(match?.[1] ?? NaN);
-    expect(y + height).toBeLessThanOrEqual(400);
+    expect(height).toBe(100);
+    expect(y).toBe(100);
+    expect(y + height).toBeLessThanOrEqual(200);
   });
 });

@@ -654,12 +654,12 @@
    the right edge of the padding box. While a list overflows its right inset is
    the left inset plus the thumb, so the gap beside the thumb matches the gap
    on the other side on every platform. */
-.custom-dropdown-menu,
+.custom-dropdown-scroll,
 .bucket-account-picker-scroll {
   scrollbar-width: none;
 }
 
-.custom-dropdown-menu::-webkit-scrollbar,
+.custom-dropdown-scroll::-webkit-scrollbar,
 .bucket-account-picker-scroll::-webkit-scrollbar {
   display: none;
   width: 0;
@@ -702,7 +702,7 @@
   background: var(--scrollbar-thumb-hover);
 }
 
-.custom-dropdown-menu.has-overflow {
+.custom-dropdown-menu.has-overflow .custom-dropdown-scroll {
   padding-right: calc(6px + var(--scrollbar-size));
 }
 
@@ -1659,6 +1659,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .settings-account-refresh .custom-dropdown-item {
+  gap: 6px;
+  padding: 8px 6px 8px 8px;
   color: var(--c-ded8df) !important;
 }
 

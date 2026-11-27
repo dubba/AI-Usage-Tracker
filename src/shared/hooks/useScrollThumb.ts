@@ -28,16 +28,21 @@ export function useScrollThumb<T extends HTMLElement>(scrollRef: RefObject<T | n
     const range = Math.max(0, scrollHeight - clientHeight);
     const clampedScroll = Math.max(0, Math.min(range, scrollTop));
     const top = range > 0 ? Math.floor(((clientHeight - height) * clampedScroll) / range) : 0;
-    // When rendered as a sibling inside a non-scrolling frame (e.g. BucketModal),
-    // `top` alone positions the thumb without fighting compositor scrolling or
-    // touching the scroller's scrollHeight. When rendered inside the scroller
-    // itself (e.g. CustomDropdown), offset by clampedScroll and clamp the bottom
-    // to scrollHeight so neither overscroll nor subpixel rounding can grow
-    // scrollHeight into an infinite-scroll loop.
+    // Prefer rendering the thumb as a sibling inside a non-scrolling frame
+    // (BucketModal, CustomDropdown) so `top` alone positions it without
+    // fighting compositor scrolling or contributing to scrollHeight. If a
+    // caller ever places it inside the scroller, subtract padding-bottom as
+    // well because CSS adds padding-bottom below positioned children when
+    // computing scrollable overflow.
     const insideScroller = el.contains(thumb);
-    const translateY = insideScroller
-      ? Math.min(Math.floor(clampedScroll) + top, Math.max(0, scrollHeight - height))
-      : top;
+    let translateY = top;
+    if (insideScroller) {
+      const paddingBottom =
+        typeof window !== "undefined" && window.getComputedStyle
+          ? parseFloat(window.getComputedStyle(el).paddingBottom) || 0
+          : 0;
+      translateY = Math.min(Math.floor(clampedScroll) + top, Math.max(0, scrollHeight - paddingBottom - height));
+    }
     thumb.style.height = `${height}px`;
     thumb.style.transform = `translateY(${translateY}px)`;
   }, [scrollRef]);

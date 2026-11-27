@@ -185,7 +185,9 @@ export function getMenuContentHeight(menu: HTMLElement | null): number {
   const style = typeof window !== "undefined" && window.getComputedStyle ? window.getComputedStyle(menu) : null;
   const borderTop = style ? parseFloat(style.borderTopWidth) || 0 : 0;
   const borderBottom = style ? parseFloat(style.borderBottomWidth) || 0 : 0;
-  const scrollHeightWithBorders = menu.scrollHeight + borderTop + borderBottom;
+  const scroller = menu.querySelector<HTMLElement>(".custom-dropdown-scroll");
+  const contentScrollHeight = scroller ? Math.max(menu.scrollHeight, scroller.scrollHeight) : menu.scrollHeight;
+  const scrollHeightWithBorders = contentScrollHeight + borderTop + borderBottom;
   return Math.max(rect.height, scrollHeightWithBorders);
 }
 
@@ -198,14 +200,17 @@ export function getMenuContentHeight(menu: HTMLElement | null): number {
  */
 export function snapMaxHeightToWholeRows(menu: HTMLElement | null, maxHeight: number): number {
   if (!menu || typeof window === "undefined" || !window.getComputedStyle) return maxHeight;
+  const scroller = menu.querySelector<HTMLElement>(".custom-dropdown-scroll") ?? menu;
   const menuStyle = window.getComputedStyle(menu);
+  const scrollerStyle = scroller === menu ? menuStyle : window.getComputedStyle(scroller);
   const num = (value: string | undefined) => parseFloat(value ?? "") || 0;
-  const chromeTop = num(menuStyle.borderTopWidth) + num(menuStyle.paddingTop);
-  const chromeBottom = num(menuStyle.paddingBottom) + num(menuStyle.borderBottomWidth);
-  if (menu.scrollHeight + num(menuStyle.borderTopWidth) + num(menuStyle.borderBottomWidth) <= maxHeight + 1) {
+  const chromeTop = num(menuStyle.borderTopWidth) + num(scrollerStyle.paddingTop);
+  const chromeBottom = num(scrollerStyle.paddingBottom) + num(menuStyle.borderBottomWidth);
+  const contentScrollHeight = scroller === menu ? menu.scrollHeight : Math.max(menu.scrollHeight, scroller.scrollHeight);
+  if (contentScrollHeight + num(menuStyle.borderTopWidth) + num(menuStyle.borderBottomWidth) <= maxHeight + 1) {
     return maxHeight;
   }
-  const items = menu.querySelectorAll<HTMLElement>(".custom-dropdown-item");
+  const items = scroller.querySelectorAll<HTMLElement>(".custom-dropdown-item");
   if (!items.length) return maxHeight;
   // Walk whole rows in border-box coordinates; end the menu flush at a row
   // boundary so no partial row peeks out at the bottom.

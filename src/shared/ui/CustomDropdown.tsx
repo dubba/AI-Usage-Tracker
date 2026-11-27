@@ -112,12 +112,13 @@ export function CustomDropdown<T extends string | number>({
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const thumb = useScrollThumb(listRef, isOpen, options.length);
   const [placement, measurePlacement] = useAnchoredMenuPlacement<MenuPlacement>({
     open: isOpen,
     initial: { openUpward: false, style: {} },
-    measure: () => computeCustomDropdownPlacement(containerRef.current, listRef.current, options.length),
+    measure: () => computeCustomDropdownPlacement(containerRef.current, menuRef.current, options.length),
     isSame: (a, b) =>
       a.openUpward === b.openUpward &&
       a.style.top === b.style.top &&
@@ -258,70 +259,74 @@ export function CustomDropdown<T extends string | number>({
       </button>
 
       {isOpen && (
-        <ul
-          ref={listRef}
-          id={listboxId}
+        <div
+          ref={menuRef}
           className={`custom-dropdown-menu ${placement.openUpward ? "upward" : ""} ${thumb.overflows ? "has-overflow" : ""}`}
-          role="listbox"
-          aria-labelledby={dropdownId}
           style={placement.style}
         >
+          <ul
+            ref={listRef}
+            id={listboxId}
+            className="custom-dropdown-scroll"
+            role="listbox"
+            aria-labelledby={dropdownId}
+          >
+            {options.map((option, index) => {
+              const isSelected = option.value === value;
+              const isHighlighted = index === highlightedIndex;
+              return (
+                <li
+                  key={String(option.value)}
+                  id={`${dropdownId}-opt-${index}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`custom-dropdown-item ${isSelected ? "selected" : ""} ${
+                    isHighlighted ? "highlighted" : ""
+                  }`}
+                  onClick={() => {
+                    onChange(option.value);
+                    closeMenu(true);
+                  }}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                >
+                  {option.icon && (
+                    <span className="custom-dropdown-item-icon">{option.icon}</span>
+                  )}
+                  <div className="custom-dropdown-item-content">
+                    <span className="custom-dropdown-item-label">{option.label}</span>
+                    {option.detail && (
+                      <span className="custom-dropdown-item-detail">{option.detail}</span>
+                    )}
+                  </div>
+                  {isSelected && (
+                    <svg
+                      className="custom-dropdown-check"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
           {thumb.overflows && (
-            <li
-              ref={thumb.thumbRef as RefObject<HTMLLIElement>}
-              role="presentation"
+            <div
+              ref={thumb.thumbRef as RefObject<HTMLDivElement>}
               aria-hidden="true"
               className="scroll-thumb"
               onPointerDown={thumb.onThumbPointerDown}
             />
           )}
-          {options.map((option, index) => {
-            const isSelected = option.value === value;
-            const isHighlighted = index === highlightedIndex;
-            return (
-              <li
-                key={String(option.value)}
-                id={`${dropdownId}-opt-${index}`}
-                role="option"
-                aria-selected={isSelected}
-                className={`custom-dropdown-item ${isSelected ? "selected" : ""} ${
-                  isHighlighted ? "highlighted" : ""
-                }`}
-                onClick={() => {
-                  onChange(option.value);
-                  closeMenu(true);
-                }}
-                onMouseEnter={() => setHighlightedIndex(index)}
-              >
-                {option.icon && (
-                  <span className="custom-dropdown-item-icon">{option.icon}</span>
-                )}
-                <div className="custom-dropdown-item-content">
-                  <span className="custom-dropdown-item-label">{option.label}</span>
-                  {option.detail && (
-                    <span className="custom-dropdown-item-detail">{option.detail}</span>
-                  )}
-                </div>
-                {isSelected && (
-                  <svg
-                    className="custom-dropdown-check"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        </div>
       )}
     </div>
   );

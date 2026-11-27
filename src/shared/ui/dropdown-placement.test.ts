@@ -242,6 +242,35 @@ describe("dropdown-placement", () => {
       expect(snapMaxHeightToWholeRows(menu, 120)).toBe(120);
     });
 
+    it("reads borders from the outer frame and padding/scrollHeight from .custom-dropdown-scroll", () => {
+      const frame = document.createElement("div");
+      frame.className = "custom-dropdown-menu";
+      const scroll = document.createElement("ul");
+      scroll.className = "custom-dropdown-scroll";
+      for (let i = 0; i < 6; i += 1) {
+        const item = document.createElement("li");
+        item.className = "custom-dropdown-item";
+        item.getBoundingClientRect = () => rectOf({ top: 0, left: 0, width: 300, height: 48 });
+        scroll.appendChild(item);
+      }
+      frame.appendChild(scroll);
+      Object.defineProperty(frame, "scrollHeight", { value: 280, configurable: true });
+      Object.defineProperty(scroll, "scrollHeight", { value: 308, configurable: true });
+      const real = window.getComputedStyle;
+      vi.spyOn(window, "getComputedStyle").mockImplementation(((el: Element) => {
+        if (el === frame) return styleWith({ borderTopWidth: "1px", borderBottomWidth: "1px", paddingTop: "0px", paddingBottom: "0px" });
+        if (el === scroll) return styleWith({ borderTopWidth: "0px", borderBottomWidth: "0px", paddingTop: "6px", paddingBottom: "6px" });
+        if (el instanceof HTMLElement && el.classList.contains("custom-dropdown-item")) {
+          return styleWith({ marginBottom: "2px" });
+        }
+        return real.call(window, el);
+      }) as typeof window.getComputedStyle);
+      document.body.appendChild(frame);
+
+      expect(getMenuContentHeight(frame)).toBe(310);
+      expect(snapMaxHeightToWholeRows(frame, 280)).toBe(262);
+    });
+
     it("leaves maxHeight alone when rows cannot be measured", () => {
       const menu = document.createElement("ul");
       const item = document.createElement("li");
