@@ -467,6 +467,9 @@ export function PairingModal({
   /** Try Again after a failure: start the same attempt over. */
   const retryAfterFailure = () => {
     setErrorMessage(null);
+    void pairingApi
+      .logRetry(intendedRole ?? "none", viewMode, activeFlow ?? "none")
+      .catch((cause) => logIgnored("pairing.logRetry", cause));
     if (activeFlow === "airgap") {
       void startAirgapSender();
     } else if (viewMode === "host") {

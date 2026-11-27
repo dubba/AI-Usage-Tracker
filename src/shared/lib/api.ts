@@ -107,6 +107,9 @@ export const pairingApi = {
   ensureCameraPermission: () => invoke<void>("ensure_camera_permission"),
   /** Whether the phone is on Wi-Fi; Rust records it in the Sync Devices log. */
   wifiEnabled: () => invoke<boolean>("pairing_wifi_enabled"),
+  /** Try Again after a failed sync: Rust records the role and screen in the Sync Devices log. */
+  logRetry: (role: string, screen: string, method: string) =>
+    invoke<void>("pairing_log_retry", { role, screen, method }),
   /**
    * Shows a twelve-letter link code, or six digits for a device with an older version (`legacyCode`,
    * Wi-Fi only). `acceptSettings`: this device's "Also Sync Settings and Layout" choice, used if

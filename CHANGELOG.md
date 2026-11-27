@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
 
-### Fixed (1)
+### Fixed (2)
 
 - Free or cancelled Grok accounts whose usage response omits a funding plan and uses the generic "Grok Bot Plan" label now update their displayed plan to Free instead of keeping a stale plan.
+- In **Sync Devices**, generating a new link code or retrying while a previous session is shutting down no longer lets the old session overwrite the new session's status or drop its network binding.
 
 ## v0.7.3 - 2026-11-26 (7 changes)
 

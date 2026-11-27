@@ -594,10 +594,12 @@ impl PairingSessionManager {
                     },
                 };
 
-                *status_lock.write().await = current_status.clone();
+                let current =
+                    publish_status(&active_lock, &status_lock, &session_id_str, &current_status)
+                        .await;
                 sync_log::status(sync_log::Side::Showing, &current_status);
 
-                if let Some(app_handle) = &app_handle_opt {
+                if let Some(app_handle) = app_handle_opt.as_ref().filter(|_| current) {
                     let _ = app_handle.emit("pairing-status", &current_status);
                 }
 
@@ -605,7 +607,6 @@ impl PairingSessionManager {
                     PairingStatus::Completed { .. }
                     | PairingStatus::Failed { .. }
                     | PairingStatus::Idle => {
-                        crate::platform::lan_binding::configure_pairing_network(false);
                         let mut act = active_lock.write().await;
                         if act.as_ref().map(|s| &s.session_id) == Some(&session_id_str) {
                             if let Some(session) = act.take() {
@@ -613,6 +614,10 @@ impl PairingSessionManager {
                                     advertisement.unregister();
                                 }
                             }
+                        }
+                        // A session that replaced this one keeps the network binding.
+                        if act.is_none() {
+                            crate::platform::lan_binding::configure_pairing_network(false);
                         }
                         break;
                     }
@@ -792,10 +797,11 @@ impl PairingSessionManager {
                     },
                 };
 
-                *status_lock.write().await = current_status.clone();
+                let current =
+                    publish_status(&active_lock, &status_lock, &sid, &current_status).await;
                 sync_log::status(sync_log::Side::Entering, &current_status);
 
-                if let Some(app_handle) = &app_handle_opt {
+                if let Some(app_handle) = app_handle_opt.as_ref().filter(|_| current) {
                     let _ = app_handle.emit("pairing-status", &current_status);
                 }
 
@@ -803,10 +809,13 @@ impl PairingSessionManager {
                     PairingStatus::Completed { .. }
                     | PairingStatus::Failed { .. }
                     | PairingStatus::Idle => {
-                        crate::platform::lan_binding::configure_pairing_network(false);
                         let mut act = active_lock.write().await;
                         if act.as_ref().map(|s| &s.session_id) == Some(&sid) {
                             *act = None;
+                        }
+                        // A session that replaced this one keeps the network binding.
+                        if act.is_none() {
+                            crate::platform::lan_binding::configure_pairing_network(false);
                         }
                         break;
                     }
@@ -854,6 +863,24 @@ impl PairingSessionManager {
             file_code: FileCode::for_code(code),
         });
     }
+}
+
+/// Stores a session's new status, unless the session has been cancelled or replaced since: its
+/// late events (the old listener answering a cancel with `Cancelled`) must not overwrite the
+/// status of the session that followed. Returns whether it was stored.
+async fn publish_status(
+    active: &RwLock<Option<ActiveSession>>,
+    status: &RwLock<PairingStatus>,
+    session_id: &str,
+    new: &PairingStatus,
+) -> bool {
+    // Held across the write, in the order `cancel` takes the two locks.
+    let active = active.read().await;
+    let current = active.as_ref().is_some_and(|s| s.session_id == session_id);
+    if current {
+        *status.write().await = new.clone();
+    }
+    current
 }
 
 /// Binds the host listener to the address the mDNS record advertises, and

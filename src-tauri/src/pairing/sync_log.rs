@@ -81,6 +81,41 @@ pub(crate) fn failed_text(step: &str, error: &str) {
     note(&format!("{step} failed: {error}"));
 }
 
+/// Logs Try Again after a failed sync: this device's role and the screen it was on, which decide
+/// the screen it goes back to.
+pub(crate) fn retry(role: &str, screen: &str, method: &str) {
+    note(&describe_retry(role, screen, method));
+}
+
+/// The values come from the page, so only the ones it is known to send are repeated.
+fn describe_retry(role: &str, screen: &str, method: &str) -> String {
+    fn known<'a>(value: &str, names: &[&'a str]) -> &'a str {
+        names
+            .iter()
+            .copied()
+            .find(|name| *name == value)
+            .unwrap_or("unknown")
+    }
+    format!(
+        "Try Again: role {}, screen {}, method {}",
+        known(role, &["send", "receive", "none"]),
+        known(
+            screen,
+            &[
+                "select-role",
+                "select-mode",
+                "host",
+                "scanner",
+                "code",
+                "airgap-sender",
+                "file-send",
+                "file-receive",
+            ]
+        ),
+        known(method, &["wifi", "airgap", "none"]),
+    )
+}
+
 /// Logs a link-code session's new status. The waiting states carry the link code or nothing
 /// worth a line, so they are left out.
 pub(crate) fn status(side: Side, status: &PairingStatus) {
@@ -174,6 +209,18 @@ pub(crate) fn file_fingerprint(bytes: &[u8]) -> String {
 mod tests {
     use super::*;
     use crate::commands::error::ErrorCode;
+
+    #[test]
+    fn a_retry_repeats_only_known_values() {
+        assert_eq!(
+            describe_retry("send", "code", "wifi"),
+            "Try Again: role send, screen code, method wifi"
+        );
+        assert_eq!(
+            describe_retry("482913", "KTQMPRXDHWAB", ""),
+            "Try Again: role unknown, screen unknown, method unknown"
+        );
+    }
 
     #[test]
     fn the_link_code_is_never_described() {

@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
   importAirgapFrames: vi.fn(),
   ensureCameraPermission: vi.fn(),
   wifiEnabled: vi.fn(),
+  logRetry: vi.fn(),
   sendFile: vi.fn(),
   shareFile: vi.fn(),
   saveFile: vi.fn(),
@@ -166,6 +167,7 @@ beforeEach(() => {
   api.prepareAirgapExport.mockResolvedValue(AIRGAP);
   api.ensureCameraPermission.mockResolvedValue(undefined);
   api.wifiEnabled.mockResolvedValue(false);
+  api.logRetry.mockResolvedValue(undefined);
   // Downloads is watched, and nothing has arrived yet.
   api.watchForFile.mockResolvedValue({ watching: true, needsAccess: false });
   api.stopWatchingForFile.mockResolvedValue(undefined);
@@ -575,6 +577,7 @@ describe("entering a link code", () => {
     await press("Connect");
     await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "The link to the other device broke." } } });
     await press("Try Again");
+    expect(api.logRetry).toHaveBeenCalledWith("send", "code", "wifi");
     expect(title()).toBe("Enter Link Code");
     expect(input().value).toBe("123 456");
   });

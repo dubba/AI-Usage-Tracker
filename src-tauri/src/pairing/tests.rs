@@ -2236,6 +2236,34 @@ async fn settings_are_imported_only_when_the_receiving_user_asked_for_them() {
 }
 
 #[tokio::test]
+async fn a_replaced_session_leaves_the_new_codes_status_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = state_in(&dir, "tok-replace").await;
+    // Generate New Code while the old session still waits: its listener answers the cancel
+    // after the new session is up.
+    let _first = state
+        .pairing
+        .start_host(state.clone(), false, false)
+        .await
+        .unwrap();
+    // Let the first listener start waiting.
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    let second = state
+        .pairing
+        .start_host(state.clone(), false, false)
+        .await
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let status = state.pairing.get_status().await;
+    assert!(
+        matches!(&status, super::PairingStatus::HostWaiting { session_id, .. } if *session_id == second.session_id),
+        "{status:?}"
+    );
+    state.pairing.cancel().await;
+    assert_eq!(state.pairing.get_status().await, super::PairingStatus::Idle);
+}
+
+#[tokio::test]
 async fn starting_a_session_records_whether_this_device_accepts_settings() {
     let dir = tempfile::tempdir().unwrap();
     let state = state_in(&dir, "tok-accept").await;

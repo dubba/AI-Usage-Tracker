@@ -47,6 +47,13 @@ pub async fn pairing_wifi_enabled() -> CommandResult<bool> {
     Ok(on_wifi)
 }
 
+/// Records a Try Again click in the Sync Devices log only.
+#[tauri::command]
+pub fn pairing_log_retry(role: String, screen: String, method: String) -> CommandResult<()> {
+    sync_log::retry(&role, &screen, &method);
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn pairing_start_client_by_code(
     app: AppHandle,
