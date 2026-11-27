@@ -962,13 +962,13 @@ describe("transfer by file", () => {
     await press("Receive on this device");
     const note = document.querySelector(".pairing-discover-note");
     expect(note?.textContent).toContain(
-      "To use Quick Share, set Who can share with you to Everyone for 10 minutes to allow devices to sync.",
+      "To use Quick Share, set Who can share with you to Everyone for 10 minutes. Search for Quick Share in your device Settings to change this, then return here.",
     );
-    expect(note?.textContent).toContain("To change this, search for Quick Share in your device Settings, then return here.");
     expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
       "Quick Share",
       "Who can share with you",
       "Everyone for 10 minutes",
+      "Settings",
     ]);
   });
 

@@ -353,7 +353,7 @@ export function CodeEntryView({
       <div className="pairing-code-hero pairing-code-entry-hero">
         <span className="pairing-code-hero-tag" aria-hidden="true">
           <KeyboardIcon />
-          Type here
+          Type code here
         </span>
         <label className={`pairing-code-tiles${busy ? " is-busy" : ""}${legacy ? "" : " is-long"}`}>
           <input

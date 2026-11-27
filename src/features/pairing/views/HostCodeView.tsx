@@ -128,21 +128,20 @@ function DiscoverableNote({ autoPickup = false }: { autoPickup?: boolean }) {
       </span>
       <div className="pairing-discover-note-copy">
         {ios ? (
-          // AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes.
-          <p>
-            To use <strong>AirDrop</strong>, set it to <strong>Everyone for 10 Minutes</strong> to allow devices to sync.
-          </p>
+          <>
+            {/* AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes. */}
+            <p>
+              To use <strong>AirDrop</strong>, set it to <strong>Everyone for 10 Minutes</strong> to allow devices to sync.
+            </p>
+            <p>To change this, search for AirDrop in your device Settings, then return here.</p>
+          </>
         ) : (
           <p>
             To use <strong>Quick Share</strong>, set <strong>Who can share with you</strong> to{" "}
-            <strong>Everyone for 10 minutes</strong> to allow devices to sync.
+            <strong>Everyone for 10 minutes</strong>. Search for Quick Share in your device <strong>Settings</strong>{" "}
+            to change this, then return here.
           </p>
         )}
-        <p>
-          {ios
-            ? "To change this, search for AirDrop in your device Settings, then return here."
-            : "To change this, search for Quick Share in your device Settings, then return here."}
-        </p>
         {ios ? (
           <p>
             {autoPickup

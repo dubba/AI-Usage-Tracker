@@ -4,7 +4,7 @@
 
 ### Improved (1)
 
-- In **Sync Devices**, the **Show Link Code** and **Enter Link Code** screens now show a **Sending** or **Receiving** badge, **Show Link Code** frames the code in an accent-outlined box with a centered **Your link code** label, and **Enter Link Code** displays a **Type here** label and live character counter below the tiles.
+- In **Sync Devices**, the **Show Link Code** and **Enter Link Code** screens now show a **Sending** or **Receiving** badge, **Show Link Code** frames the code with a soft top accent glow, and **Enter Link Code** frames the input in an accent-outlined box with a centered **Type code here** label and live character counter below the tiles.
 
 ### Fixed (3)
 

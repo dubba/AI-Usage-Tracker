@@ -1650,7 +1650,7 @@
 
 /* ---- Link code screens: the code, the search, and AirDrop / Quick Share ---- */
 
-/* Sit directly on the modal's elevated surface with no concentric inner card border. */
+/* Code container shared by Show Link Code and Enter Link Code. */
 .pairing-code-hero {
   position: relative;
   display: flex;
@@ -1658,21 +1658,31 @@
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 2px 0 4px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  border-radius: 16px;
   box-shadow: none;
   box-sizing: border-box;
   user-select: text;
 }
 
-/* Show Link Code: subtle accent outline with the label centered in the top border (#5). */
+/* Show Link Code (#4 Top Glow): soft accent glow fading from the top edge. */
 .pairing-code-hero:not(.pairing-code-entry-hero) {
+  margin-top: 0;
+  padding: 18px 12px;
+  border: 1px solid color-mix(in srgb, var(--obsidian-text) 8%, transparent);
+  background: radial-gradient(
+    120% 90% at 50% 0%,
+    rgb(var(--purple-accent-rgb) / 0.2),
+    rgb(var(--purple-accent-rgb) / 0) 70%
+  );
+}
+
+/* Enter Link Code (#5 Label on Border): subtle accent outline with the label on the top border. */
+.pairing-code-entry-hero,
+.modal-card.pairing-modal .pairing-code-entry-view > .pairing-code-entry-hero {
   margin-top: 6px;
   padding: 27px 12px 18px;
   border: 1px solid rgb(var(--purple-accent-rgb) / 0.28);
-  border-radius: 16px;
+  background: transparent;
 }
 
 .pairing-code-hero-tag {
@@ -1689,7 +1699,7 @@
   gap: 6px;
 }
 
-.pairing-code-hero:not(.pairing-code-entry-hero) > .pairing-code-hero-tag {
+.pairing-code-entry-hero > .pairing-code-hero-tag {
   position: absolute;
   top: 0;
   left: 50%;
