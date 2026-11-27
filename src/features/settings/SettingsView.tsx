@@ -170,21 +170,27 @@ export function SettingsView({
           </div>
           <SettingsToggleRow checked={otherWays} labelledBy="setting-sync-other-ways-label" onChange={setOtherWays}>
             <div>
-              <strong id="setting-sync-other-ways-label">Other Ways to Connect</strong>
-              <small>Show a 6-digit code for older app versions and QR codes in Sync Devices.</small>
+              <strong id="setting-sync-other-ways-label">Legacy Features</strong>
+              <small>
+                {isMobileDevice()
+                  ? "Show a 6-digit code for older app versions and QR codes in Sync Devices."
+                  : "Show Paseo Bridge integration, 6-digit code for older app versions, and QR codes in Sync Devices."}
+              </small>
             </div>
           </SettingsToggleRow>
         </section>
 
         <DataSection onAllDataDeleted={onAllDataDeleted} />
 
-        <LocalApiSection
-          bridge={bridge}
-          bridgeBusy={bridgeBusy}
-          integrationWindowBusy={integrationWindowBusy}
-          onToggleBridge={onToggleBridge}
-          onViewBridgeWindow={onViewBridgeWindow}
-        />
+        {otherWays ? (
+          <LocalApiSection
+            bridge={bridge}
+            bridgeBusy={bridgeBusy}
+            integrationWindowBusy={integrationWindowBusy}
+            onToggleBridge={onToggleBridge}
+            onViewBridgeWindow={onViewBridgeWindow}
+          />
+        ) : null}
 
         {!isMobileDevice() ? (
           <section className="settings-card settings-shortcuts-card" aria-labelledby="settings-section-shortcuts">

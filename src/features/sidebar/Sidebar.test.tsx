@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "./sidebar-groups";
+import { setSyncOtherWays } from "../../shared/lib/sync-other-ways";
 import { Sidebar } from "./Sidebar";
 import type { AccountBucket } from "../../types";
 import type { Section } from "../../app/useSidebarNavigation";
@@ -173,43 +174,70 @@ describe("Sidebar", () => {
 
     it("renders Settings section jump links on desktop instead of accounts and groups (L3)", () => {
       const onJump = vi.fn();
-      render({
-        section: "settings",
-        topBar: true,
-        groups: mixed,
-        activeSettingsSection: "devices",
-        onJumpToSettingsSection: onJump,
-      });
+      setSyncOtherWays("off");
+      try {
+        render({
+          section: "settings",
+          topBar: true,
+          groups: mixed,
+          activeSettingsSection: "devices",
+          onJumpToSettingsSection: onJump,
+        });
 
-      const nav = mounted!.container.querySelector(".settings-jump-nav")!;
-      expect(nav).not.toBeNull();
-      expect(mounted!.container.querySelector(".is-all-row")).toBeNull();
-      const headings = [...nav.querySelectorAll(".settings-jump-heading")].map((el) => el.textContent);
-      expect(headings).toEqual(["Settings Section", "Advanced Section"]);
-      const navOrder = [...nav.children].map((el) =>
-        el.classList.contains("settings-jump-heading") ? `#${el.textContent}` : el.querySelector(".settings-jump-label")?.textContent,
-      );
-      expect(navOrder).toEqual([
-        "#Settings Section",
-        "General",
-        "Updates",
-        "Devices",
-        "#Advanced Section",
-        "Data & Diagnostics",
-        "Integrations",
-        "Keyboard Shortcuts",
-      ]);
+        const nav = mounted!.container.querySelector(".settings-jump-nav")!;
+        expect(nav).not.toBeNull();
+        expect(mounted!.container.querySelector(".is-all-row")).toBeNull();
+        const headings = [...nav.querySelectorAll(".settings-jump-heading")].map((el) => el.textContent);
+        expect(headings).toEqual(["Settings Section", "Advanced Section"]);
+        const navOrderDefault = [...nav.children].map((el) =>
+          el.classList.contains("settings-jump-heading") ? `#${el.textContent}` : el.querySelector(".settings-jump-label")?.textContent,
+        );
+        expect(navOrderDefault).toEqual([
+          "#Settings Section",
+          "General",
+          "Updates",
+          "Devices",
+          "#Advanced Section",
+          "Data & Diagnostics",
+          "Keyboard Shortcuts",
+        ]);
 
-      const devicesBtn = [...mounted!.container.querySelectorAll<HTMLButtonElement>(".settings-jump-item")].find((btn) =>
-        btn.textContent?.includes("Devices"),
-      )!;
-      expect(devicesBtn.getAttribute("aria-current")).toBe("location");
+        setSyncOtherWays("on");
+        render({
+          section: "settings",
+          topBar: true,
+          groups: mixed,
+          activeSettingsSection: "devices",
+          onJumpToSettingsSection: onJump,
+        });
 
-      const integrationsBtn = [...mounted!.container.querySelectorAll<HTMLButtonElement>(".settings-jump-item")].find((btn) =>
-        btn.textContent?.includes("Integrations"),
-      )!;
-      click(integrationsBtn);
-      expect(onJump).toHaveBeenCalledWith("integrations");
+        const navOrderLegacy = [...mounted!.container.querySelector(".settings-jump-nav")!.children].map((el) =>
+          el.classList.contains("settings-jump-heading") ? `#${el.textContent}` : el.querySelector(".settings-jump-label")?.textContent,
+        );
+        expect(navOrderLegacy).toEqual([
+          "#Settings Section",
+          "General",
+          "Updates",
+          "Devices",
+          "#Advanced Section",
+          "Data & Diagnostics",
+          "Integrations",
+          "Keyboard Shortcuts",
+        ]);
+
+        const devicesBtn = [...mounted!.container.querySelectorAll<HTMLButtonElement>(".settings-jump-item")].find((btn) =>
+          btn.textContent?.includes("Devices"),
+        )!;
+        expect(devicesBtn.getAttribute("aria-current")).toBe("location");
+
+        const integrationsBtn = [...mounted!.container.querySelectorAll<HTMLButtonElement>(".settings-jump-item")].find((btn) =>
+          btn.textContent?.includes("Integrations"),
+        )!;
+        click(integrationsBtn);
+        expect(onJump).toHaveBeenCalledWith("integrations");
+      } finally {
+        setSyncOtherWays("off");
+      }
     });
 
     it("keeps Compact toggle out of the mobile sidebar (moved to Dashboard header)", () => {

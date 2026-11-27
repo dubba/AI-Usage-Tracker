@@ -110,10 +110,21 @@ describe("SettingsView accessibility", () => {
   });
 
   it("names every switch by its visible label", () => {
-    app = mount(view());
-    for (const id of ["setting-autostart-label", "setting-auto-update-label", "setting-beta-label", "setting-bridge-label"]) {
-      expect(document.getElementById(id), id).not.toBeNull();
-      expect(toggleLabelled(id), id).not.toBeNull();
+    setSyncOtherWays("on");
+    try {
+      app = mount(view());
+      for (const id of [
+        "setting-autostart-label",
+        "setting-auto-update-label",
+        "setting-beta-label",
+        "setting-sync-other-ways-label",
+        "setting-bridge-label",
+      ]) {
+        expect(document.getElementById(id), id).not.toBeNull();
+        expect(toggleLabelled(id), id).not.toBeNull();
+      }
+    } finally {
+      setSyncOtherWays("off");
     }
   });
 
@@ -285,20 +296,27 @@ describe("General", () => {
     }
   });
 
-  it("hides Sync Devices' other ways to connect by default, with a switch under Devices to show them", () => {
+  it("hides legacy features (sync options and Paseo Bridge) by default, with a Legacy Features switch under Devices to show them", () => {
     try {
       setSyncOtherWays("off");
       app = mount(view());
       const devicesCard = document.getElementById("settings-section-devices")?.closest(".settings-card");
       expect(devicesCard).not.toBeNull();
       expect(document.getElementById("settings-section-sync-options")).toBeNull();
-      expect(devicesCard?.textContent).toContain("Show a 6-digit code for older app versions and QR codes in Sync Devices.");
+      expect(document.getElementById("settings-section-integrations")).toBeNull();
+      expect(document.getElementById("setting-bridge-label")).toBeNull();
+      expect(document.getElementById("setting-sync-other-ways-label")?.textContent).toBe("Legacy Features");
+      expect(devicesCard?.textContent).toContain(
+        "Show Paseo Bridge integration, 6-digit code for older app versions, and QR codes in Sync Devices.",
+      );
       const toggle = toggleLabelled("setting-sync-other-ways-label");
       expect(devicesCard?.contains(toggle)).toBe(true);
       expect(toggle.getAttribute("aria-checked")).toBe("false");
       click(toggle);
       expect(getSyncOtherWays()).toBe("on");
       expect(toggleLabelled("setting-sync-other-ways-label").getAttribute("aria-checked")).toBe("true");
+      expect(document.getElementById("settings-section-integrations")).not.toBeNull();
+      expect(document.getElementById("setting-bridge-label")).not.toBeNull();
     } finally {
       setSyncOtherWays("off");
     }
@@ -451,27 +469,41 @@ describe("Devices and the local API", () => {
     expect(onOpenPairing).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the Paseo Bridge switch and window directly, and its error", () => {
+  it("hides Paseo Bridge when Legacy Features is off, and shows the switch, window, and error when turned on", () => {
     const bridge = { enabled: true, error: "Port busy" } as BridgeStatus;
     const onToggleBridge = vi.fn();
     const onViewBridgeWindow = vi.fn();
-    app = mount(view({ props: { bridge, onToggleBridge, onViewBridgeWindow } }));
-    const toggle = toggleLabelled("setting-bridge-label");
-    expect(toggle.getAttribute("aria-checked")).toBe("true");
-    click(toggle);
-    expect(onToggleBridge).toHaveBeenCalledWith(false);
-    click(document.getElementById("setting-bridge-label")!);
-    expect(onToggleBridge).toHaveBeenCalledTimes(2);
-    click(button("View integration window (opens in a new window)"));
-    expect(onViewBridgeWindow).toHaveBeenCalledTimes(1);
-    expect(document.querySelector(".api-integration-error")?.getAttribute("role")).toBe("alert");
-    expect(document.querySelector(".api-integration-error")?.textContent).toBe("Port busy");
+    try {
+      setSyncOtherWays("off");
+      app = mount(view({ props: { bridge, onToggleBridge, onViewBridgeWindow } }));
+      expect(document.getElementById("settings-section-integrations")).toBeNull();
+      expect(document.getElementById("setting-bridge-label")).toBeNull();
+
+      click(toggleLabelled("setting-sync-other-ways-label"));
+      const toggle = toggleLabelled("setting-bridge-label");
+      expect(toggle.getAttribute("aria-checked")).toBe("true");
+      click(toggle);
+      expect(onToggleBridge).toHaveBeenCalledWith(false);
+      click(document.getElementById("setting-bridge-label")!);
+      expect(onToggleBridge).toHaveBeenCalledTimes(2);
+      click(button("View integration window (opens in a new window)"));
+      expect(onViewBridgeWindow).toHaveBeenCalledTimes(1);
+      expect(document.querySelector(".api-integration-error")?.getAttribute("role")).toBe("alert");
+      expect(document.querySelector(".api-integration-error")?.textContent).toBe("Port busy");
+    } finally {
+      setSyncOtherWays("off");
+    }
   });
 
   it("disables the bridge controls while they work", () => {
-    app = mount(view({ props: { bridge: { enabled: false } as BridgeStatus, bridgeBusy: true, integrationWindowBusy: true } }));
-    expect(toggleLabelled("setting-bridge-label").disabled).toBe(true);
-    expect(button("View integration window (opens in a new window)").disabled).toBe(true);
+    setSyncOtherWays("on");
+    try {
+      app = mount(view({ props: { bridge: { enabled: false } as BridgeStatus, bridgeBusy: true, integrationWindowBusy: true } }));
+      expect(toggleLabelled("setting-bridge-label").disabled).toBe(true);
+      expect(button("View integration window (opens in a new window)").disabled).toBe(true);
+    } finally {
+      setSyncOtherWays("off");
+    }
   });
 
   it("hides the sidebar filter button on Settings because Settings is global", () => {
@@ -486,81 +518,105 @@ describe("Devices and the local API", () => {
 
 describe("SettingsView section layout and jump navigation (L3)", () => {
   it("labels all Settings cards directly with h2 headings", () => {
+    setSyncOtherWays("off");
     app = mount(view());
-    const headings = [...document.querySelectorAll("h2.settings-card-heading")].map((el) => el.textContent?.trim());
-    expect(headings).toEqual(["General", "Updates", "Devices", "Data & Diagnostics", "Integrations", "Keyboard Shortcuts"]);
+    expect([...document.querySelectorAll("h2.settings-card-heading")].map((el) => el.textContent?.trim())).toEqual([
+      "General",
+      "Updates",
+      "Devices",
+      "Data & Diagnostics",
+      "Keyboard Shortcuts",
+    ]);
+
+    setSyncOtherWays("on");
+    try {
+      app.rerender(view());
+      const headings = [...document.querySelectorAll("h2.settings-card-heading")].map((el) => el.textContent?.trim());
+      expect(headings).toEqual(["General", "Updates", "Devices", "Data & Diagnostics", "Integrations", "Keyboard Shortcuts"]);
+    } finally {
+      setSyncOtherWays("off");
+    }
   });
 
   it("scrolls the target section when jumpTarget changes", () => {
+    setSyncOtherWays("on");
     const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
       return 1;
     });
     const onActiveSectionChange = vi.fn();
-    app = mount(view({ props: { onActiveSectionChange } }));
-    const scroller = document.querySelector<HTMLDivElement>(".dashboard-scroll")!;
-    const scrollToSpy = vi.fn();
-    scroller.scrollTo = scrollToSpy;
+    try {
+      app = mount(view({ props: { onActiveSectionChange } }));
+      const scroller = document.querySelector<HTMLDivElement>(".dashboard-scroll")!;
+      const scrollToSpy = vi.fn();
+      scroller.scrollTo = scrollToSpy;
 
-    app.rerender(view({ props: { jumpTarget: { section: "integrations", seq: 1 }, onActiveSectionChange } }));
-    expect(scrollToSpy).toHaveBeenCalledTimes(1);
-    expect(onActiveSectionChange).toHaveBeenCalledWith("integrations");
+      app.rerender(view({ props: { jumpTarget: { section: "integrations", seq: 1 }, onActiveSectionChange } }));
+      expect(scrollToSpy).toHaveBeenCalledTimes(1);
+      expect(onActiveSectionChange).toHaveBeenCalledWith("integrations");
 
-    app.rerender(view({ props: { jumpTarget: { section: "shortcuts", seq: 2 }, onActiveSectionChange } }));
-    expect(scrollToSpy).toHaveBeenCalledTimes(2);
-    expect(onActiveSectionChange).toHaveBeenCalledWith("shortcuts");
-    rafSpy.mockRestore();
+      app.rerender(view({ props: { jumpTarget: { section: "shortcuts", seq: 2 }, onActiveSectionChange } }));
+      expect(scrollToSpy).toHaveBeenCalledTimes(2);
+      expect(onActiveSectionChange).toHaveBeenCalledWith("shortcuts");
+    } finally {
+      setSyncOtherWays("off");
+      rafSpy.mockRestore();
+    }
   });
 
   it("tracks Data & Diagnostics and Integrations during scroll instead of skipping from Devices to Keyboard Shortcuts", () => {
+    setSyncOtherWays("on");
     const onActiveSectionChange = vi.fn();
-    app = mount(view({ props: { onActiveSectionChange } }));
-    const scroller = document.querySelector<HTMLDivElement>(".dashboard-scroll")!;
+    try {
+      app = mount(view({ props: { onActiveSectionChange } }));
+      const scroller = document.querySelector<HTMLDivElement>(".dashboard-scroll")!;
 
-    let currentScrollTop = 0;
-    Object.defineProperty(scroller, "clientHeight", { value: 900, configurable: true });
-    Object.defineProperty(scroller, "scrollHeight", { value: 1450, configurable: true });
-    Object.defineProperty(scroller, "scrollTop", {
-      get: () => currentScrollTop,
-      set: (value: number) => {
-        currentScrollTop = value;
-      },
-      configurable: true,
-    });
-    vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 720, 900));
-
-    const tops: Record<string, number> = {
-      "settings-section-general": 18,
-      "settings-section-updates": 270,
-      "settings-section-devices": 620,
-      "settings-section-data": 740,
-      "settings-section-integrations": 990,
-      "settings-section-shortcuts": 1170,
-    };
-    for (const [id, contentTop] of Object.entries(tops)) {
-      const el = document.getElementById(id)!;
-      vi.spyOn(el, "getBoundingClientRect").mockImplementation(() => new DOMRect(0, contentTop - currentScrollTop, 720, 32));
-    }
-
-    const activeAt = (scrollTop: number) => {
-      currentScrollTop = scrollTop;
-      act(() => {
-        scroller.dispatchEvent(new Event("scroll"));
+      let currentScrollTop = 0;
+      Object.defineProperty(scroller, "clientHeight", { value: 900, configurable: true });
+      Object.defineProperty(scroller, "scrollHeight", { value: 1450, configurable: true });
+      Object.defineProperty(scroller, "scrollTop", {
+        get: () => currentScrollTop,
+        set: (value: number) => {
+          currentScrollTop = value;
+        },
+        configurable: true,
       });
-      return onActiveSectionChange.mock.calls.at(-1)?.[0];
-    };
+      vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 720, 900));
 
-    expect(activeAt(0)).toBe("general");
-    expect(activeAt(100)).toBe("updates");
-    expect(activeAt(240)).toBe("devices");
-    expect(activeAt(300)).toBe("data");
-    expect(activeAt(400)).toBe("integrations");
-    expect(activeAt(550)).toBe("shortcuts");
-    // Scrolling back up hits Integrations and Data & Diagnostics before Devices
-    expect(activeAt(400)).toBe("integrations");
-    expect(activeAt(300)).toBe("data");
-    expect(activeAt(240)).toBe("devices");
+      const tops: Record<string, number> = {
+        "settings-section-general": 18,
+        "settings-section-updates": 270,
+        "settings-section-devices": 620,
+        "settings-section-data": 740,
+        "settings-section-integrations": 990,
+        "settings-section-shortcuts": 1170,
+      };
+      for (const [id, contentTop] of Object.entries(tops)) {
+        const el = document.getElementById(id)!;
+        vi.spyOn(el, "getBoundingClientRect").mockImplementation(() => new DOMRect(0, contentTop - currentScrollTop, 720, 32));
+      }
 
-    vi.restoreAllMocks();
+      const activeAt = (scrollTop: number) => {
+        currentScrollTop = scrollTop;
+        act(() => {
+          scroller.dispatchEvent(new Event("scroll"));
+        });
+        return onActiveSectionChange.mock.calls.at(-1)?.[0];
+      };
+
+      expect(activeAt(0)).toBe("general");
+      expect(activeAt(100)).toBe("updates");
+      expect(activeAt(240)).toBe("devices");
+      expect(activeAt(300)).toBe("data");
+      expect(activeAt(400)).toBe("integrations");
+      expect(activeAt(550)).toBe("shortcuts");
+      // Scrolling back up hits Integrations and Data & Diagnostics before Devices
+      expect(activeAt(400)).toBe("integrations");
+      expect(activeAt(300)).toBe("data");
+      expect(activeAt(240)).toBe("devices");
+    } finally {
+      setSyncOtherWays("off");
+      vi.restoreAllMocks();
+    }
   });
 });

@@ -2,9 +2,9 @@ import { createSharedPreference, isOnOff } from "./preference-store";
 import { STORAGE_KEYS } from "./storage";
 
 /**
- * Whether Sync Devices shows its "Other ways to connect" link ("on"), which leads to an older
- * version's six-digit code and the QR codes, or hides it ("off", the default). Settings > Device
- * Sync. Kept on this device only.
+ * Whether Legacy Features are shown ("on") or hidden ("off", the default): enables the Paseo Bridge
+ * integration card in Settings and "Other ways to connect" (six-digit code and QR codes) in Sync
+ * Devices. Kept on this device only.
  */
 const store = createSharedPreference(STORAGE_KEYS.syncOtherWays, "off", isOnOff);
 

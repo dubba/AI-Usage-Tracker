@@ -5,6 +5,7 @@ import { SidebarResizeHandle } from "./SidebarResizeHandle";
 import { ALL_ACCOUNTS_GROUP_ID, isBucketGroup, type SidebarGroup } from "./sidebar-groups";
 import { SIDEBAR_ID } from "../../shared/lib/constants";
 import type { BusyKeys } from "../../shared/lib/busy";
+import { useSyncOtherWays } from "../../shared/hooks/usePreferences";
 import { useScrollThumb } from "../../shared/hooks/useScrollThumb";
 import { ArrowUpCircleIcon, CloseIcon, DatabaseIcon, DevicesIcon, GaugeIcon, KeyboardIcon, PlugIcon, SettingsIcon } from "../../shared/ui/icons";
 import { isMobileDevice } from "../../shared/lib/platform";
@@ -84,10 +85,11 @@ export function Sidebar({
 }) {
   // The list keeps room for its scroll bar only while it overflows, so the cards sit centered otherwise.
   const providerListRef = useRef<HTMLDivElement>(null);
+  const [legacyFeatures] = useSyncOtherWays();
   const showSettingsJump = topBar && section === "settings";
-  const jumpSections = isMobileDevice()
-    ? SETTINGS_JUMP_SECTIONS.filter((item) => !item.desktopOnly)
-    : SETTINGS_JUMP_SECTIONS;
+  const jumpSections = SETTINGS_JUMP_SECTIONS.filter(
+    (item) => (!isMobileDevice() || !item.desktopOnly) && (item.id !== "integrations" || legacyFeatures),
+  );
   const providerListOverflows = useScrollThumb(providerListRef, true, showSettingsJump ? jumpSections : groups).overflows;
 
   // Provider rows and custom groups share one saved order, but the sidebar lists them in two sections.
