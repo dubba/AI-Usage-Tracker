@@ -21,13 +21,13 @@ describe("provider registry", () => {
   });
 
   it("describes each provider in the Add Account menu", () => {
-    expect(PROVIDER_META.openai.connectDetail).toBe("Link Go, Plus or Pro plans using Browser OAuth");
-    expect(PROVIDER_META.anthropic.connectDetail).toBe("Link Pro or Max plans using Browser OAuth");
+    expect(PROVIDER_META.openai.connectDetail).toBe("Link Go, Plus or Pro plans via Browser OAuth");
+    expect(PROVIDER_META.anthropic.connectDetail).toBe("Link Pro or Max plans via Browser OAuth");
     expect(PROVIDER_META.antigravity.connectLabel).toBe("Google Antigravity (Gemini)");
-    expect(PROVIDER_META.antigravity.connectDetail).toBe("Link Plus, Pro or Ultra plans using Browser OAuth");
-    expect(PROVIDER_META.grok.connectDetail).toBe("Link SuperGrok, Plus or Heavy plans using Grok.com login");
+    expect(PROVIDER_META.antigravity.connectDetail).toBe("Link Plus, Pro or Ultra plans via Browser OAuth");
+    expect(PROVIDER_META.grok.connectDetail).toBe("Link SuperGrok, Plus or Heavy plans via Grok.com login");
     expect(PROVIDER_META.google_ai_studio.connectLabel).toBe("Google AI Studio (Gemini)");
-    expect(PROVIDER_META.google_ai_studio.connectDetail).toBe("Link models using API key validation");
-    expect(PROVIDER_META.opencode_go.connectDetail).toBe("Link Go plan using OpenCode.ai login");
+    expect(PROVIDER_META.google_ai_studio.connectDetail).toBe("Link models via API key validation");
+    expect(PROVIDER_META.opencode_go.connectDetail).toBe("Link Go plan via OpenCode.ai login");
   });
 });

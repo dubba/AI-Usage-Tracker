@@ -52,7 +52,133 @@ export function isAccentColor(value: unknown): value is string {
 
 type Rgb = [number, number, number];
 type Hsl = [number, number, number];
+type Oklab = [number, number, number];
 export type Hsv = { h: number; s: number; v: number };
+
+function srgbByteToLinear(c: number): number {
+  const n = c / 255;
+  return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+}
+
+function rgbToOklab([rByte, gByte, bByte]: Rgb): Oklab {
+  const r = srgbByteToLinear(rByte);
+  const g = srgbByteToLinear(gByte);
+  const b = srgbByteToLinear(bByte);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
+}
+
+/** Every label here must stay a single word so the Settings pill never wraps. */
+const NAMED_COLOR_ANCHORS: ReadonlyArray<readonly [name: string, hex: string]> = [
+  ...MODAL_ACCENT_PRESETS.map((preset) => [preset.label, preset.hex] as const),
+  ["Red", "#ff0000"],
+  ["Red", "#ef4444"],
+  ["Crimson", "#dc2626"],
+  ["Crimson", "#c22222"],
+  ["Maroon", "#7f1d1d"],
+  ["Maroon", "#800000"],
+  ["Coral", "#ff7f50"],
+  ["Salmon", "#fa8072"],
+  ["Rose", "#f43f5e"],
+  ["Pink", "#ff69b4"],
+  ["Pink", "#ec4899"],
+  ["Pink", "#ffc0cb"],
+  ["Magenta", "#ff00ff"],
+  ["Magenta", "#d946ef"],
+  ["Plum", "#6b21a8"],
+  ["Purple", "#800080"],
+  ["Violet", "#8b5cf6"],
+  ["Violet", "#7c3aed"],
+  ["Lavender", "#c4b5fd"],
+  ["Indigo", "#4b0082"],
+  ["Indigo", "#3730a3"],
+  ["Indigo", "#4f46e5"],
+  ["Navy", "#000080"],
+  ["Navy", "#1e1b4b"],
+  ["Navy", "#172554"],
+  ["Blue", "#0000ff"],
+  ["Blue", "#3b82f6"],
+  ["Cobalt", "#1d4ed8"],
+  ["Sky", "#38bdf8"],
+  ["Sky", "#87ceeb"],
+  ["Cyan", "#00ffff"],
+  ["Cyan", "#06b6d4"],
+  ["Cyan", "#22d3ee"],
+  ["Turquoise", "#14b8a6"],
+  ["Turquoise", "#40e0d0"],
+  ["Teal", "#008080"],
+  ["Teal", "#115e59"],
+  ["Mint", "#34d399"],
+  ["Mint", "#6ee7b7"],
+  ["Emerald", "#10b981"],
+  ["Green", "#008000"],
+  ["Green", "#16a34a"],
+  ["Green", "#22c55e"],
+  ["Forest", "#228b22"],
+  ["Forest", "#166534"],
+  ["Lime", "#00ff00"],
+  ["Lime", "#84cc16"],
+  ["Lime", "#a3e635"],
+  ["Olive", "#808000"],
+  ["Olive", "#65a30d"],
+  ["Olive", "#4d7c0f"],
+  ["Yellow", "#ffff00"],
+  ["Yellow", "#facc15"],
+  ["Yellow", "#fde047"],
+  ["Gold", "#ffd700"],
+  ["Gold", "#eab308"],
+  ["Amber", "#f59e0b"],
+  ["Amber", "#d97706"],
+  ["Orange", "#ffa500"],
+  ["Orange", "#f97316"],
+  ["Orange", "#ea580c"],
+  ["Peach", "#fdba74"],
+  ["Peach", "#ffdab9"],
+  ["Brown", "#8b4513"],
+  ["Brown", "#78350f"],
+  ["Bronze", "#a16207"],
+  ["Slate", "#475569"],
+  ["Slate", "#64748b"],
+  ["Gray", "#808080"],
+  ["Gray", "#6b7280"],
+  ["Silver", "#cbd5e1"],
+  ["Silver", "#c0c0c0"],
+  ["Charcoal", "#1f2937"],
+  ["Charcoal", "#27272a"],
+  ["Black", "#000000"],
+  ["White", "#ffffff"],
+];
+
+const PRECOMPUTED_COLOR_ANCHORS: ReadonlyArray<readonly [name: string, lab: Oklab]> = NAMED_COLOR_ANCHORS.map(
+  ([name, hex]) => [name, rgbToOklab(hexToRgb(hex))] as const,
+);
+
+/**
+ * Returns the exact preset name when `hex` matches a curated accent preset, or
+ * the perceptually closest color name in OKLab space for any custom `#rrggbb` color.
+ */
+export function getAccentColorName(hex: string): string {
+  const normalized = normalizeAccentColor(hex) ?? DEFAULT_ACCENT_COLOR;
+  const preset = MODAL_ACCENT_PRESETS.find((item) => item.hex === normalized);
+  if (preset) return preset.label;
+  const [l1, a1, b1] = rgbToOklab(hexToRgb(normalized));
+  let bestName = "Purple";
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const [name, [l2, a2, b2]] of PRECOMPUTED_COLOR_ANCHORS) {
+    const distance = (l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestName = name;
+    }
+  }
+  return bestName;
+}
 
 function hexToRgb(hex: string): Rgb {
   return [

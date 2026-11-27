@@ -8,6 +8,7 @@ import {
   contrastRatio,
   deriveAccentTokens,
   getAccentColor,
+  getAccentColorName,
   hexToHsv,
   hsvToHex,
   initAccentColor,
@@ -117,6 +118,29 @@ describe("accent color", () => {
         expect(contrastRatio(hexToRgb(tokens["--purple-on-fill"]), hexToRgb(tokens["--purple-fill"])), `${theme} on-fill ${hex}`).toBeGreaterThanOrEqual(4.5);
         expect(contrastRatio(hexToRgb(tokens["--purple-accent"]), cardBg), `${theme} accent ${hex}`).toBeGreaterThanOrEqual(4.5);
         expect(contrastRatio(hexToRgb(tokens["--purple-text"]), hexToRgb(tokens["--purple-surface"])), `${theme} text ${hex}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("keeps exact preset names and identifies the closest color name for custom hex values", () => {
+    for (const preset of MODAL_ACCENT_PRESETS) {
+      expect(getAccentColorName(preset.hex)).toBe(preset.label);
+      expect(getAccentColorName(preset.hex.toUpperCase())).toBe(preset.label);
+    }
+    expect(getAccentColorName("#180F76")).toBe("Navy");
+    expect(getAccentColorName("#c22222")).toBe("Crimson");
+    expect(getAccentColorName("#ff0000")).toBe("Red");
+    expect(getAccentColorName("#00ffff")).toBe("Cyan");
+    expect(getAccentColorName("#ffa500")).toBe("Orange");
+    expect(getAccentColorName("#facc15")).toBe("Yellow");
+    expect(getAccentColorName("#ffffff")).toBe("White");
+    expect(getAccentColorName("#000000")).toBe("Black");
+    expect(getAccentColorName("#808080")).toBe("Gray");
+
+    // Every resolved name stays a single word across hues and lightness levels.
+    for (let h = 0; h < 360; h += 15) {
+      for (const [s, v] of [[1, 1], [0.8, 0.5], [0.25, 0.9], [0, 0.4]]) {
+        expect(getAccentColorName(hsvToHex({ h, s, v }))).toMatch(/^[A-Za-z]+$/);
       }
     }
   });

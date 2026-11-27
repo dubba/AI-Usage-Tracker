@@ -17,32 +17,32 @@ export const PROVIDER_META: Record<Provider, ProviderMeta> = {
   openai: {
     name: "ChatGPT",
     connectLabel: "OpenAI ChatGPT",
-    connectDetail: "Link Go, Plus or Pro plans using Browser OAuth",
+    connectDetail: "Link Go, Plus or Pro plans via Browser OAuth",
   },
   anthropic: {
     name: "Claude",
     connectLabel: "Anthropic Claude",
-    connectDetail: "Link Pro or Max plans using Browser OAuth",
+    connectDetail: "Link Pro or Max plans via Browser OAuth",
   },
   antigravity: {
     name: "Antigravity",
     connectLabel: "Google Antigravity (Gemini)",
-    connectDetail: "Link Plus, Pro or Ultra plans using Browser OAuth",
+    connectDetail: "Link Plus, Pro or Ultra plans via Browser OAuth",
   },
   grok: {
     name: "Grok",
     connectLabel: "xAI Grok",
-    connectDetail: "Link SuperGrok, Plus or Heavy plans using Grok.com login",
+    connectDetail: "Link SuperGrok, Plus or Heavy plans via Grok.com login",
   },
   google_ai_studio: {
     name: "AI Studio",
     connectLabel: "Google AI Studio (Gemini)",
-    connectDetail: "Link models using API key validation",
+    connectDetail: "Link models via API key validation",
   },
   opencode_go: {
     name: "OpenCode Go",
     connectLabel: "OpenCode",
-    connectDetail: "Link Go plan using OpenCode.ai login",
+    connectDetail: "Link Go plan via OpenCode.ai login",
   },
 };
 

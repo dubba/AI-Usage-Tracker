@@ -1,17 +1,19 @@
 # Changelog
 
-## Unreleased (5 changes)
+## Unreleased (7 changes)
 
-### Improved (4)
+### Improved (5)
 
 - In the **What's Changed** update dialog, **Close** now uses muted borderless styling on the left and **Update** uses the primary accent fill on the right.
 - In **Sync Devices**, the help note under the link-code input now wraps with its network icon aligned to the first line, and **Create Group** account checkboxes center their checkmark.
 - In **Settings > Devices**, the device pairing row is now titled **Sync Devices** with a **Sync** button.
 - In **Create Group**, the account picker scrollbar now uses the 6px flush-right thumb style matching dropdown menus.
+- In **Settings > General**, the **Accent Color** selector now shows a readable color name for custom colors instead of a hex code, and **Add AI Account** provider descriptions use concise "via …" wording.
 
-### Fixed (1)
+### Fixed (2)
 
 - Custom scrollbars in **Create Group** and dropdown menus now stay within list bounds during overscroll instead of extending the scrollable area at the bottom.
+- Grok accounts now update their displayed plan name (including Free, SuperGrok, SuperGrok Plus, and SuperGrok Heavy) from usage responses so free or downgraded accounts no longer keep a stale plan.
 
 ## v0.7.2 - 2026-11-26 (8 changes)
 

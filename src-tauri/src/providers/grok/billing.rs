@@ -15,7 +15,7 @@ pub(super) struct BillingSnapshot {
 pub(super) fn usage_from_snapshot(
     account: &Account,
     snapshot: BillingSnapshot,
-    bot: Option<BotUsage>,
+    bot: BotReply,
     limit_resets: Vec<LimitReset>,
 ) -> ProviderUsage {
     let used = snapshot.used_percent.clamp(0.0, 100.0);
@@ -35,11 +35,14 @@ pub(super) fn usage_from_snapshot(
         window_seconds,
         kind: None,
     }];
-    if let Some(bot) = bot {
-        windows.push(bot_usage_window(&bot));
+    if let Some(bot_usage) = bot.usage {
+        windows.push(bot_usage_window(&bot_usage));
     }
     ProviderUsage {
-        plan: Some(account.plan.clone().unwrap_or_else(|| "Grok".into())),
+        plan: bot
+            .plan
+            .or_else(|| account.plan.clone())
+            .or_else(|| Some("Grok".into())),
         email: account.email.clone(),
         provider_account_id: account
             .provider_account_id

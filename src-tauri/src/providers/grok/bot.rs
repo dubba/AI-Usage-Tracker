@@ -40,15 +40,23 @@ pub(super) struct BotUsage {
     pub(super) resets_at: Option<DateTime<Utc>>,
 }
 
+/// Both the optional Grok Bot window and the account's current plan reported by
+/// `bot.usage`. Keeping the plan separate lets Free / downgraded accounts update
+/// their plan even when no Grok Bot window is returned.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(super) struct BotReply {
+    pub(super) usage: Option<BotUsage>,
+    pub(super) plan: Option<String>,
+}
+
 #[derive(Debug, PartialEq)]
 pub(super) enum BotFrame {
     /// The relay accepted the hello; requests may be sent now.
     HelloAck,
     /// Server keep-alive; the relay drops clients that do not answer.
     Ping(Option<i64>),
-    /// The reply to our `bot.usage` request. `None` means an error reply or a
-    /// result showing the account has no Grok Bot limit.
-    Usage(Option<BotUsage>),
+    /// The reply to our `bot.usage` request, including any reported plan name.
+    Usage(BotReply),
     Ignored,
 }
 
@@ -93,10 +101,70 @@ pub(super) fn classify_bot_frame(text: &str) -> BotFrame {
     if !is_our_reply {
         return BotFrame::Ignored;
     }
-    if frame.contains_key("error") {
-        return BotFrame::Usage(None);
+    if let Some(error) = frame.get("error") {
+        return BotFrame::Usage(BotReply {
+            usage: None,
+            plan: plan_from_bot_error(error),
+        });
     }
-    BotFrame::Usage(frame.get("result").and_then(parse_bot_usage))
+    let result = frame.get("result");
+    BotFrame::Usage(BotReply {
+        usage: result.and_then(parse_bot_usage),
+        plan: result.and_then(plan_from_bot_result),
+    })
+}
+
+pub(super) fn normalize_grok_plan(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.len() > 64 || trimmed.chars().any(char::is_control) {
+        return None;
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    if lower == "none"
+        || lower == "no_plan"
+        || lower == "no plan"
+        || lower == "unsubscribed"
+        || lower.contains("free")
+    {
+        Some("Free".into())
+    } else if lower.contains("heavy") {
+        Some("SuperGrok Heavy".into())
+    } else if lower.contains("100") || lower.contains("plus") {
+        Some("SuperGrok Plus".into())
+    } else if lower.contains("supergrok")
+        || lower.contains("super_grok")
+        || lower.contains("super grok")
+    {
+        Some("SuperGrok".into())
+    } else {
+        None
+    }
+}
+
+fn plan_from_bot_result(result: &Value) -> Option<String> {
+    ["planLabel", "fundingPlan", "plan"]
+        .into_iter()
+        .find_map(|key| {
+            result
+                .get(key)
+                .and_then(Value::as_str)
+                .and_then(normalize_grok_plan)
+        })
+}
+
+fn plan_from_bot_error(error: &Value) -> Option<String> {
+    let message = error.get("message").and_then(Value::as_str)?;
+    let lower = message.trim().to_ascii_lowercase();
+    if lower == "no_plan"
+        || lower.contains("no_plan")
+        || lower.contains("no plan")
+        || lower.contains("no active subscription")
+        || lower.contains("no subscription")
+    {
+        Some("Free".into())
+    } else {
+        None
+    }
 }
 
 /// Mirrors how grok.com decides whether to show the Grok Bot card: no card when
@@ -140,18 +208,21 @@ pub(super) fn datetime_from_epoch_ms(value: f64) -> Option<DateTime<Utc>> {
     Utc.timestamp_millis_opt(millis).single()
 }
 
-/// Best effort: returns `None` on any failure, including a timeout, so the
-/// caller can still show the SuperGrok window. Errors are dropped rather than
-/// logged because handshake failures can echo request headers.
-pub(super) async fn fetch_bot_usage(cookie_header: &str) -> Option<BotUsage> {
-    let cookie_header = normalize_cookie_header(cookie_header).ok()?;
+/// Best effort: returns an empty `BotReply` on any failure, including a timeout,
+/// so the caller can still show the SuperGrok window. Errors are dropped rather
+/// than logged because handshake failures can echo request headers.
+pub(super) async fn fetch_bot_usage(cookie_header: &str) -> BotReply {
+    let Ok(cookie_header) = normalize_cookie_header(cookie_header) else {
+        return BotReply::default();
+    };
     tokio::time::timeout(BOT_USAGE_TIMEOUT, read_bot_usage(&cookie_header))
         .await
         .ok()
         .flatten()
+        .unwrap_or_default()
 }
 
-pub(super) async fn read_bot_usage(cookie_header: &str) -> Option<BotUsage> {
+pub(super) async fn read_bot_usage(cookie_header: &str) -> Option<BotReply> {
     let mut request = BOT_RELAY_URL.into_client_request().ok()?;
     let headers = request.headers_mut();
     headers.insert(
@@ -175,7 +246,7 @@ pub(super) async fn read_bot_usage(cookie_header: &str) -> Option<BotUsage> {
             .ok()?;
     socket.send(Message::text(bot_hello_frame())).await.ok()?;
 
-    let mut usage = None;
+    let mut reply = None;
     for _ in 0..BOT_MAX_FRAMES {
         let Some(Ok(message)) = socket.next().await else {
             break;
@@ -197,12 +268,12 @@ pub(super) async fn read_bot_usage(cookie_header: &str) -> Option<BotUsage> {
                 let _ = socket.send(Message::text(bot_pong_frame(ts_ms))).await;
             }
             BotFrame::Usage(result) => {
-                usage = result;
+                reply = Some(result);
                 break;
             }
             BotFrame::Ignored => {}
         }
     }
     let _ = socket.close(None).await;
-    usage
+    reply
 }

@@ -207,9 +207,14 @@ fn parses_bot_usage_frames_and_reset_timestamp() {
             "onDemandEnabled": false
         }
     }"#;
-    let BotFrame::Usage(Some(bot)) = classify_bot_frame(reply) else {
+    let BotFrame::Usage(BotReply {
+        usage: Some(bot),
+        plan,
+    }) = classify_bot_frame(reply)
+    else {
         panic!("expected parsed bot usage");
     };
+    assert_eq!(plan.as_deref(), Some("SuperGrok Heavy"));
     assert!((bot.used_percent - 1.0).abs() < f64::EPSILON);
     assert_eq!(
         bot.period_start.unwrap().timestamp_millis(),
@@ -219,7 +224,7 @@ fn parses_bot_usage_frames_and_reset_timestamp() {
 }
 
 #[test]
-fn omits_bot_usage_when_plan_has_no_included_bot_limit() {
+fn omits_bot_usage_when_plan_has_no_included_bot_limit_and_reads_plan_changes() {
     let excluded = r#"{
         "jsonrpc": "2.0",
         "id": "1",
@@ -228,21 +233,99 @@ fn omits_bot_usage_when_plan_has_no_included_bot_limit() {
             "currentPeriodStartMs": 1792093380000,
             "hasAvailableUsage": false,
             "hasNonZeroIncludedLimit": false,
-            "includedLimitZero": true
+            "includedLimitZero": true,
+            "fundingPlan": "free",
+            "planLabel": "Free"
         }
     }"#;
-    assert_eq!(classify_bot_frame(excluded), BotFrame::Usage(None));
+    assert_eq!(
+        classify_bot_frame(excluded),
+        BotFrame::Usage(BotReply {
+            usage: None,
+            plan: Some("Free".into()),
+        })
+    );
 
     let rpc_error = r#"{
         "jsonrpc": "2.0",
         "id": "1",
         "error": {"code": -32000, "message": "no_plan", "data": {"cookie": "sso=secret"}}
     }"#;
-    assert_eq!(classify_bot_frame(rpc_error), BotFrame::Usage(None));
+    let reply = classify_bot_frame(rpc_error);
+    assert_eq!(
+        reply,
+        BotFrame::Usage(BotReply {
+            usage: None,
+            plan: Some("Free".into()),
+        })
+    );
+
+    let generic_error = r#"{
+        "jsonrpc": "2.0",
+        "id": "1",
+        "error": {"code": -32001, "message": "internal_error"}
+    }"#;
+    assert_eq!(
+        classify_bot_frame(generic_error),
+        BotFrame::Usage(BotReply::default())
+    );
 
     let other_id = r#"{"jsonrpc":"2.0","id":"99","result":{"currentPeriodStartMs":1792093380000,"usagePercent":5.0,"hasNonZeroIncludedLimit":true}}"#;
     assert_eq!(classify_bot_frame(other_id), BotFrame::Ignored);
     assert_eq!(classify_bot_frame("not-json"), BotFrame::Ignored);
+}
+
+#[test]
+fn updates_grok_plan_on_refresh_and_rejects_unrecognized_or_malformed_plan_names() {
+    assert_eq!(normalize_grok_plan("free").as_deref(), Some("Free"));
+    assert_eq!(normalize_grok_plan("none").as_deref(), Some("Free"));
+    assert_eq!(
+        normalize_grok_plan("supergrok").as_deref(),
+        Some("SuperGrok")
+    );
+    assert_eq!(
+        normalize_grok_plan("supergrok_plus").as_deref(),
+        Some("SuperGrok Plus")
+    );
+    assert_eq!(
+        normalize_grok_plan("supergrok_heavy").as_deref(),
+        Some("SuperGrok Heavy")
+    );
+    assert!(normalize_grok_plan("").is_none());
+    assert!(normalize_grok_plan("supergrok\r\nInjected").is_none());
+    assert!(normalize_grok_plan(&"a".repeat(65)).is_none());
+    assert!(normalize_grok_plan("sso=secret-cookie-value").is_none());
+
+    let account = Account {
+        id: "acc-1".into(),
+        label: "Grok".into(),
+        provider: crate::model::Provider::Grok,
+        plan: Some("SuperGrok".into()),
+        ..Account::for_test()
+    };
+    let reset = Utc.timestamp_opt(1_792_477_920, 0).single().unwrap();
+    let snapshot = BillingSnapshot {
+        used_percent: 10.0,
+        resets_at: Some(reset),
+        period_start: Some(reset - chrono::Duration::days(7)),
+        source: "grok_web_billing",
+    };
+
+    // Downgrade/cancellation overwrites the previously stored paid plan.
+    let downgraded = usage_from_snapshot(
+        &account,
+        snapshot.clone(),
+        BotReply {
+            usage: None,
+            plan: Some("Free".into()),
+        },
+        Vec::new(),
+    );
+    assert_eq!(downgraded.plan.as_deref(), Some("Free"));
+
+    // Transient bot failure (no plan returned) preserves the stored plan.
+    let fallback = usage_from_snapshot(&account, snapshot, BotReply::default(), Vec::new());
+    assert_eq!(fallback.plan.as_deref(), Some("SuperGrok"));
 }
 
 #[test]
@@ -267,13 +350,16 @@ fn appends_grok_bot_window_after_supergrok_weekly_window() {
         period_start: Some(supergrok_reset - chrono::Duration::days(7)),
         source: "grok_web_billing",
     };
-    let bot = BotUsage {
-        used_percent: 1.0,
-        period_start: Some(bot_start),
-        resets_at: Some(bot_reset),
+    let bot = BotReply {
+        usage: Some(BotUsage {
+            used_percent: 1.0,
+            period_start: Some(bot_start),
+            resets_at: Some(bot_reset),
+        }),
+        plan: Some("SuperGrok Heavy".into()),
     };
 
-    let usage = usage_from_snapshot(&account, snapshot, Some(bot), Vec::new());
+    let usage = usage_from_snapshot(&account, snapshot, bot, Vec::new());
     assert!(usage.limit_resets.is_empty());
     assert_eq!(usage.windows.len(), 2);
     assert_eq!(usage.windows[0].id, "weekly");
@@ -303,8 +389,11 @@ async fn bot_usage_validates_relay_host_cookies_and_bounds() {
     assert!(is_allowed_cookie_host(relay.host_str().unwrap()));
 
     // Header injection or missing session cookies must fail closed before dialing.
-    assert!(fetch_bot_usage("sso=abc\r\nX-Injected: 1").await.is_none());
-    assert!(fetch_bot_usage("theme=dark").await.is_none());
+    assert_eq!(
+        fetch_bot_usage("sso=abc\r\nX-Injected: 1").await,
+        BotReply::default()
+    );
+    assert_eq!(fetch_bot_usage("theme=dark").await, BotReply::default());
 
     // Out-of-bounds percentages are clamped and out-of-range timestamps are dropped.
     let clamped = parse_bot_usage(&json!({

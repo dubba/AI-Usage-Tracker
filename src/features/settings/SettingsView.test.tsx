@@ -208,7 +208,7 @@ describe("General", () => {
       });
       expect(getAccentColor()).toBe("#c22222");
       expect(document.documentElement.style.getPropertyValue("--purple-fill")).toBe("#c22222");
-      expect(trigger.textContent?.trim()).toBe("#C22222");
+      expect(trigger.textContent?.trim()).toBe("Crimson");
 
       // Clicking Reset restores default Purple while keeping the custom box open.
       const resetBtn = customBox.querySelector<HTMLButtonElement>(".accent-reset-btn")!;
