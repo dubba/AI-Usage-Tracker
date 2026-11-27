@@ -160,9 +160,11 @@ fn plan_from_bot_result(result: &Value) -> Option<String> {
         .get("fundingPlan")
         .and_then(Value::as_str)
         .is_some_and(|s| !s.trim().is_empty());
-    let no_included_limit =
-        result.get("includedLimitZero").and_then(Value::as_bool) == Some(true)
-            || result.get("hasNonZeroIncludedLimit").and_then(Value::as_bool) == Some(false);
+    let no_included_limit = result.get("includedLimitZero").and_then(Value::as_bool) == Some(true)
+        || result
+            .get("hasNonZeroIncludedLimit")
+            .and_then(Value::as_bool)
+            == Some(false);
     if !has_funding_plan && no_included_limit {
         return Some("Free".into());
     }
