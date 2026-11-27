@@ -445,8 +445,9 @@ describe("Devices and the local API", () => {
   it("starts device linking", () => {
     const onOpenPairing = vi.fn();
     app = mount(view({ props: { onOpenPairing } }));
+    expect(document.body.textContent).toContain("Sync Devices");
     expect(document.body.textContent).toContain("Sync accounts & credentials to another device securely.");
-    click(button("Sync Devices"));
+    click(button("Sync"));
     expect(onOpenPairing).toHaveBeenCalledTimes(1);
   });
 

@@ -2975,12 +2975,7 @@ select.text-input option,
 }
 
 .bucket-account-picker-scroll.has-overflow {
-  padding-right: 10px;
-}
-
-.bucket-account-picker-list > .scroll-thumb {
-  width: 4px;
-  right: 3px;
+  padding-right: calc(var(--bucket-list-pad-x) + var(--scrollbar-size));
 }
 
 .bucket-account-item {

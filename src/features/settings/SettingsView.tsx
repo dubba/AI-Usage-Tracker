@@ -156,7 +156,7 @@ export function SettingsView({
           <h2 id="settings-section-devices" className="settings-card-heading">Devices</h2>
           <div className="settings-row">
             <div>
-              <strong>Device Sync</strong>
+              <strong>Sync Devices</strong>
               <small>Sync accounts &amp; credentials to another device securely.</small>
             </div>
             <button
@@ -165,7 +165,7 @@ export function SettingsView({
               onClick={onOpenPairing}
             >
               <DevicesIcon className="settings-update-action-icon" />
-              <span>Sync Devices</span>
+              <span>Sync</span>
             </button>
           </div>
           <SettingsToggleRow checked={otherWays} labelledBy="setting-sync-other-ways-label" onChange={setOtherWays}>

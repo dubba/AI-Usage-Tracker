@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased (3 changes)
+## Unreleased (5 changes)
 
-### Improved (2)
+### Improved (4)
 
 - In the **What's Changed** update dialog, **Close** now uses muted borderless styling on the left and **Update** uses the primary accent fill on the right.
 - In **Sync Devices**, the help note under the link-code input now wraps with its network icon aligned to the first line, and **Create Group** account checkboxes center their checkmark.
+- In **Settings > Devices**, the device pairing row is now titled **Sync Devices** with a **Sync** button.
+- In **Create Group**, the account picker scrollbar now uses the 6px flush-right thumb style matching dropdown menus.
 
 ### Fixed (1)
 
