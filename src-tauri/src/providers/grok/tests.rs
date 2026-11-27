@@ -234,8 +234,7 @@ fn omits_bot_usage_when_plan_has_no_included_bot_limit_and_reads_plan_changes() 
             "hasAvailableUsage": false,
             "hasNonZeroIncludedLimit": false,
             "includedLimitZero": true,
-            "fundingPlan": "free",
-            "planLabel": "Free"
+            "planLabel": "Grok Bot Plan"
         }
     }"#;
     assert_eq!(
@@ -243,6 +242,29 @@ fn omits_bot_usage_when_plan_has_no_included_bot_limit_and_reads_plan_changes() 
         BotFrame::Usage(BotReply {
             usage: None,
             plan: Some("Free".into()),
+        })
+    );
+
+    // A paid SuperGrok plan that has no Grok Bot allowance still carries its
+    // fundingPlan / planLabel and must not be downgraded to Free.
+    let paid_without_bot = r#"{
+        "jsonrpc": "2.0",
+        "id": "1",
+        "result": {
+            "usagePercent": 0.0,
+            "currentPeriodStartMs": 1792093380000,
+            "hasAvailableUsage": false,
+            "hasNonZeroIncludedLimit": false,
+            "includedLimitZero": true,
+            "fundingPlan": "supergrok",
+            "planLabel": "SuperGrok"
+        }
+    }"#;
+    assert_eq!(
+        classify_bot_frame(paid_without_bot),
+        BotFrame::Usage(BotReply {
+            usage: None,
+            plan: Some("SuperGrok".into()),
         })
     );
 

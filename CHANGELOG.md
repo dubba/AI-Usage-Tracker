@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Fixed (1)
+
+- Free or cancelled Grok accounts whose usage response omits a funding plan and uses the generic "Grok Bot Plan" label now update their displayed plan to Free instead of keeping a stale plan.
 
 ## v0.7.3 - 2026-11-26 (7 changes)
 

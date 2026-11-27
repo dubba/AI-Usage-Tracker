@@ -142,7 +142,7 @@ pub(super) fn normalize_grok_plan(raw: &str) -> Option<String> {
 }
 
 fn plan_from_bot_result(result: &Value) -> Option<String> {
-    ["planLabel", "fundingPlan", "plan"]
+    if let Some(plan) = ["planLabel", "fundingPlan", "plan"]
         .into_iter()
         .find_map(|key| {
             result
@@ -150,6 +150,23 @@ fn plan_from_bot_result(result: &Value) -> Option<String> {
                 .and_then(Value::as_str)
                 .and_then(normalize_grok_plan)
         })
+    {
+        return Some(plan);
+    }
+    // On a Free / cancelled Grok account, `bot.usage` omits `fundingPlan`,
+    // returns the generic placeholder `planLabel: "Grok Bot Plan"`, and sets
+    // `hasNonZeroIncludedLimit: false` / `includedLimitZero: true`.
+    let has_funding_plan = result
+        .get("fundingPlan")
+        .and_then(Value::as_str)
+        .is_some_and(|s| !s.trim().is_empty());
+    let no_included_limit =
+        result.get("includedLimitZero").and_then(Value::as_bool) == Some(true)
+            || result.get("hasNonZeroIncludedLimit").and_then(Value::as_bool) == Some(false);
+    if !has_funding_plan && no_included_limit {
+        return Some("Free".into());
+    }
+    None
 }
 
 fn plan_from_bot_error(error: &Value) -> Option<String> {
