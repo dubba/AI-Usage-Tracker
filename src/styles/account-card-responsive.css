@@ -1505,10 +1505,10 @@
    solid purple with a white pen on hover (not the brighter --purple-fill-hover). The filled purple
    pen (`:root .edit-bucket-title-btn` in ui-refinements.css) is !important, so these are too. */
 :root .dashboard-header .edit-bucket-title-btn {
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.35) !important;
+  border: 1px solid var(--group-pen-edge, rgb(var(--purple-accent-rgb) / 0.35)) !important;
   border-radius: 6px;
-  background: rgb(var(--purple-accent-rgb) / 0.12) !important;
-  color: var(--purple-text) !important;
+  background: var(--group-pen-fill, rgb(var(--purple-accent-rgb) / 0.12)) !important;
+  color: var(--group-pen-ink, var(--purple-text)) !important;
   box-shadow: none !important;
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }

@@ -439,6 +439,15 @@
     height: 40px;
     min-height: 40px;
   }
+
+  /* The pen takes the resting colors of the New group button in the same row
+     (.sidebar-section-button), in every theme. Read by the pen's rule in
+     account-card-responsive.css. */
+  .mobile-filter-with-edit {
+    --group-pen-edge: var(--obsidian-border-strong);
+    --group-pen-fill: var(--obsidian-surface-low, var(--c-1c1b1b));
+    --group-pen-ink: var(--c-f7f4ff);
+  }
 }
 
 @media (hover: hover) {
