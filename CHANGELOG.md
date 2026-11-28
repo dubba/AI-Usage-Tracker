@@ -1,16 +1,22 @@
 # Changelog
 
-## Unreleased (4 changes)
+## Unreleased (7 changes)
 
-### Improved (1)
+### Improved (2)
 
-- In **Sync Devices**, the **Show Link Code** and **Enter Link Code** screens now show a **Sending** or **Receiving** badge, **Show Link Code** frames the code with a soft top accent glow, and **Enter Link Code** frames the input in an accent-outlined box with a centered **Type code here** label and live character counter below the tiles.
+- In **Sync Devices**, the **Show Link Code** and **Enter Link Code** screens now show a **Sending** or **Receiving** badge, **Show Link Code** frames the code with a soft top accent glow, and **Enter Link Code** frames the input in an accent-outlined box with a centered **Type code here** label.
+- Dashboard summary strip pills and text are slightly more compact.
 
-### Fixed (3)
+### Fixed (4)
 
 - Free or cancelled Grok accounts whose usage response omits a funding plan and uses the generic "Grok Bot Plan" label now update their displayed plan to Free instead of keeping a stale plan.
 - In **Sync Devices**, generating a new link code or retrying while a previous session is shutting down no longer lets the old session overwrite the new session's status or drop its network binding.
 - In **Sync Devices**, clicking **Try Again** after the other device declines or cancels now clears the previous link code from the entry tiles.
+- Segmented navigation and tab bar indicators now animate smoothly on the compositor.
+
+### Removed (1)
+
+- Removed the **Open File from Files** fallback button from the Sync Devices link code screen on iPhone and iPad.
 
 ## v0.7.3 - 2026-11-26 (7 changes)
 
