@@ -391,6 +391,9 @@ describe("entering a link code", () => {
   it("keeps a code's letters, capitalized, in groups of three, and connects by itself at twelve", async () => {
     await openCodeEntry();
     expect(title()).toBe("Enter Link Code");
+    const heroTag = document.querySelector(".pairing-code-entry-hero > .pairing-code-hero-tag");
+    expect(heroTag?.textContent?.trim()).toBe("Type code here");
+    expect(heroTag?.querySelector("svg")).toBeNull();
     expect(button("Connect").disabled).toBe(true);
     expect(document.querySelectorAll(".pairing-code-tile")).toHaveLength(12);
     typeInto(input(), "kt1");
@@ -592,17 +595,16 @@ describe("entering a link code", () => {
     expect(input().value).toBe("");
   });
 
-  it("badges the sending code screen and counts its letters until Connect is ready", async () => {
+  it("badges the sending code screen and enables Connect only when all twelve letters are entered", async () => {
     await openCodeEntry();
     const connect = () =>
       Array.from(document.querySelectorAll("button")).find((button) => button.textContent === "Connect") as HTMLButtonElement;
     const badge = () => document.querySelector(".pairing-role-badge");
-    const count = () => document.querySelector(".pairing-code-count")?.textContent;
     expect(badge()?.textContent).toBe("↑ Sending");
     expect(badge()?.classList.contains("is-send")).toBe(true);
-    expect(count()).toBe("0 of 12 letters");
+    expect(document.querySelector(".pairing-code-count")).toBeNull();
     typeInto(input(), "KTQMP");
-    expect(count()).toBe("5 of 12 letters");
+    expect(document.querySelector(".pairing-code-count")).toBeNull();
     expect(connect().disabled).toBe(true);
   });
 
@@ -974,16 +976,20 @@ describe("transfer by file", () => {
 
   it("shows the AirDrop version of that note on iPhone, with no popup", async () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", configurable: true });
+    api.watchForFile.mockResolvedValue({ watching: false, needsAccess: false });
     render();
     await press("Receive on this device");
     const note = document.querySelector(".pairing-discover-note");
     expect(note?.textContent).toContain(
-      "To use AirDrop, set it to Everyone for 10 Minutes to allow devices to sync.",
+      "To use AirDrop, set it to Everyone for 10 minutes. Search for AirDrop in your device Settings to change this, then return here.",
     );
-    expect(note?.textContent).toContain("To change this, search for AirDrop in your device Settings, then return here.");
+    expect(note?.textContent).toContain(
+      "If AirDrop saves the file to Files, tap Open File from Files below and choose it from Downloads.",
+    );
     expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
       "AirDrop",
-      "Everyone for 10 Minutes",
+      "Everyone for 10 minutes",
+      "Settings",
     ]);
     expect(popup()).toBeNull();
   });
@@ -1226,7 +1232,9 @@ describe("transfer by file", () => {
     render();
     await press("Receive on this device");
     expect(text()).toContain("Waiting for the other device to connect…");
-    expect(text()).toContain("To use AirDrop, set it to Everyone for 10 Minutes to allow devices to sync.");
+    expect(text()).toContain(
+      "To use AirDrop, set it to Everyone for 10 minutes. Search for AirDrop in your device Settings to change this, then return here.",
+    );
     await press("Back");
     api.startClientByCode.mockRejectedValue(SEARCH_FOUND_NO_ONE);
     await press("Send from this device");

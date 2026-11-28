@@ -146,6 +146,15 @@ describe("Button hover and active state invariants", () => {
     );
   });
 
+  it("matches the gap below Your Link Code to the 18px padding above it with white text", () => {
+    expect(PAIRING_CSS).toMatch(
+      /\.pairing-code-hero:not\(\.pairing-code-entry-hero\)\s*\{[^}]*padding:\s*18px 12px;/,
+    );
+    expect(PAIRING_CSS).toMatch(
+      /\.pairing-code-hero:not\(\.pairing-code-entry-hero\)\s*>\s*\.pairing-code-hero-tag\s*\{[^}]*margin-bottom:\s*4px;[^}]*color:\s*var\(--c-ffffff\);/,
+    );
+  });
+
   it("styles X buttons on mobile to match their desktop red hover appearance", () => {
     expect(MODAL_CLOSE_CSS).toMatch(
       /@media\s*\(max-width:\s*860px\),\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\.ui-modal-close:not\(:disabled\)\s*\{[^}]*color:\s*var\(--white\);[^}]*border-color:\s*var\(--danger-line-hover\);[^}]*background:\s*var\(--danger-fill-hover\);/,

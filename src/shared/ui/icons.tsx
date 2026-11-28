@@ -69,16 +69,16 @@ export const CameraIcon = (props: IconProps) => (
 );
 export const DownloadIcon = (props: IconProps) => (
   <Base {...props}>
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="7 10 12 15 17 10" />
-    <line x1="12" y1="15" x2="12" y2="3" />
+    <path d="M12 3.8v9" />
+    <path d="m8.2 9 3.8 3.8L15.8 9" />
+    <path d="M7.2 14.8 4.4 16.3 12 20.4l7.6-4.1-2.8-1.5" />
   </Base>
 );
 export const UploadIcon = (props: IconProps) => (
   <Base {...props}>
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="17 8 12 3 7 8" />
-    <line x1="12" y1="3" x2="12" y2="15" />
+    <path d="M12 12.8V3.8" />
+    <path d="m8.2 7.6 3.8-3.8 3.8 3.8" />
+    <path d="M7.2 14.8 4.4 16.3 12 20.4l7.6-4.1-2.8-1.5" />
   </Base>
 );
 

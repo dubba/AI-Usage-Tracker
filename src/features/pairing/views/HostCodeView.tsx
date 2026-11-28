@@ -131,9 +131,14 @@ function DiscoverableNote({ autoPickup = false }: { autoPickup?: boolean }) {
           <>
             {/* AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes. */}
             <p>
-              To use <strong>AirDrop</strong>, set it to <strong>Everyone for 10 Minutes</strong> to allow devices to sync.
+              To use <strong>AirDrop</strong>, set it to <strong>Everyone for 10 minutes</strong>. Search for AirDrop in
+              your device <strong>Settings</strong> to change this, then return here.
             </p>
-            <p>To change this, search for AirDrop in your device Settings, then return here.</p>
+            <p>
+              {autoPickup
+                ? "AirDrop files saved to Downloads are picked up automatically when you return here. You can also tap Open File from Files below."
+                : "If AirDrop saves the file to Files, tap Open File from Files below and choose it from Downloads."}
+            </p>
           </>
         ) : (
           <p>
@@ -142,13 +147,6 @@ function DiscoverableNote({ autoPickup = false }: { autoPickup?: boolean }) {
             to change this, then return here.
           </p>
         )}
-        {ios ? (
-          <p>
-            {autoPickup
-              ? "AirDrop files saved to Downloads are picked up automatically when you return here. You can also tap Open File from Files below."
-              : "If AirDrop saves the file to Files, tap Open File from Files below and choose it from Downloads."}
-          </p>
-        ) : null}
       </div>
     </div>
   );

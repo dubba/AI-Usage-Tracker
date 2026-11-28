@@ -557,12 +557,6 @@
   color: var(--purple);
 }
 
-.pairing-code-count {
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--obsidian-muted);
-}
-
 /* Under the tiles: what is happening, with the countdown to AirDrop or Quick Share. */
 .pairing-code-status {
   display: flex;
@@ -1699,6 +1693,11 @@
   gap: 6px;
 }
 
+.pairing-code-hero:not(.pairing-code-entry-hero) > .pairing-code-hero-tag {
+  margin-bottom: 4px;
+  color: var(--c-ffffff);
+}
+
 .pairing-code-entry-hero > .pairing-code-hero-tag {
   position: absolute;
   top: 0;
@@ -1714,10 +1713,6 @@
 .pairing-code-hero-tag > svg {
   width: 16px;
   height: 16px;
-}
-
-.pairing-code-entry-hero > .pairing-code-hero-tag > svg {
-  color: var(--obsidian-text);
 }
 
 .pairing-code-hero > .pairing-code-status {
