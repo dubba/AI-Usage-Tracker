@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import { cancelPairing, pairingApi } from "../../shared/lib/api";
-import { ArrowLeftIcon, FolderIcon, NearbyShareIcon, ShieldIcon } from "../../shared/ui/icons";
+import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon, FolderIcon, NearbyShareIcon, ShieldIcon } from "../../shared/ui/icons";
 import { useAirgapCapture } from "./hooks/useAirgapCapture";
 import { useAirgapFlow } from "./hooks/useAirgapFlow";
 import { useFileTransfer } from "./hooks/useFileTransfer";
@@ -515,7 +515,8 @@ export function PairingModal({
         Sync devices
         {roleBadge ? (
           <span className={`pairing-role-badge is-${roleBadge}`} aria-hidden="true">
-            {roleBadge === "send" ? "↑ Sending" : "↓ Receiving"}
+            {roleBadge === "send" ? <ArrowUpIcon /> : <ArrowDownIcon />}
+            <span>{roleBadge === "send" ? "Sending" : "Receiving"}</span>
           </span>
         ) : null}
       </div>

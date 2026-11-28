@@ -1,18 +1,20 @@
 # Changelog
 
-## Unreleased (7 changes)
+## Unreleased (9 changes)
 
 ### Improved (2)
 
 - In **Sync Devices**, the **Show Link Code** and **Enter Link Code** screens now show a **Sending** or **Receiving** badge, **Show Link Code** frames the code with a soft top accent glow, and **Enter Link Code** frames the input in an accent-outlined box with a centered **Type code here** label.
 - Dashboard summary strip pills and text are slightly more compact.
 
-### Fixed (4)
+### Fixed (6)
 
 - Free or cancelled Grok accounts whose usage response omits a funding plan and uses the generic "Grok Bot Plan" label now update their displayed plan to Free instead of keeping a stale plan.
 - In **Sync Devices**, generating a new link code or retrying while a previous session is shutting down no longer lets the old session overwrite the new session's status or drop its network binding.
 - In **Sync Devices**, clicking **Try Again** after the other device declines or cancels now clears the previous link code from the entry tiles.
 - Segmented navigation and tab bar indicators now animate smoothly on the compositor.
+- In **Sync Devices**, the **Sending** and **Receiving** role badges now render crisp, consistently sized arrow icons across Android, iOS, and desktop.
+- In **Sync Devices**, Android-to-Windows **Quick Share** transfers now properly grant file read access through Android's share sheet and reliably detect incoming files on Windows even under brief file locks or nested Quick Share folders.
 
 ### Removed (1)
 

@@ -16,6 +16,10 @@ use std::{
 /// The transfer files' extension (`commands::pairing::TRANSFER_FILE_EXTENSION`).
 const EXTENSION: &str = "aiutpair";
 
+/// How many times a settled file whose read failed transiently (for example, Windows sharing
+/// violation while Quick Share or antivirus still holds the file open) is retried before giving up.
+const MAX_READ_RETRIES: u8 = 10;
+
 /// A file's size and modified time: a file whose stamp changed is a different (or growing) file.
 type Stamp = (u64, Option<SystemTime>);
 
@@ -25,6 +29,9 @@ pub struct IncomingWatch {
     seen: HashMap<PathBuf, Stamp>,
     /// New files with their stamp at the last poll: offered once it is the same at the next.
     settling: HashMap<PathBuf, Stamp>,
+    /// Consecutive read failures per path, so a transient OS file lock is retried without looping
+    /// forever on a permanently unreadable file.
+    read_failures: HashMap<PathBuf, u8>,
 }
 
 impl IncomingWatch {
@@ -36,6 +43,7 @@ impl IncomingWatch {
             dirs,
             seen,
             settling: HashMap::new(),
+            read_failures: HashMap::new(),
         }
     }
 
@@ -60,11 +68,25 @@ impl IncomingWatch {
         self.seen.insert(path.clone(), stamp);
         Some(path)
     }
+
+    /// Schedules `path` to be tried again on a later poll after a transient read failure (such as
+    /// a Windows sharing violation while Quick Share or antivirus still holds the file). Returns
+    /// `true` if it will be retried, or `false` once the retry budget is exhausted.
+    pub fn retry_later(&mut self, path: &Path) -> bool {
+        let failures = self.read_failures.entry(path.to_path_buf()).or_insert(0);
+        *failures = failures.saturating_add(1);
+        if *failures <= MAX_READ_RETRIES {
+            self.seen.remove(path);
+            true
+        } else {
+            false
+        }
+    }
 }
 
 fn stamp_of(path: &Path) -> Option<Stamp> {
     let meta = std::fs::metadata(path).ok()?;
-    meta.is_file().then(|| (meta.len(), meta.modified().ok()))
+    (meta.is_file() && meta.len() > 0).then(|| (meta.len(), meta.modified().ok()))
 }
 
 /// Recognizes `.aiutpair` files, including OS duplicate suffixes appended after the extension
@@ -94,8 +116,21 @@ pub(crate) fn is_transfer_file(path: &Path) -> bool {
     false
 }
 
-/// The transfer files in `dirs` and the folders directly inside them, with their stamps. A folder
-/// that cannot be listed (missing, or no permission) is skipped.
+/// Subfolders inside Downloads where Quick Share / Nearby Share may nest received files one level
+/// deeper (e.g. `Downloads/Quick Share/<device>/...`).
+fn is_nearby_share_dir(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "quick share" | "quickshare" | "nearby share" | "nearbyshare"
+    )
+}
+
+/// The transfer files in `dirs` and the folders directly inside them (plus one extra level inside
+/// Quick Share / Nearby Share folders), with their stamps. A folder that cannot be listed
+/// (missing, or no permission) is skipped.
 fn candidates(dirs: &[PathBuf]) -> Vec<(PathBuf, Stamp)> {
     let mut out = Vec::new();
     for dir in dirs {
@@ -108,11 +143,21 @@ fn candidates(dirs: &[PathBuf]) -> Vec<(PathBuf, Stamp)> {
                 continue;
             };
             if kind.is_dir() {
+                let scan_nested = is_nearby_share_dir(&path);
                 let Ok(inner) = std::fs::read_dir(&path) else {
                     continue;
                 };
                 for file in inner.flatten() {
-                    push_file(&mut out, file.path());
+                    let file_path = file.path();
+                    if scan_nested && file.file_type().is_ok_and(|t| t.is_dir()) {
+                        if let Ok(deeper) = std::fs::read_dir(&file_path) {
+                            for nested in deeper.flatten() {
+                                push_file(&mut out, nested.path());
+                            }
+                        }
+                    } else {
+                        push_file(&mut out, file_path);
+                    }
                 }
             } else {
                 push_file(&mut out, path);
@@ -147,7 +192,24 @@ pub fn watched_dirs(app: &tauri::AppHandle) -> Vec<PathBuf> {
         let _ = app;
         Vec::new()
     }
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[cfg(windows)]
+    {
+        use tauri::Manager;
+        let mut dirs = Vec::new();
+        if let Ok(dir) = app.path().download_dir() {
+            dirs.push(dir);
+        }
+        // When FOLDERID_Downloads is redirected (for example to OneDrive), Quick Share can still
+        // save to %USERPROFILE%\Downloads; watch both if they differ.
+        if let Some(profile) = std::env::var_os("USERPROFILE") {
+            let fallback = PathBuf::from(profile).join("Downloads");
+            if fallback.is_dir() && !dirs.iter().any(|d| d == &fallback) {
+                dirs.push(fallback);
+            }
+        }
+        dirs
+    }
+    #[cfg(not(any(target_os = "android", target_os = "ios", windows)))]
     {
         use tauri::Manager;
         app.path().download_dir().into_iter().collect()
@@ -268,5 +330,60 @@ mod tests {
             std::env::temp_dir().join("aiut-incoming-does-not-exist")
         ]);
         assert_eq!(watch.next_ready(), None);
+    }
+
+    #[test]
+    fn empty_placeholder_files_wait_until_bytes_arrive() {
+        let dir = temp_dir("empty");
+        let mut watch = IncomingWatch::start(vec![dir.clone()]);
+        let path = dir.join("AI Usage Tracker accounts.aiutpair");
+        std::fs::write(&path, b"").unwrap();
+        assert_eq!(watch.next_ready(), None);
+        assert_eq!(watch.next_ready(), None);
+        std::fs::write(&path, b"encrypted-bytes").unwrap();
+        assert_eq!(watch.next_ready(), None);
+        assert_eq!(watch.next_ready(), Some(path));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn transient_read_failure_retries_until_budget_exhausted() {
+        let dir = temp_dir("retry");
+        let mut watch = IncomingWatch::start(vec![dir.clone()]);
+        let path = dir.join("AI Usage Tracker accounts.aiutpair");
+        std::fs::write(&path, b"locked-file").unwrap();
+        assert_eq!(watch.next_ready(), None);
+        for _ in 0..MAX_READ_RETRIES {
+            assert_eq!(watch.next_ready(), Some(path.clone()));
+            assert!(watch.retry_later(&path));
+            // Must settle again before the next attempt.
+            assert_eq!(watch.next_ready(), None);
+        }
+        assert_eq!(watch.next_ready(), Some(path.clone()));
+        assert!(!watch.retry_later(&path));
+        assert_eq!(watch.next_ready(), None);
+        assert_eq!(watch.next_ready(), None);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn nested_quick_share_subfolder_is_found_while_unrelated_depth2_is_ignored() {
+        let dir = temp_dir("deep-qs");
+        let mut watch = IncomingWatch::start(vec![dir.clone()]);
+        let qs_nested = dir.join("Quick Share").join("Pixel 9");
+        let unrelated_nested = dir.join("Other").join("Sub");
+        std::fs::create_dir_all(&qs_nested).unwrap();
+        std::fs::create_dir_all(&unrelated_nested).unwrap();
+        let expected = qs_nested.join("AI Usage Tracker accounts.aiutpair");
+        std::fs::write(&expected, b"accounts").unwrap();
+        std::fs::write(
+            unrelated_nested.join("AI Usage Tracker accounts.aiutpair"),
+            b"ignored",
+        )
+        .unwrap();
+        assert_eq!(watch.next_ready(), None);
+        assert_eq!(watch.next_ready(), Some(expected));
+        assert_eq!(watch.next_ready(), None);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

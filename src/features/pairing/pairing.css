@@ -534,17 +534,26 @@
 /* Which way this device is going, on the two code screens: the sender's is filled and the
    receiver's outlined, so the screens differ at a glance. */
 .pairing-role-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   /* Beside "Sync devices"; the negative margins keep the title where it is without the badge. */
   margin: -4px 0 -4px 10px;
   vertical-align: middle;
-  padding: 3px 10px;
+  padding: 3px 10px 3px 8px;
   border: 1px solid var(--purple-fill);
   border-radius: 999px;
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.pairing-role-badge svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.6;
+  flex-shrink: 0;
 }
 
 .pairing-role-badge.is-send {

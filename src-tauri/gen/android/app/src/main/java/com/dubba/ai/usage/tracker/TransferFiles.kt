@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -36,7 +37,10 @@ internal class TransferFiles(
   private val onShareChosen: () -> Unit,
 ) {
   private val chosenReceiver = object : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) = onShareChosen()
+    override fun onReceive(context: Context, intent: Intent) {
+      android.util.Log.i(LOG_TAG, "Share sheet target chosen for transfer file")
+      onShareChosen()
+    }
   }
   private var chosenReceiverRegistered = false
 
@@ -94,10 +98,17 @@ internal class TransferFiles(
    * `transfer-files/` (the only transfer path `res/xml/file_paths.xml` lets the FileProvider serve).
    */
   fun share(path: String) {
-    val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", File(path))
+    val file = File(path)
+    if (!file.isFile || file.length() <= 0L) {
+      android.util.Log.w(LOG_TAG, "Transfer file is missing or empty before opening share sheet")
+      throw IOException("Transfer file is missing or empty")
+    }
+    val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+    val clip = ClipData(file.name, arrayOf(MIME_TYPE), ClipData.Item(uri))
     val send = Intent(Intent.ACTION_SEND).apply {
       type = MIME_TYPE
       putExtra(Intent.EXTRA_STREAM, uri)
+      clipData = clip
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     // The chooser sends this once an app is picked. It goes to this app only, and the chosen
@@ -108,6 +119,13 @@ internal class TransferFiles(
       Intent(SHARE_CHOSEN_ACTION).setPackage(activity.packageName),
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
+    // Android 10+ ChooserActivity and Quick Share's background service rely on ClipData and
+    // FLAG_GRANT_READ_URI_PERMISSION on the chooser itself, not only on the nested EXTRA_INTENT.
+    val chooser = Intent.createChooser(send, "Send the transfer file", chosen.intentSender).apply {
+      clipData = clip
+      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    android.util.Log.i(LOG_TAG, "Opening share sheet for transfer file (${file.length()} bytes)")
     activity.runOnUiThread {
       if (!chosenReceiverRegistered) {
         ContextCompat.registerReceiver(
@@ -118,7 +136,7 @@ internal class TransferFiles(
         )
         chosenReceiverRegistered = true
       }
-      activity.startActivity(Intent.createChooser(send, "Send the transfer file", chosen.intentSender))
+      activity.startActivity(chooser)
     }
   }
 

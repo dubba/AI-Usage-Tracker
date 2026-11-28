@@ -335,6 +335,10 @@ describe("showing a link code", () => {
     ).toEqual([3, 9]);
     expect(text()).toMatch(/Expires in\s*2:0\d/);
     expect(text()).toContain("Waiting for the other device to connect…");
+    const badge = document.querySelector(".pairing-role-badge");
+    expect(badge?.textContent).toBe("Receiving");
+    expect(badge?.classList.contains("is-receive")).toBe(true);
+    expect(badge?.querySelector("svg")).not.toBeNull();
   });
 
   it("shows a progress message until the code arrives", async () => {
@@ -600,8 +604,9 @@ describe("entering a link code", () => {
     const connect = () =>
       Array.from(document.querySelectorAll("button")).find((button) => button.textContent === "Connect") as HTMLButtonElement;
     const badge = () => document.querySelector(".pairing-role-badge");
-    expect(badge()?.textContent).toBe("↑ Sending");
+    expect(badge()?.textContent).toBe("Sending");
     expect(badge()?.classList.contains("is-send")).toBe(true);
+    expect(badge()?.querySelector("svg")).not.toBeNull();
     expect(document.querySelector(".pairing-code-count")).toBeNull();
     typeInto(input(), "KTQMP");
     expect(document.querySelector(".pairing-code-count")).toBeNull();

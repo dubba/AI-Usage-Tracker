@@ -690,8 +690,9 @@ pub async fn pairing_file_watch(
     #[cfg(not(target_os = "ios"))]
     {
         use pairing::incoming_files::watched_dirs;
-        let (watch, denied) = tauri::async_runtime::spawn_blocking(move || {
+        let (watch, dir_count, denied) = tauri::async_runtime::spawn_blocking(move || {
             let dirs = watched_dirs(&app);
+            let dir_count = dirs.len();
             let denied = dirs.iter().any(|dir| {
                 matches!(
                     std::fs::read_dir(dir),
@@ -699,7 +700,7 @@ pub async fn pairing_file_watch(
                 )
             });
             let watch = (!dirs.is_empty()).then(|| IncomingWatch::start(dirs));
-            (watch, denied)
+            (watch, dir_count, denied)
         })
         .await
         .map_err(|_| file_error(FILE_READ_FAILED))?;
@@ -708,7 +709,11 @@ pub async fn pairing_file_watch(
         if denied {
             sync_log::note("file: Downloads folder access was denied by the OS");
         } else if watching {
-            sync_log::note("file: watching Downloads for the transfer file");
+            sync_log::note(&format!(
+                "file: watching {dir_count} Downloads folder(s) for the transfer file"
+            ));
+        } else {
+            sync_log::note("file: couldn't find a Downloads folder to watch");
         }
         Ok(IncomingWatchInfo {
             watching,
@@ -825,17 +830,31 @@ pub async fn pairing_file_poll(
             .and_then(crate::platform::ios_files::open_downloads_dir);
         let path = shared.pairing_incoming.lock().as_mut()?.next_ready()?;
         let bytes = read_capped(&path, MAX_FILE_LEN);
-        Some((path, bytes))
+        let will_retry = if bytes.is_err() {
+            shared
+                .pairing_incoming
+                .lock()
+                .as_mut()
+                .is_some_and(|watch| watch.retry_later(&path))
+        } else {
+            false
+        };
+        Some((path, bytes, will_retry))
     })
     .await
     .map_err(|_| file_error(FILE_READ_FAILED))?;
-    let Some((path, read)) = found else {
+    let Some((path, read, will_retry)) = found else {
         return Ok(None);
     };
     let bytes = match read {
         Ok(bytes) => bytes,
         Err(error) => {
-            sync_log::failed("file: reading a file that arrived in Downloads", &error);
+            let step = if will_retry {
+                "file: reading a file that arrived in Downloads (will retry)"
+            } else {
+                "file: reading a file that arrived in Downloads (giving up)"
+            };
+            sync_log::failed(step, &error);
             return Ok(None);
         }
     };
