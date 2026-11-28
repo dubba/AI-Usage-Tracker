@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { PairingStatus } from "../../../types";
-import { FolderIcon, NearbyShareIcon } from "../../../shared/ui/icons";
+import { NearbyShareIcon } from "../../../shared/ui/icons";
 import { isAndroid, isIOS } from "../../../shared/lib/platform";
 import { formatCountdown, formatJoinCode, hostWaitingFields, isLegacyCode, startsGroupInRow } from "../lib/view-model";
 
@@ -11,22 +11,14 @@ const CODE_LIFETIME_SECS = 300;
 export function HostCodeView({
   status,
   remainingSecs,
-  busy = false,
   onRegenerate,
-  onOpenFile,
-  autoPickup = false,
   onOtherWays,
   nearbyName,
 }: {
   status: PairingStatus;
   remainingSecs: number | null;
-  busy?: boolean;
   /** The countdown hit zero; start a fresh session and code. */
   onRegenerate: () => void;
-  /** iPhone: open a received transfer file from the Files app when AirDrop saved it there. */
-  onOpenFile?: () => void;
-  /** Whether Downloads is being watched automatically for incoming transfer files. */
-  autoPickup?: boolean;
   /**
    * Ends this session and lists the other ways to connect (older versions, QR code). Absent while
    * Settings > Device Sync hides them.
@@ -83,14 +75,7 @@ export function HostCodeView({
         )}
       </div>
 
-      {nearby && (isAndroid() || isIOS()) ? <DiscoverableNote autoPickup={autoPickup} /> : null}
-
-      {nearby && onOpenFile ? (
-        <button type="button" className="button ghost pairing-open-file-btn" disabled={busy} onClick={onOpenFile}>
-          <FolderIcon />
-          <span>Open File from Files</span>
-        </button>
-      ) : null}
+      {nearby && (isAndroid() || isIOS()) ? <DiscoverableNote /> : null}
 
       {onOtherWays ? <OtherWaysLink onClick={onOtherWays} /> : null}
     </div>
@@ -119,7 +104,7 @@ function CodeDigits({ code }: { code: string }) {
  * (iPhone) lets everyone share with this one, and no app can open or change that setting, so this
  * says where it is.
  */
-function DiscoverableNote({ autoPickup = false }: { autoPickup?: boolean }) {
+function DiscoverableNote() {
   const ios = isIOS();
   return (
     <div className="pairing-discover-note">
@@ -128,18 +113,11 @@ function DiscoverableNote({ autoPickup = false }: { autoPickup?: boolean }) {
       </span>
       <div className="pairing-discover-note-copy">
         {ios ? (
-          <>
-            {/* AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes. */}
-            <p>
-              To use <strong>AirDrop</strong>, set it to <strong>Everyone for 10 minutes</strong>. Search for AirDrop in
-              your device <strong>Settings</strong> to change this, then return here.
-            </p>
-            <p>
-              {autoPickup
-                ? "AirDrop files saved to Downloads are picked up automatically when you return here. You can also tap Open File from Files below."
-                : "If AirDrop saves the file to Files, tap Open File from Files below and choose it from Downloads."}
-            </p>
-          </>
+          /* AirDrop's own setting: Settings → General → AirDrop → Everyone for 10 Minutes. */
+          <p>
+            To use <strong>AirDrop</strong>, set it to <strong>Everyone for 10 minutes</strong>. Search for AirDrop in
+            your device <strong>Settings</strong> to change this, then return here.
+          </p>
         ) : (
           <p>
             To use <strong>Quick Share</strong>, set <strong>Who can share with you</strong> to{" "}

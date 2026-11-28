@@ -1882,21 +1882,6 @@
   flex: none;
 }
 
-.button.pairing-open-file-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 42px;
-}
-
-.button.pairing-open-file-btn svg {
-  width: 16px;
-  height: 16px;
-  flex: none;
-}
-
 /* Mobile, receiving: clean inline instruction row with AirDrop/Quick Share icon. */
 .pairing-discover-note {
   display: flex;

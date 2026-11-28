@@ -566,10 +566,7 @@ export function PairingModal({
           <HostCodeView
             status={status}
             remainingSecs={remainingSecs}
-            busy={busy}
             onRegenerate={() => void initHostSession(legacyHost)}
-            onOpenFile={watchingForFile && isIOS() ? fileTransfer.openFile : undefined}
-            autoPickup={incoming.watching}
             onOtherWays={otherWaysShown ? () => leaveAttempt("select-mode") : undefined}
             nearbyName={nearbyName}
           />

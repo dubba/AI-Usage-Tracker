@@ -980,12 +980,10 @@ describe("transfer by file", () => {
     render();
     await press("Receive on this device");
     const note = document.querySelector(".pairing-discover-note");
-    expect(note?.textContent).toContain(
+    expect(note?.textContent).toBe(
       "To use AirDrop, set it to Everyone for 10 minutes. Search for AirDrop in your device Settings to change this, then return here.",
     );
-    expect(note?.textContent).toContain(
-      "If AirDrop saves the file to Files, tap Open File from Files below and choose it from Downloads.",
-    );
+    expect(document.querySelector(".pairing-open-file-btn")).toBeNull();
     expect(Array.from(note!.querySelectorAll("strong"), (b) => b.textContent)).toEqual([
       "AirDrop",
       "Everyone for 10 minutes",
@@ -1201,21 +1199,15 @@ describe("transfer by file", () => {
       expect(api.requestFileAccess).toHaveBeenCalledTimes(1);
     });
 
-    it("lets an iPhone receiver pick a transfer file saved to Files and confirm adding it", async () => {
+    it("does not show the Open File from Files fallback button or Downloads copy on iPhone", async () => {
       Object.defineProperty(navigator, "userAgent", {
         value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
         configurable: true,
       });
-      api.openFile.mockResolvedValue(PREVIEW);
       render();
       await press("Receive on this device");
-      expect(text()).toContain("AirDrop files saved to Downloads are picked up automatically when you return here.");
-      await press("Open File from Files");
-      expect(api.openFile).toHaveBeenCalledTimes(1);
-      expect(text()).toContain("Are you sure you want to add these 2 accounts from the other device?");
-      await press("Add Accounts");
-      expect(api.importFile).toHaveBeenCalledWith("ticket-1", true);
-      expect(title()).toBe("Devices Linked");
+      expect(text()).not.toContain("AirDrop files saved to Downloads are picked up automatically");
+      expect(text()).not.toContain("Open File from Files");
     });
 
     it("is not looked for on Windows or Linux", async () => {
