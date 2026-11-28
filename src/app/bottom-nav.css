@@ -44,6 +44,8 @@
     /* Neutral in both themes: purple is kept for the current page's pill. */
     background: var(--bottom-nav-surface);
     box-shadow: var(--bottom-nav-shadow);
+    contain: layout style;
+    will-change: transform;
   }
 
   .bottom-nav-item {
@@ -65,6 +67,9 @@
     font-weight: 650;
     line-height: 1;
     letter-spacing: 0.02em;
+    /* Background fades for the inactive press/hover highlight; .is-active drops the background
+       transition below so tapping an option never fades a second pill over the sliding fill. */
+    transition: background-color 120ms ease, color 200ms ease;
   }
 
   .bottom-nav-item svg {
@@ -91,6 +96,7 @@
     background: var(--purple-fill);
     color: var(--purple-on-fill);
     font-weight: 750;
+    transition: color 200ms ease;
   }
 
   .bottom-nav-item:not(.is-active):active {

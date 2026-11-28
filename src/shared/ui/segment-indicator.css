@@ -18,7 +18,7 @@
     position: absolute;
     z-index: -1;
     /* Layout placement keeps the fill on the same pixel grid as the option. A composited translate3d
-       can round its fractional origin differently, leaving one more pixel below than above it. */
+       at rest can round its fractional origin differently, leaving one more pixel below than above it. */
     left: var(--segment-x, 0px);
     top: var(--segment-y, 0px);
     width: var(--segment-w, 0px);
@@ -26,11 +26,17 @@
     border-radius: var(--segment-radius, 7px);
     background: var(--purple-fill);
     pointer-events: none;
+    transform-origin: 0 0;
   }
 
-  /* The first placement happens before this attribute, so opening a screen does not slide in
-     from the corner. After that, the fill travels. */
-  .segmented[data-segment-ready]::before {
+  /* When WAAPI FLIP runs (`data-segment-flip`), `::before` snaps its layout box once and slides on
+     the compositor via transform, avoiding main-thread layout jitter during page switches. */
+  .segmented[data-segment-ready][data-segment-flip]::before {
+    transition: background-color 160ms ease;
+  }
+
+  /* Fallback when WAAPI pseudo-element animation is unavailable. */
+  .segmented[data-segment-ready]:not([data-segment-flip])::before {
     transition:
       left 280ms cubic-bezier(0.22, 0.8, 0.28, 1),
       top 280ms cubic-bezier(0.22, 0.8, 0.28, 1),

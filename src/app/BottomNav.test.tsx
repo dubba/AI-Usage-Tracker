@@ -127,4 +127,79 @@ describe("BottomNav", () => {
     expect(nav.dataset.segmentReady).toBe("true");
     expect(nav.style.getPropertyValue("--segment-x")).toBe("7px");
   });
+
+  it("animates page switches with a compositor FLIP transform and continues smoothly if interrupted", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.tagName === "NAV") return new DOMRect(0, 0, 294, 62);
+      const buttons = [...(this.parentElement?.querySelectorAll("button") ?? [])];
+      const index = buttons.indexOf(this as HTMLButtonElement);
+      return new DOMRect(7 + index * 94, 7, 92, 48);
+    });
+    const rafQueue: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafQueue.push(cb);
+      return rafQueue.length;
+    });
+    const flushRaf = () => {
+      const pending = rafQueue.splice(0, rafQueue.length);
+      for (const cb of pending) cb(16);
+    };
+
+    const animations: Array<{
+      playState: AnimationPlayState;
+      cancel: ReturnType<typeof vi.fn>;
+      effect: { getComputedTiming: () => { progress: number | null } };
+      keyframes: Keyframe[];
+      options: KeyframeAnimationOptions;
+    }> = [];
+    const animateSpy = vi.spyOn(HTMLElement.prototype, "animate").mockImplementation(
+      (keyframes: Keyframe[] | PropertyIndexedKeyframes | null, options?: number | KeyframeAnimationOptions) => {
+        const anim = {
+          playState: "running" as AnimationPlayState,
+          cancel: vi.fn(() => {
+            anim.playState = "idle";
+          }),
+          effect: { getComputedTiming: () => ({ progress: 0.25 }) },
+          keyframes: Array.isArray(keyframes) ? keyframes : [],
+          options: typeof options === "object" && options ? options : {},
+        };
+        animations.push(anim);
+        return anim as unknown as Animation;
+      },
+    );
+
+    const { nav, onSelect } = render("accounts");
+    flushRaf();
+    flushRaf();
+    expect(nav.dataset.segmentReady).toBe("true");
+    expect(nav.dataset.segmentFlip).toBe("true");
+
+    // Accounts (x=7) -> Settings (x=195): delta is -188px.
+    mounted!.rerender(<BottomNav section="settings" onSelect={onSelect} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(animateSpy).toHaveBeenCalledTimes(1);
+    expect(animations[0].options.pseudoElement).toBe("::before");
+    expect(animations[0].keyframes[0]).toEqual({ transform: "translate3d(-188px, 0px, 0) scale(1, 1)" });
+
+    // Interrupt at 25% progress (visual x = 7 + 188 * 0.25 = 54) toward Usage (x=101): delta is -47px.
+    mounted!.rerender(<BottomNav section="activity" onSelect={onSelect} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(animations[0].cancel).toHaveBeenCalledTimes(1);
+    expect(animateSpy).toHaveBeenCalledTimes(2);
+    expect(animations[1].keyframes[0]).toEqual({ transform: "translate3d(-47px, 0px, 0) scale(1, 1)" });
+
+    // Reduced motion skips the FLIP animation.
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) => ({ matches: query === "(prefers-reduced-motion: reduce)" }) as MediaQueryList,
+    );
+    mounted!.rerender(<BottomNav section="accounts" onSelect={onSelect} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(animateSpy).toHaveBeenCalledTimes(2);
+  });
 });
